@@ -1,6 +1,20 @@
 package auth
 
-import "github.com/ljj/gugu-api/internal/core/domain/user"
+import (
+	"time"
+
+	"github.com/ljj/gugu-api/internal/core/domain/user"
+)
+
+type IssueEmailVerificationInput struct {
+	UserID string
+	Email  string
+}
+
+type IssueEmailVerificationResult struct {
+	VerificationToken      string
+	VerificationDispatched bool
+}
 
 type RegisterEmailInput struct {
 	Email       string
@@ -19,13 +33,22 @@ type LoginEmailInput struct {
 	Password string
 }
 
-type VerifyEmailInput struct {
-	Token string
-}
-
 type LoginResult struct {
 	User    user.User
 	Session Session
+}
+
+type VerifyEmailTokenInput struct {
+	Token string
+}
+
+type VerifyEmailTokenResult struct {
+	UserID     string
+	VerifiedAt time.Time
+}
+
+type VerifyEmailInput struct {
+	Token string
 }
 
 type VerifyEmailResult struct {
