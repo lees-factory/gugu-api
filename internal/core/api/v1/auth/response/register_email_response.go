@@ -1,6 +1,6 @@
 package response
 
-import "github.com/ljj/gugu-api/internal/core/domain/auth"
+import "github.com/ljj/gugu-api/internal/core/domain/user"
 
 type RegisterEmail struct {
 	User                   User   `json:"user"`
@@ -8,10 +8,10 @@ type RegisterEmail struct {
 	VerificationDispatched bool   `json:"verification_dispatched"`
 }
 
-func NewRegisterEmail(source auth.RegisterEmailResult) RegisterEmail {
+func NewRegisterEmail(user user.User, verificationToken string, verificationDispatched bool) RegisterEmail {
 	return RegisterEmail{
-		User:                   NewUser(source.User),
-		VerificationToken:      source.VerificationToken,
-		VerificationDispatched: source.VerificationDispatched,
+		User:                   NewUser(user),
+		VerificationToken:      verificationToken,
+		VerificationDispatched: verificationDispatched,
 	}
 }

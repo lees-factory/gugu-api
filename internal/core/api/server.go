@@ -1,11 +1,12 @@
 package api
 
 import (
-	"encoding/json"
 	stdhttp "net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	apiadvice "github.com/ljj/gugu-api/internal/core/api/advice"
+	apiresponse "github.com/ljj/gugu-api/internal/core/api/response"
 	apiauth "github.com/ljj/gugu-api/internal/core/api/v1/auth"
 	domainauth "github.com/ljj/gugu-api/internal/core/domain/auth"
 	domainuser "github.com/ljj/gugu-api/internal/core/domain/user"
@@ -38,10 +39,9 @@ func NewServer(_ config.Config) (*Server, error) {
 	userCreator := domainuser.NewCreator(userWriter, userIDGenerator, clock)
 
 	authService := domainauth.New(
-		domainauth.NewUserAccountReader(userFinder),
-		domainauth.NewEmailUserCreator(userFinder, userCreator),
-		domainauth.NewOAuthUserResolver(userFinder, userCreator),
-		domainauth.NewUserEmailVerifier(userWriter),
+		userFinder,
+		userCreator,
+		userWriter,
 		domainverification.NewFinder(verificationRepository),
 		domainverification.NewWriter(verificationRepository),
 		domainauth.NewOAuthIdentityFinder(oauthIdentityRepository),
@@ -61,14 +61,14 @@ func NewServer(_ config.Config) (*Server, error) {
 	router.Use(middleware.Recoverer)
 
 	authController := apiauth.NewController(authService)
-	router.Get("/health", func(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
-		writeJSON(w, stdhttp.StatusOK, map[string]string{"status": "ok"})
-	})
+	router.Get("/health", apiadvice.Wrap(func(_ *stdhttp.Request) (int, any, error) {
+		return stdhttp.StatusOK, apiresponse.SuccessWithData(map[string]string{"status": "ok"}), nil
+	}))
 	router.Route("/v1/auth", func(r chi.Router) {
-		r.Post("/register/email", authController.RegisterEmail)
-		r.Post("/login/email", authController.LoginEmail)
-		r.Post("/verify-email", authController.VerifyEmail)
-		r.Post("/oauth/login", authController.LoginOAuth)
+		r.Post("/register/email", apiadvice.Wrap(authController.RegisterEmail))
+		r.Post("/login/email", apiadvice.Wrap(authController.LoginEmail))
+		r.Post("/verify-email", apiadvice.Wrap(authController.VerifyEmail))
+		r.Post("/oauth/login", apiadvice.Wrap(authController.LoginOAuth))
 	})
 
 	return &Server{router: router}, nil
@@ -76,10 +76,4 @@ func NewServer(_ config.Config) (*Server, error) {
 
 func (s *Server) Handler() stdhttp.Handler {
 	return s.router
-}
-
-func writeJSON(w stdhttp.ResponseWriter, status int, payload any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(payload)
 }
