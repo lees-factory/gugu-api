@@ -1,0 +1,27 @@
+# OS metadata
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+
+# Environment files
+.env
+.env.*
+!.env.example
+*.local
+
+# Logs
+*.log
+
+# Go build and test artifacts
+.cache/
+bin/
+dist/
+tmp/
+*.test
+*.out
+coverage.out
+
+# Dependency directories
+vendor/
