@@ -1,0 +1,4 @@
+./User.go
+./UserFinder.go
+./UserRepository.go
+./UserWriter.go

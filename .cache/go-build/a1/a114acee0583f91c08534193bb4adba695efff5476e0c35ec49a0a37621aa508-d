@@ -1,0 +1,4 @@
+./LoginEmailRequest.go
+./LoginOAuthRequest.go
+./RegisterEmailRequest.go
+./VerifyEmailRequest.go

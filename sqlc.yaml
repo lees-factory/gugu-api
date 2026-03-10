@@ -1,0 +1,12 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    schema: "db/schema/auth.sql"
+    queries: "db/query/auth.sql"
+    gen:
+      go:
+        package: "sqldb"
+        out: "internal/storage/dbcore/sqldb"
+        sql_package: "database/sql"
+        emit_json_tags: true
+        emit_interface: false

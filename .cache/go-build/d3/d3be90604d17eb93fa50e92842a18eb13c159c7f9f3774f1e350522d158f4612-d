@@ -1,0 +1,5 @@
+./LoginResponse.go
+./RegisterEmailResponse.go
+./SessionResponse.go
+./UserResponse.go
+./VerifyEmailResponse.go
