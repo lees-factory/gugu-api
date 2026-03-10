@@ -33,11 +33,15 @@ func NewServer(_ config.Config) (*Server, error) {
 	userIDGenerator := id.NewRandomHexGenerator(16)
 	identityIDGenerator := id.NewRandomHexGenerator(16)
 	tokenGenerator := security.NewRandomTokenGenerator(32)
+	userWriter := domainuser.NewWriter(userRepository)
+	userFinder := domainuser.NewFinder(userRepository)
+	userCreator := domainuser.NewCreator(userWriter, userIDGenerator, clock)
 
 	authService := domainauth.New(
-		domainuser.NewFinder(userRepository),
-		domainuser.NewCreator(domainuser.NewWriter(userRepository), userIDGenerator, clock),
-		domainuser.NewWriter(userRepository),
+		domainauth.NewUserAccountReader(userFinder),
+		domainauth.NewEmailUserCreator(userFinder, userCreator),
+		domainauth.NewOAuthUserResolver(userFinder, userCreator),
+		domainauth.NewUserEmailVerifier(userWriter),
 		domainverification.NewFinder(verificationRepository),
 		domainverification.NewWriter(verificationRepository),
 		domainauth.NewOAuthIdentityFinder(oauthIdentityRepository),

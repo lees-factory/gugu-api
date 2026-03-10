@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/ljj/gugu-api/internal/core/domain/user"
@@ -11,9 +10,10 @@ import (
 )
 
 type Service struct {
-	userFinder              user.Finder
-	userCreator             user.Creator
-	userWriter              user.Writer
+	userAccountReader       UserAccountReader
+	emailUserCreator        EmailUserCreator
+	oauthUserResolver       OAuthUserResolver
+	userEmailVerifier       UserEmailVerifier
 	emailVerificationFinder verification.Finder
 	emailVerificationWriter verification.Writer
 	oauthIdentityFinder     OAuthIdentityFinder
@@ -27,9 +27,10 @@ type Service struct {
 }
 
 func New(
-	userFinder user.Finder,
-	userCreator user.Creator,
-	userWriter user.Writer,
+	userAccountReader UserAccountReader,
+	emailUserCreator EmailUserCreator,
+	oauthUserResolver OAuthUserResolver,
+	userEmailVerifier UserEmailVerifier,
 	emailVerificationFinder verification.Finder,
 	emailVerificationWriter verification.Writer,
 	oauthIdentityFinder OAuthIdentityFinder,
@@ -42,9 +43,10 @@ func New(
 	emailSender VerificationSender,
 ) *Service {
 	return &Service{
-		userFinder:              userFinder,
-		userCreator:             userCreator,
-		userWriter:              userWriter,
+		userAccountReader:       userAccountReader,
+		emailUserCreator:        emailUserCreator,
+		oauthUserResolver:       oauthUserResolver,
+		userEmailVerifier:       userEmailVerifier,
 		emailVerificationFinder: emailVerificationFinder,
 		emailVerificationWriter: emailVerificationWriter,
 		oauthIdentityFinder:     oauthIdentityFinder,
@@ -59,17 +61,8 @@ func New(
 }
 
 func (s *Service) RegisterEmail(ctx context.Context, input RegisterEmailInput) (*RegisterEmailResult, error) {
-	emailValue := strings.TrimSpace(strings.ToLower(input.Email))
-	if emailValue == "" || input.Password == "" {
+	if normalizeEmail(input.Email) == "" || input.Password == "" {
 		return nil, ErrInvalidCredentials
-	}
-
-	foundUser, err := s.userFinder.FindByEmail(ctx, emailValue)
-	if err != nil {
-		return nil, fmt.Errorf("find user by email: %w", err)
-	}
-	if foundUser != nil {
-		return nil, ErrEmailAlreadyExists
 	}
 
 	passwordHash, err := s.passwordHasher.Hash(input.Password)
@@ -78,15 +71,13 @@ func (s *Service) RegisterEmail(ctx context.Context, input RegisterEmailInput) (
 	}
 
 	now := s.clock.Now()
-	newUser, err := s.userCreator.Create(ctx, user.CreateInput{
-		Email:         emailValue,
-		DisplayName:   input.DisplayName,
-		PasswordHash:  passwordHash,
-		AuthSource:    "email",
-		EmailVerified: false,
+	newUser, err := s.emailUserCreator.Create(ctx, CreateEmailUserInput{
+		Email:        input.Email,
+		DisplayName:  input.DisplayName,
+		PasswordHash: passwordHash,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("create email user: %w", err)
+		return nil, err
 	}
 
 	token, err := s.tokenGenerator.New()
@@ -97,7 +88,7 @@ func (s *Service) RegisterEmail(ctx context.Context, input RegisterEmailInput) (
 	emailVerification := verification.EmailVerification{
 		Token:     token,
 		UserID:    newUser.ID,
-		Email:     emailValue,
+		Email:     newUser.Email,
 		ExpiresAt: now.Add(24 * time.Hour),
 		CreatedAt: now,
 	}
@@ -105,7 +96,7 @@ func (s *Service) RegisterEmail(ctx context.Context, input RegisterEmailInput) (
 		return nil, fmt.Errorf("create verification: %w", err)
 	}
 
-	if err := s.emailSender.SendVerification(ctx, emailValue, token); err != nil {
+	if err := s.emailSender.SendVerification(ctx, newUser.Email, token); err != nil {
 		return nil, fmt.Errorf("send verification email: %w", err)
 	}
 
@@ -117,9 +108,9 @@ func (s *Service) RegisterEmail(ctx context.Context, input RegisterEmailInput) (
 }
 
 func (s *Service) LoginEmail(ctx context.Context, input LoginEmailInput) (*LoginResult, error) {
-	foundUser, err := s.userFinder.FindByEmail(ctx, strings.TrimSpace(strings.ToLower(input.Email)))
+	foundUser, err := s.userAccountReader.FindByEmail(ctx, input.Email)
 	if err != nil {
-		return nil, fmt.Errorf("find user by email: %w", err)
+		return nil, err
 	}
 	if foundUser == nil {
 		return nil, ErrInvalidCredentials
@@ -163,16 +154,16 @@ func (s *Service) VerifyEmail(ctx context.Context, input VerifyEmailInput) (*Ver
 	}
 
 	now := s.clock.Now()
-	if err := s.userWriter.MarkEmailVerified(ctx, foundVerification.UserID, now); err != nil {
-		return nil, fmt.Errorf("mark email verified: %w", err)
+	if err := s.userEmailVerifier.Verify(ctx, foundVerification.UserID, now); err != nil {
+		return nil, err
 	}
 	if err := s.emailVerificationWriter.MarkUsed(ctx, input.Token, now); err != nil {
 		return nil, fmt.Errorf("mark verification used: %w", err)
 	}
 
-	foundUser, err := s.userFinder.FindByID(ctx, foundVerification.UserID)
+	foundUser, err := s.userAccountReader.FindByID(ctx, foundVerification.UserID)
 	if err != nil {
-		return nil, fmt.Errorf("find user by id: %w", err)
+		return nil, err
 	}
 	if foundUser == nil {
 		return nil, ErrVerificationNotFound
@@ -182,7 +173,7 @@ func (s *Service) VerifyEmail(ctx context.Context, input VerifyEmailInput) (*Ver
 }
 
 func (s *Service) LoginOAuth(ctx context.Context, input OAuthLoginInput) (*LoginResult, error) {
-	provider := Provider(strings.TrimSpace(strings.ToLower(string(input.Provider))))
+	provider := Provider(normalizeEmail(string(input.Provider)))
 	if provider == "" {
 		return nil, ErrOAuthProviderInvalid
 	}
@@ -198,27 +189,19 @@ func (s *Service) LoginOAuth(ctx context.Context, input OAuthLoginInput) (*Login
 		if err := s.oauthIdentityWriter.UpdateLastLogin(ctx, string(provider), input.Subject, now); err != nil {
 			return nil, fmt.Errorf("update oauth last login: %w", err)
 		}
-		foundUser, err = s.userFinder.FindByID(ctx, foundIdentity.UserID)
+		foundUser, err = s.userAccountReader.FindByID(ctx, foundIdentity.UserID)
 		if err != nil {
-			return nil, fmt.Errorf("find oauth user by id: %w", err)
+			return nil, err
 		}
 	} else {
-		emailValue := strings.TrimSpace(strings.ToLower(input.Email))
-		foundUser, err = s.userFinder.FindByEmail(ctx, emailValue)
+		foundUser, err = s.oauthUserResolver.FindOrCreate(ctx, FindOrCreateOAuthUserInput{
+			Email:       input.Email,
+			DisplayName: input.DisplayName,
+			Provider:    provider,
+			VerifiedAt:  now,
+		})
 		if err != nil {
-			return nil, fmt.Errorf("find user by email: %w", err)
-		}
-		if foundUser == nil {
-			foundUser, err = s.userCreator.Create(ctx, user.CreateInput{
-				Email:           emailValue,
-				DisplayName:     input.DisplayName,
-				AuthSource:      string(provider),
-				EmailVerified:   true,
-				EmailVerifiedAt: &now,
-			})
-			if err != nil {
-				return nil, fmt.Errorf("create oauth user: %w", err)
-			}
+			return nil, err
 		}
 
 		identityID, err := s.identityIDGenerator.New()
