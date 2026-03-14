@@ -41,10 +41,10 @@ curl http://localhost:8080/health
 
 ## 2. 프론트에서 붙이는 방법
 
-이 백엔드는 현재 CORS 설정이 없다.
-그래서 프론트를 `localhost:3000` 또는 `localhost:5173` 에서 직접 API 호출하면 브라우저에서 막힐 수 있다.
+이 백엔드는 기본적으로 `http://localhost:3000`, `http://localhost:5173` 에 대한 CORS 를 허용한다.
+필요하면 `CORS_ALLOWED_ORIGINS` 환경 변수에 쉼표로 구분한 origin 목록을 넣어서 변경할 수 있다.
 
-로컬 개발에서는 프론트 dev server 의 proxy 기능을 사용해서 `/api` 요청을 `http://localhost:8080` 으로 넘기는 방식이 가장 안전하다.
+로컬 개발에서는 CORS 를 직접 써도 되지만, 프론트 dev server 의 proxy 기능으로 `/api` 요청을 `http://localhost:8080` 으로 넘기면 배포 환경과 더 비슷하게 맞출 수 있다.
 
 권장 기준:
 
@@ -154,5 +154,5 @@ curl -X POST http://localhost:8080/v1/auth/login/email \
 ## 7. 현재 제한 사항
 
 - 프론트 앱 자체는 이 저장소에 없다.
-- 백엔드에는 아직 CORS 미들웨어가 없다.
-- 저장소 구현은 대부분 메모리 기반이며, Supabase 연결은 현재 부팅 시 연결 확인 용도로만 사용한다.
+- `DATABASE_URL` 이 없으면 저장소는 메모리 기반으로 동작한다.
+- `DATABASE_URL` 이 있으면 Supabase(Postgres)를 실제 사용자/이메일 인증/OAuth 식별자 저장소로 사용한다.
