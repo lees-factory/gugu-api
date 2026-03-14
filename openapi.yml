@@ -1,0 +1,493 @@
+openapi: 3.0.3
+info:
+  title: gugu-api
+  version: 1.0.0
+  description: OpenAPI specification for the gugu API auth and health endpoints.
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: Health
+  - name: Auth
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              examples:
+                success:
+                  value:
+                    result: SUCCESS
+                    data:
+                      status: ok
+  /v1/auth/register/email:
+    post:
+      tags:
+        - Auth
+      summary: Register user with email
+      operationId: registerEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterEmailRequest'
+            examples:
+              default:
+                value:
+                  email: user@example.com
+                  password: secret123!
+                  display_name: Gugu User
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterEmailResponse'
+        '400':
+          description: Invalid request or business validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidBody:
+                  value:
+                    result: ERROR
+                    error:
+                      code: E400
+                      message: invalid request body
+                duplicateEmail:
+                  value:
+                    result: ERROR
+                    error:
+                      code: B1000
+                      message: email already exists
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/auth/login/email:
+    post:
+      tags:
+        - Auth
+      summary: Login with email and password
+      operationId: loginEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginEmailRequest'
+            examples:
+              default:
+                value:
+                  email: user@example.com
+                  password: secret123!
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Invalid request or email not verified
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidBody:
+                  value:
+                    result: ERROR
+                    error:
+                      code: E400
+                      message: invalid request body
+                emailNotVerified:
+                  value:
+                    result: ERROR
+                    error:
+                      code: B2001
+                      message: email is not verified
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidCredentials:
+                  value:
+                    result: ERROR
+                    error:
+                      code: B2000
+                      message: invalid credentials
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/auth/verify-email:
+    post:
+      tags:
+        - Auth
+      summary: Verify email with token
+      operationId: verifyEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+            examples:
+              default:
+                value:
+                  token: verify-token
+      responses:
+        '200':
+          description: Email verified successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyEmailResponse'
+        '400':
+          description: Invalid request or verification token not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidBody:
+                  value:
+                    result: ERROR
+                    error:
+                      code: E400
+                      message: invalid request body
+                tokenNotFound:
+                  value:
+                    result: ERROR
+                    error:
+                      code: B2002
+                      message: verification token not found
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/auth/oauth/login:
+    post:
+      tags:
+        - Auth
+      summary: Login or register with OAuth identity
+      operationId: loginOAuth
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginOAuthRequest'
+            examples:
+              google:
+                value:
+                  provider: google
+                  subject: oauth-subject-123
+                  email: user@example.com
+                  display_name: Gugu User
+      responses:
+        '200':
+          description: OAuth login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Invalid request or unsupported provider
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidBody:
+                  value:
+                    result: ERROR
+                    error:
+                      code: E400
+                      message: invalid request body
+                invalidProvider:
+                  value:
+                    result: ERROR
+                    error:
+                      code: B2003
+                      message: oauth provider is invalid
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    ResultType:
+      type: string
+      enum:
+        - SUCCESS
+        - ERROR
+    ErrorMessage:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Application error code
+          example: E400
+        message:
+          type: string
+          description: Human readable error message
+          example: invalid request body
+        data:
+          nullable: true
+          description: Optional structured error data
+    ErrorResponse:
+      type: object
+      required:
+        - result
+        - error
+      properties:
+        result:
+          $ref: '#/components/schemas/ResultType'
+        error:
+          $ref: '#/components/schemas/ErrorMessage'
+      example:
+        result: ERROR
+        error:
+          code: E400
+          message: invalid request body
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - display_name
+        - email_verified
+        - created_at
+      properties:
+        id:
+          type: string
+          example: user_01
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        display_name:
+          type: string
+          example: Gugu User
+        email_verified:
+          type: boolean
+          example: false
+        created_at:
+          type: string
+          format: date-time
+          example: '2026-03-14T12:00:00Z'
+    Session:
+      type: object
+      required:
+        - token
+        - user_id
+        - expires_at
+      properties:
+        token:
+          type: string
+          example: session_token_123
+        user_id:
+          type: string
+          example: user_01
+        expires_at:
+          type: string
+          format: date-time
+          example: '2026-03-15T12:00:00Z'
+    RegisterEmailRequest:
+      type: object
+      required:
+        - email
+        - password
+        - display_name
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+        display_name:
+          type: string
+    LoginEmailRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+    VerifyEmailRequest:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+    LoginOAuthRequest:
+      type: object
+      required:
+        - provider
+        - subject
+        - email
+        - display_name
+      properties:
+        provider:
+          type: string
+          example: google
+        subject:
+          type: string
+          example: oauth-subject-123
+        email:
+          type: string
+          format: email
+        display_name:
+          type: string
+    HealthData:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          example: ok
+    HealthResponse:
+      type: object
+      required:
+        - result
+        - data
+      properties:
+        result:
+          $ref: '#/components/schemas/ResultType'
+        data:
+          $ref: '#/components/schemas/HealthData'
+      example:
+        result: SUCCESS
+        data:
+          status: ok
+    RegisterEmailData:
+      type: object
+      required:
+        - user
+        - verification_dispatched
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        verification_token:
+          type: string
+          nullable: true
+          description: Present when a verification token is returned by the current implementation.
+        verification_dispatched:
+          type: boolean
+          example: true
+    RegisterEmailResponse:
+      type: object
+      required:
+        - result
+        - data
+      properties:
+        result:
+          $ref: '#/components/schemas/ResultType'
+        data:
+          $ref: '#/components/schemas/RegisterEmailData'
+      example:
+        result: SUCCESS
+        data:
+          user:
+            id: user_01
+            email: user@example.com
+            display_name: Gugu User
+            email_verified: false
+            created_at: '2026-03-14T12:00:00Z'
+          verification_token: verify-token
+          verification_dispatched: true
+    LoginData:
+      type: object
+      required:
+        - user
+        - session
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        session:
+          $ref: '#/components/schemas/Session'
+    LoginResponse:
+      type: object
+      required:
+        - result
+        - data
+      properties:
+        result:
+          $ref: '#/components/schemas/ResultType'
+        data:
+          $ref: '#/components/schemas/LoginData'
+      example:
+        result: SUCCESS
+        data:
+          user:
+            id: user_01
+            email: user@example.com
+            display_name: Gugu User
+            email_verified: true
+            created_at: '2026-03-14T12:00:00Z'
+          session:
+            token: session_token_123
+            user_id: user_01
+            expires_at: '2026-03-15T12:00:00Z'
+    VerifyEmailData:
+      type: object
+      required:
+        - user
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+    VerifyEmailResponse:
+      type: object
+      required:
+        - result
+        - data
+      properties:
+        result:
+          $ref: '#/components/schemas/ResultType'
+        data:
+          $ref: '#/components/schemas/VerifyEmailData'
+      example:
+        result: SUCCESS
+        data:
+          user:
+            id: user_01
+            email: user@example.com
+            display_name: Gugu User
+            email_verified: true
+            created_at: '2026-03-14T12:00:00Z'
