@@ -1,0 +1,158 @@
+# Front Local Run Guide
+
+이 저장소에는 프론트엔드 앱 코드가 포함되어 있지 않다.
+대신 프론트가 로컬에서 이 API를 붙여서 개발할 수 있도록 백엔드 실행 방법과 프록시 기준을 정리한다.
+
+## 1. 백엔드 실행
+
+### 환경 변수 준비
+
+루트의 [`.env`](/Users/LJJ/Desktop/project/go/gugu/gugu-api/.env) 파일준비한다 root 경로
+
+### Supabase 초기 스키마 적용
+
+Supabase SQL Editor 에서 [init.sql](/Users/LJJ/Desktop/project/go/gugu/gugu-api/docs/init.sql) 을 실행한다.
+
+### 로컬 실행
+
+이 프로젝트는 `.env` 를 자동으로 읽지 않는다. 실행 전에 shell 에 환경 변수를 올려야 한다.
+
+```bash
+set -a
+source .env
+set +a
+
+go run ./cmd/api
+```
+
+정상 실행되면 API 는 `http://localhost:8080` 에서 뜬다.
+
+확인:
+
+```bash
+curl http://localhost:8080/health
+```
+
+예상 응답:
+
+```json
+{"result":"SUCCESS","data":{"status":"ok"}}
+```
+
+## 2. 프론트에서 붙이는 방법
+
+이 백엔드는 현재 CORS 설정이 없다.
+그래서 프론트를 `localhost:3000` 또는 `localhost:5173` 에서 직접 API 호출하면 브라우저에서 막힐 수 있다.
+
+로컬 개발에서는 프론트 dev server 의 proxy 기능을 사용해서 `/api` 요청을 `http://localhost:8080` 으로 넘기는 방식이 가장 안전하다.
+
+권장 기준:
+
+- 프론트 주소: `http://localhost:3000` 또는 `http://localhost:5173`
+- 백엔드 주소: `http://localhost:8080`
+- 프론트 호출 경로: `/api/...`
+- 프록시 대상: `http://localhost:8080/...`
+
+## 3. Vite 예시
+
+`vite.config.ts`
+
+```ts
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+  server: {
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
+  },
+})
+```
+
+프론트 코드 예시:
+
+```ts
+const response = await fetch('/api/health')
+const data = await response.json()
+```
+
+## 4. Next.js 예시
+
+`next.config.ts`
+
+```ts
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'http://localhost:8080/:path*',
+      },
+    ]
+  },
+}
+
+export default nextConfig
+```
+
+프론트 코드 예시:
+
+```ts
+const response = await fetch('/api/health')
+const data = await response.json()
+```
+
+## 5. 주요 API
+
+명세는 [openapi.yml](/Users/LJJ/Desktop/project/go/gugu/gugu-api/openapi.yml) 에 있다.
+
+주요 엔드포인트:
+
+- `GET /health`
+- `POST /v1/auth/register/email`
+- `POST /v1/auth/login/email`
+- `POST /v1/auth/verify-email`
+- `POST /v1/auth/oauth/login`
+
+## 6. 요청 예시
+
+회원가입:
+
+```bash
+curl -X POST http://localhost:8080/v1/auth/register/email \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "email": "user@example.com",
+    "password": "secret123!",
+    "display_name": "Gugu User"
+  }'
+```
+
+이메일 로그인:
+
+```bash
+curl -X POST http://localhost:8080/v1/auth/login/email \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "email": "user@example.com",
+    "password": "secret123!"
+  }'
+```
+
+로그인 응답은 서버 세션 대신 JWT 토큰 묶음을 반환한다.
+
+이메일 인증 코드는 Gmail SMTP로 발송한다.
+개발 중 발송 없이 로그만 보려면 `MAIL_PROVIDER='log'` 로 바꾸면 된다.
+
+## 7. 현재 제한 사항
+
+- 프론트 앱 자체는 이 저장소에 없다.
+- 백엔드에는 아직 CORS 미들웨어가 없다.
+- 저장소 구현은 대부분 메모리 기반이며, Supabase 연결은 현재 부팅 시 연결 확인 용도로만 사용한다.
