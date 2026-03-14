@@ -1,11 +1,15 @@
 package config
 
-import "os"
+import (
+	"os"
+	"strings"
+)
 
 type Config struct {
 	HTTPAddress            string
 	GoogleOAuthCallbackURL string
 	DatabaseURL            string
+	CORSAllowedOrigins     []string
 	JWTSecret              string
 	JWTIssuer              string
 	MailProvider           string
@@ -21,6 +25,7 @@ func Load() Config {
 		HTTPAddress:            getenv("HTTP_ADDRESS", ":8080"),
 		GoogleOAuthCallbackURL: getenv("GOOGLE_OAUTH_CALLBACK_URL", "http://localhost:8080/v1/auth/oauth/google/callback"),
 		DatabaseURL:            os.Getenv("DATABASE_URL"),
+		CORSAllowedOrigins:     splitCSV(getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173")),
 		JWTSecret:              getenv("JWT_SECRET", "change-me"),
 		JWTIssuer:              getenv("JWT_ISSUER", "gugu-api"),
 		MailProvider:           getenv("MAIL_PROVIDER", "smtp"),
@@ -38,4 +43,19 @@ func getenv(key, fallback string) string {
 	}
 
 	return fallback
+}
+
+func splitCSV(value string) []string {
+	rawValues := strings.Split(value, ",")
+	values := make([]string, 0, len(rawValues))
+
+	for _, rawValue := range rawValues {
+		trimmedValue := strings.TrimSpace(rawValue)
+		if trimmedValue == "" {
+			continue
+		}
+		values = append(values, trimmedValue)
+	}
+
+	return values
 }

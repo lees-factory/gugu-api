@@ -2,6 +2,11 @@ package auth
 
 import "time"
 
-type AuthTokenIssuer interface {
-	Issue(userID string, now time.Time) (AuthTokens, error)
+type AccessTokenIssuer interface {
+	IssueAccessToken(userID string, now time.Time) (IssuedAccessToken, error)
+}
+
+type IssuedAccessToken struct {
+	Token     string
+	ExpiresAt time.Time
 }

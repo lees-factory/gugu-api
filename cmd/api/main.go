@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"log"
 	"net/http"
 
@@ -12,16 +13,18 @@ import (
 
 func main() {
 	cfg := config.Load()
+	var db *sql.DB
 
 	if cfg.DatabaseURL != "" {
-		db, err := dbcore.OpenSupabase(context.Background(), cfg.DatabaseURL)
+		openedDB, err := dbcore.OpenSupabase(context.Background(), cfg.DatabaseURL)
 		if err != nil {
 			log.Fatalf("connect database: %v", err)
 		}
+		db = openedDB
 		defer db.Close()
 	}
 
-	server, err := httpapi.NewServer(cfg)
+	server, err := httpapi.NewServer(cfg, db)
 	if err != nil {
 		log.Fatalf("build server: %v", err)
 	}

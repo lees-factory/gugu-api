@@ -18,12 +18,18 @@ type Service struct {
 	emailVerificationWriter   verification.Writer
 	oauthIdentityFinder       OAuthIdentityFinder
 	oauthIdentityWriter       OAuthIdentityWriter
+	loginSessionReader        LoginSessionReader
+	loginSessionWriter        LoginSessionWriter
 	identityIDGenerator       IDGenerator
+	sessionIDGenerator        IDGenerator
+	tokenFamilyIDGenerator    IDGenerator
 	verificationCodeGenerator TokenGenerator
-	authTokenIssuer           AuthTokenIssuer
+	refreshTokenGenerator     TokenGenerator
+	accessTokenIssuer         AccessTokenIssuer
 	passwordHasher            PasswordHasher
 	clock                     Clock
 	emailSender               VerificationSender
+	refreshTokenHasher        RefreshTokenHasher
 }
 
 func New(
@@ -34,12 +40,18 @@ func New(
 	emailVerificationWriter verification.Writer,
 	oauthIdentityFinder OAuthIdentityFinder,
 	oauthIdentityWriter OAuthIdentityWriter,
+	loginSessionReader LoginSessionReader,
+	loginSessionWriter LoginSessionWriter,
 	identityIDGenerator IDGenerator,
+	sessionIDGenerator IDGenerator,
+	tokenFamilyIDGenerator IDGenerator,
 	verificationCodeGenerator TokenGenerator,
-	authTokenIssuer AuthTokenIssuer,
+	refreshTokenGenerator TokenGenerator,
+	accessTokenIssuer AccessTokenIssuer,
 	passwordHasher PasswordHasher,
 	clock Clock,
 	emailSender VerificationSender,
+	refreshTokenHasher RefreshTokenHasher,
 ) *Service {
 	return &Service{
 		userFinder:                userFinder,
@@ -49,12 +61,18 @@ func New(
 		emailVerificationWriter:   emailVerificationWriter,
 		oauthIdentityFinder:       oauthIdentityFinder,
 		oauthIdentityWriter:       oauthIdentityWriter,
+		loginSessionReader:        loginSessionReader,
+		loginSessionWriter:        loginSessionWriter,
 		identityIDGenerator:       identityIDGenerator,
+		sessionIDGenerator:        sessionIDGenerator,
+		tokenFamilyIDGenerator:    tokenFamilyIDGenerator,
 		verificationCodeGenerator: verificationCodeGenerator,
-		authTokenIssuer:           authTokenIssuer,
+		refreshTokenGenerator:     refreshTokenGenerator,
+		accessTokenIssuer:         accessTokenIssuer,
 		passwordHasher:            passwordHasher,
 		clock:                     clock,
 		emailSender:               emailSender,
+		refreshTokenHasher:        refreshTokenHasher,
 	}
 }
 
@@ -99,7 +117,11 @@ func (s *Service) LoginEmail(ctx context.Context, input LoginEmailInput) (*Login
 		return nil, ErrEmailNotVerified
 	}
 
-	tokens, err := s.IssueAuthTokens(foundUser.ID)
+	tokens, err := s.issueLoginTokens(ctx, foundUser.ID, SessionMetadata{
+		UserAgent:  input.UserAgent,
+		ClientIP:   input.ClientIP,
+		DeviceName: input.DeviceName,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +198,11 @@ func (s *Service) LoginOAuth(ctx context.Context, input OAuthLoginInput) (*Login
 		}
 	}
 
-	tokens, err := s.IssueAuthTokens(foundUser.ID)
+	tokens, err := s.issueLoginTokens(ctx, foundUser.ID, SessionMetadata{
+		UserAgent:  input.UserAgent,
+		ClientIP:   input.ClientIP,
+		DeviceName: input.DeviceName,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -243,15 +269,6 @@ func (s *Service) VerifyPassword(passwordHash string, password string) error {
 		return ErrInvalidCredentials
 	}
 	return nil
-}
-
-func (s *Service) IssueAuthTokens(userID string) (*AuthTokens, error) {
-	tokens, err := s.authTokenIssuer.Issue(userID, s.clock.Now())
-	if err != nil {
-		return nil, fmt.Errorf("issue auth tokens for user %s: %w", userID, err)
-	}
-
-	return &tokens, nil
 }
 
 func (s *Service) VerifyEmailCode(ctx context.Context, input VerifyEmailCodeInput) (*VerifyEmailCodeResult, error) {
@@ -337,6 +354,126 @@ func (s *Service) HashPassword(password string) (string, error) {
 
 func (s *Service) Now() time.Time {
 	return s.clock.Now()
+}
+
+func (s *Service) IssueAuthTokens(userID string) (*AuthTokens, error) {
+	return s.issueLoginTokens(context.Background(), userID, SessionMetadata{})
+}
+
+func (s *Service) RefreshTokens(ctx context.Context, input RefreshTokensInput) (*AuthTokens, error) {
+	refreshTokenHash := s.refreshTokenHasher.Hash(input.RefreshToken)
+	session, err := s.loginSessionReader.FindByRefreshTokenHash(ctx, refreshTokenHash)
+	if err != nil {
+		return nil, fmt.Errorf("find login session by refresh token hash: %w", err)
+	}
+	if session == nil {
+		return nil, ErrRefreshTokenInvalid
+	}
+
+	now := s.clock.Now()
+	if session.RevokedAt != nil || session.ExpiresAt.Before(now) {
+		return nil, ErrRefreshTokenInvalid
+	}
+	if session.RotatedAt != nil {
+		if err := s.loginSessionWriter.MarkReuseDetected(ctx, session.ID, now); err != nil {
+			return nil, fmt.Errorf("mark login session reuse detected: %w", err)
+		}
+		if err := s.loginSessionWriter.RevokeFamily(ctx, session.TokenFamilyID, now); err != nil {
+			return nil, fmt.Errorf("revoke login session family: %w", err)
+		}
+		return nil, ErrRefreshTokenInvalid
+	}
+
+	if err := s.loginSessionWriter.UpdateLastSeen(ctx, session.ID, now); err != nil {
+		return nil, fmt.Errorf("update login session last seen: %w", err)
+	}
+
+	newTokens, err := s.rotateLoginSession(ctx, *session, SessionMetadata{
+		UserAgent:  input.UserAgent,
+		ClientIP:   input.ClientIP,
+		DeviceName: input.DeviceName,
+	}, now)
+	if err != nil {
+		return nil, err
+	}
+
+	return newTokens, nil
+}
+
+func (s *Service) Logout(ctx context.Context, input LogoutInput) error {
+	refreshTokenHash := s.refreshTokenHasher.Hash(input.RefreshToken)
+	session, err := s.loginSessionReader.FindByRefreshTokenHash(ctx, refreshTokenHash)
+	if err != nil {
+		return fmt.Errorf("find login session by refresh token hash: %w", err)
+	}
+	if session == nil {
+		return ErrRefreshTokenInvalid
+	}
+
+	if err := s.loginSessionWriter.Revoke(ctx, session.ID, s.clock.Now()); err != nil {
+		return fmt.Errorf("revoke login session: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Service) issueLoginTokens(ctx context.Context, userID string, metadata SessionMetadata) (*AuthTokens, error) {
+	now := s.clock.Now()
+	tokenFamilyID, err := s.tokenFamilyIDGenerator.New()
+	if err != nil {
+		return nil, fmt.Errorf("generate token family id: %w", err)
+	}
+
+	return s.createLoginSession(ctx, userID, tokenFamilyID, nil, metadata, now)
+}
+
+func (s *Service) rotateLoginSession(ctx context.Context, session LoginSession, metadata SessionMetadata, now time.Time) (*AuthTokens, error) {
+	if err := s.loginSessionWriter.MarkRotated(ctx, session.ID, now); err != nil {
+		return nil, fmt.Errorf("mark login session rotated: %w", err)
+	}
+
+	return s.createLoginSession(ctx, session.UserID, session.TokenFamilyID, &session.ID, metadata, now)
+}
+
+func (s *Service) createLoginSession(ctx context.Context, userID string, tokenFamilyID string, parentSessionID *string, metadata SessionMetadata, now time.Time) (*AuthTokens, error) {
+	sessionID, err := s.sessionIDGenerator.New()
+	if err != nil {
+		return nil, fmt.Errorf("generate login session id: %w", err)
+	}
+	refreshToken, err := s.refreshTokenGenerator.New()
+	if err != nil {
+		return nil, fmt.Errorf("generate refresh token: %w", err)
+	}
+	issuedAccessToken, err := s.accessTokenIssuer.IssueAccessToken(userID, now)
+	if err != nil {
+		return nil, fmt.Errorf("issue access token for user %s: %w", userID, err)
+	}
+
+	refreshExpiresAt := now.Add(14 * 24 * time.Hour)
+	loginSession := LoginSession{
+		ID:               sessionID,
+		UserID:           userID,
+		RefreshTokenHash: s.refreshTokenHasher.Hash(refreshToken),
+		TokenFamilyID:    tokenFamilyID,
+		ParentSessionID:  parentSessionID,
+		UserAgent:        metadata.UserAgent,
+		ClientIP:         metadata.ClientIP,
+		DeviceName:       metadata.DeviceName,
+		ExpiresAt:        refreshExpiresAt,
+		LastSeenAt:       now,
+		CreatedAt:        now,
+	}
+	if err := s.loginSessionWriter.Create(ctx, loginSession); err != nil {
+		return nil, fmt.Errorf("create login session: %w", err)
+	}
+
+	return &AuthTokens{
+		AccessToken:      issuedAccessToken.Token,
+		RefreshToken:     refreshToken,
+		TokenType:        "Bearer",
+		AccessExpiresAt:  issuedAccessToken.ExpiresAt,
+		RefreshExpiresAt: refreshExpiresAt,
+	}, nil
 }
 
 func normalizeValue(value string) string {

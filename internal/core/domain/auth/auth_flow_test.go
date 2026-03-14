@@ -12,6 +12,7 @@ import (
 	memoryauth "github.com/ljj/gugu-api/internal/storage/memory/auth"
 	memoryuser "github.com/ljj/gugu-api/internal/storage/memory/user"
 	memoryverification "github.com/ljj/gugu-api/internal/storage/memory/verification"
+	"github.com/ljj/gugu-api/internal/support/security"
 )
 
 type fixedClock struct {
@@ -57,8 +58,7 @@ type captureSender struct {
 }
 
 type fakeAuthTokenIssuer struct {
-	accessToken  string
-	refreshToken string
+	accessToken string
 }
 
 func (s *captureSender) SendVerification(_ context.Context, email string, code string) error {
@@ -68,13 +68,10 @@ func (s *captureSender) SendVerification(_ context.Context, email string, code s
 	return nil
 }
 
-func (i fakeAuthTokenIssuer) Issue(userID string, now time.Time) (domainauth.AuthTokens, error) {
-	return domainauth.AuthTokens{
-		AccessToken:      i.accessToken + ":" + userID,
-		RefreshToken:     i.refreshToken + ":" + userID,
-		TokenType:        "Bearer",
-		AccessExpiresAt:  now.Add(15 * time.Minute),
-		RefreshExpiresAt: now.Add(14 * 24 * time.Hour),
+func (i fakeAuthTokenIssuer) IssueAccessToken(userID string, now time.Time) (domainauth.IssuedAccessToken, error) {
+	return domainauth.IssuedAccessToken{
+		Token:     i.accessToken + ":" + userID,
+		ExpiresAt: now.Add(15 * time.Minute),
 	}, nil
 }
 
@@ -82,7 +79,7 @@ var _ domainauth.IDGenerator = (*sequenceGenerator)(nil)
 var _ domainauth.TokenGenerator = (*sequenceGenerator)(nil)
 var _ domainauth.PasswordHasher = fakePasswordHasher{}
 var _ domainauth.VerificationSender = (*captureSender)(nil)
-var _ domainauth.AuthTokenIssuer = fakeAuthTokenIssuer{}
+var _ domainauth.AccessTokenIssuer = fakeAuthTokenIssuer{}
 var _ domainauth.Clock = (*fixedClock)(nil)
 var _ domainuser.Clock = (*fixedClock)(nil)
 var _ domainuser.IDGenerator = (*sequenceGenerator)(nil)
@@ -93,6 +90,7 @@ type authTestFixture struct {
 	clock                  *fixedClock
 	verificationRepository *memoryverification.EmailVerificationMemoryRepository
 	oauthRepository        *memoryauth.OAuthIdentityMemoryRepository
+	loginSessionRepository *memoryauth.LoginSessionMemoryRepository
 	sender                 *captureSender
 }
 
@@ -100,6 +98,7 @@ func newAuthTestFixture() *authTestFixture {
 	userRepository := memoryuser.NewRepository()
 	verificationRepository := memoryverification.NewRepository()
 	oauthRepository := memoryauth.NewOAuthIdentityRepository()
+	loginSessionRepository := memoryauth.NewLoginSessionRepository()
 	clock := &fixedClock{now: time.Date(2026, time.March, 10, 9, 30, 0, 0, time.UTC)}
 	sender := &captureSender{}
 
@@ -119,17 +118,24 @@ func newAuthTestFixture() *authTestFixture {
 			domainverification.NewWriter(verificationRepository),
 			domainauth.NewOAuthIdentityFinder(oauthRepository),
 			domainauth.NewOAuthIdentityWriter(oauthRepository),
+			domainauth.NewLoginSessionReader(loginSessionRepository),
+			domainauth.NewLoginSessionWriter(loginSessionRepository),
 			&sequenceGenerator{values: []string{"identity-1", "identity-2"}},
+			&sequenceGenerator{values: []string{"session-1", "session-2", "session-3", "session-4"}},
+			&sequenceGenerator{values: []string{"family-1", "family-2", "family-3"}},
 			&sequenceGenerator{values: []string{"123456", "654321", "111111", "222222", "333333"}},
-			fakeAuthTokenIssuer{accessToken: "access-token", refreshToken: "refresh-token"},
+			&sequenceGenerator{values: []string{"refresh-1", "refresh-2", "refresh-3", "refresh-4"}},
+			fakeAuthTokenIssuer{accessToken: "access-token"},
 			fakePasswordHasher{},
 			clock,
 			sender,
+			security.TokenSHA256Hasher{},
 		),
 		userService:            domainuser.NewService(userFinder, userCreator, userWriter),
 		clock:                  clock,
 		verificationRepository: verificationRepository,
 		oauthRepository:        oauthRepository,
+		loginSessionRepository: loginSessionRepository,
 		sender:                 sender,
 	}
 }
@@ -306,8 +312,8 @@ func TestEmailLoginFlow(t *testing.T) {
 	if tokens.AccessToken != "access-token:"+foundUser.ID {
 		t.Fatalf("expected access token for %q, got %q", foundUser.ID, tokens.AccessToken)
 	}
-	if tokens.RefreshToken != "refresh-token:"+foundUser.ID {
-		t.Fatalf("expected refresh token for %q, got %q", foundUser.ID, tokens.RefreshToken)
+	if tokens.RefreshToken == "" {
+		t.Fatal("expected refresh token to be issued")
 	}
 	if tokens.AccessExpiresAt != fixture.clock.now.Add(15*time.Minute) {
 		t.Fatalf("expected access expiry %v, got %v", fixture.clock.now.Add(15*time.Minute), tokens.AccessExpiresAt)

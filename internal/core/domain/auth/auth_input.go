@@ -29,8 +29,11 @@ type RegisterEmailResult struct {
 }
 
 type LoginEmailInput struct {
-	Email    string
-	Password string
+	Email      string
+	Password   string
+	UserAgent  string
+	ClientIP   string
+	DeviceName string
 }
 
 type LoginResult struct {
@@ -60,4 +63,7 @@ type OAuthLoginInput struct {
 	Subject     string
 	Email       string
 	DisplayName string
+	UserAgent   string
+	ClientIP    string
+	DeviceName  string
 }

@@ -45,8 +45,11 @@ func (c *Controller) LoginEmail(r *stdhttp.Request) (int, any, error) {
 	}
 
 	loginResult, err := c.authService.LoginEmail(r.Context(), domainauth.LoginEmailInput{
-		Email:    req.Email,
-		Password: req.Password,
+		Email:      req.Email,
+		Password:   req.Password,
+		UserAgent:  r.UserAgent(),
+		ClientIP:   r.RemoteAddr,
+		DeviceName: r.Header.Get("X-Device-Name"),
 	})
 	if err != nil {
 		return 0, nil, err
@@ -84,6 +87,9 @@ func (c *Controller) LoginOAuth(r *stdhttp.Request) (int, any, error) {
 		Subject:     req.Subject,
 		Email:       req.Email,
 		DisplayName: req.DisplayName,
+		UserAgent:   r.UserAgent(),
+		ClientIP:    r.RemoteAddr,
+		DeviceName:  r.Header.Get("X-Device-Name"),
 	})
 	if err != nil {
 		return 0, nil, err
@@ -92,4 +98,36 @@ func (c *Controller) LoginOAuth(r *stdhttp.Request) (int, any, error) {
 	return stdhttp.StatusOK, apiresponse.SuccessWithData(
 		authresponse.NewLogin(*loginResult),
 	), nil
+}
+
+func (c *Controller) Refresh(r *stdhttp.Request) (int, any, error) {
+	var req authrequest.RefreshToken
+	if err := apiadvice.DecodeJSON(r, &req); err != nil {
+		return 0, nil, err
+	}
+
+	tokens, err := c.authService.RefreshTokens(r.Context(), domainauth.RefreshTokensInput{
+		RefreshToken: req.RefreshToken,
+		UserAgent:    r.UserAgent(),
+		ClientIP:     r.RemoteAddr,
+		DeviceName:   req.DeviceName,
+	})
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return stdhttp.StatusOK, apiresponse.SuccessWithData(authresponse.NewTokens(*tokens)), nil
+}
+
+func (c *Controller) Logout(r *stdhttp.Request) (int, any, error) {
+	var req authrequest.Logout
+	if err := apiadvice.DecodeJSON(r, &req); err != nil {
+		return 0, nil, err
+	}
+
+	if err := c.authService.Logout(r.Context(), domainauth.LogoutInput{RefreshToken: req.RefreshToken}); err != nil {
+		return 0, nil, err
+	}
+
+	return stdhttp.StatusOK, apiresponse.Success(), nil
 }

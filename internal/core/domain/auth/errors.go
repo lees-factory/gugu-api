@@ -27,6 +27,12 @@ var (
 		Message: "oauth provider is invalid",
 		Level:   coreerror.ErrorLevelInfo,
 	}
+	ErrorTypeRefreshTokenInvalid = coreerror.ErrorType{
+		Kind:    coreerror.ErrorKindUnauthorized,
+		Code:    "B2004",
+		Message: "refresh token is invalid",
+		Level:   coreerror.ErrorLevelWarn,
+	}
 )
 
 var (
@@ -34,4 +40,5 @@ var (
 	ErrEmailNotVerified     = coreerror.New(ErrorTypeEmailNotVerified)
 	ErrVerificationNotFound = coreerror.New(ErrorTypeVerificationNotFound)
 	ErrOAuthProviderInvalid = coreerror.New(ErrorTypeOAuthProviderInvalid)
+	ErrRefreshTokenInvalid  = coreerror.New(ErrorTypeRefreshTokenInvalid)
 )

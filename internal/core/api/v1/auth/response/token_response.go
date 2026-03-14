@@ -23,3 +23,7 @@ func NewTokens(source auth.AuthTokens) Tokens {
 		RefreshExpiresAt: source.RefreshExpiresAt,
 	}
 }
+
+func NewTokensFromSource(source *auth.AuthTokens) Tokens {
+	return NewTokens(*source)
+}

@@ -46,9 +46,8 @@ func NewJWTTokenIssuer(secret string, issuer string) JWTTokenIssuer {
 	}
 }
 
-func (i JWTTokenIssuer) Issue(userID string, now time.Time) (domainauth.AuthTokens, error) {
+func (i JWTTokenIssuer) IssueAccessToken(userID string, now time.Time) (domainauth.IssuedAccessToken, error) {
 	accessExpiresAt := now.Add(i.accessTokenDuration)
-	refreshExpiresAt := now.Add(i.refreshTokenDuration)
 
 	accessToken, err := i.sign(jwtClaims{
 		Iss:  i.issuer,
@@ -58,26 +57,12 @@ func (i JWTTokenIssuer) Issue(userID string, now time.Time) (domainauth.AuthToke
 		Exp:  accessExpiresAt.Unix(),
 	})
 	if err != nil {
-		return domainauth.AuthTokens{}, fmt.Errorf("sign access token: %w", err)
+		return domainauth.IssuedAccessToken{}, fmt.Errorf("sign access token: %w", err)
 	}
 
-	refreshToken, err := i.sign(jwtClaims{
-		Iss:  i.issuer,
-		Sub:  userID,
-		Type: refreshTokenType,
-		Iat:  now.Unix(),
-		Exp:  refreshExpiresAt.Unix(),
-	})
-	if err != nil {
-		return domainauth.AuthTokens{}, fmt.Errorf("sign refresh token: %w", err)
-	}
-
-	return domainauth.AuthTokens{
-		AccessToken:      accessToken,
-		RefreshToken:     refreshToken,
-		TokenType:        "Bearer",
-		AccessExpiresAt:  accessExpiresAt,
-		RefreshExpiresAt: refreshExpiresAt,
+	return domainauth.IssuedAccessToken{
+		Token:     accessToken,
+		ExpiresAt: accessExpiresAt,
 	}, nil
 }
 
