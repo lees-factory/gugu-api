@@ -3,7 +3,7 @@ package verification
 import "time"
 
 type EmailVerification struct {
-	Token     string
+	Code      string
 	UserID    string
 	Email     string
 	ExpiresAt time.Time

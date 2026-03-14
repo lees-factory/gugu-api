@@ -20,7 +20,7 @@ func (r *EmailVerificationSQLCRepository) Create(context.Context, domainverifica
 	return ErrNotImplemented
 }
 
-func (r *EmailVerificationSQLCRepository) FindByToken(context.Context, string) (*domainverification.EmailVerification, error) {
+func (r *EmailVerificationSQLCRepository) FindByCode(context.Context, string) (*domainverification.EmailVerification, error) {
 	return nil, ErrNotImplemented
 }
 

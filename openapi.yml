@@ -2,22 +2,25 @@ openapi: 3.0.3
 info:
   title: gugu-api
   version: 1.0.0
-  description: OpenAPI specification for the gugu API auth and health endpoints.
+  description: gugu API의 상태 확인 및 인증 관련 엔드포인트 명세
 servers:
   - url: http://localhost:8080
 tags:
-  - name: Health
-  - name: Auth
+  - name: 상태 확인
+    description: 서버 상태 확인 API
+  - name: 인증
+    description: 회원가입, 이메일 인증, 로그인 API
 paths:
   /health:
     get:
       tags:
-        - Health
-      summary: Health check
+        - 상태 확인
+      summary: 서버 상태 확인
+      description: 서버가 정상적으로 요청을 처리할 수 있는지 확인한다.
       operationId: healthCheck
       responses:
         '200':
-          description: Service is healthy
+          description: 서버가 정상 상태다.
           content:
             application/json:
               schema:
@@ -31,8 +34,9 @@ paths:
   /v1/auth/register/email:
     post:
       tags:
-        - Auth
-      summary: Register user with email
+        - 인증
+      summary: 이메일 회원가입
+      description: 이메일과 비밀번호로 계정을 만들고 6자리 인증 코드를 발송한다.
       operationId: registerEmail
       requestBody:
         required: true
@@ -48,13 +52,13 @@ paths:
                   display_name: Gugu User
       responses:
         '201':
-          description: User registered successfully
+          description: 회원가입이 완료되었다.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/RegisterEmailResponse'
         '400':
-          description: Invalid request or business validation error
+          description: 요청 형식이 잘못되었거나 비즈니스 규칙을 위반했다.
           content:
             application/json:
               schema:
@@ -73,7 +77,7 @@ paths:
                       code: B1000
                       message: email already exists
         '500':
-          description: Unexpected server error
+          description: 서버 내부 오류가 발생했다.
           content:
             application/json:
               schema:
@@ -81,8 +85,9 @@ paths:
   /v1/auth/login/email:
     post:
       tags:
-        - Auth
-      summary: Login with email and password
+        - 인증
+      summary: 이메일 로그인
+      description: 이메일과 비밀번호가 맞으면 JWT access token과 refresh token을 발급한다.
       operationId: loginEmail
       requestBody:
         required: true
@@ -90,20 +95,15 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/LoginEmailRequest'
-            examples:
-              default:
-                value:
-                  email: user@example.com
-                  password: secret123!
       responses:
         '200':
-          description: Login successful
+          description: 로그인에 성공했다.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoginResponse'
         '400':
-          description: Invalid request or email not verified
+          description: 요청 형식이 잘못되었거나 이메일 인증이 완료되지 않았다.
           content:
             application/json:
               schema:
@@ -122,7 +122,7 @@ paths:
                       code: B2001
                       message: email is not verified
         '401':
-          description: Invalid credentials
+          description: 로그인 정보가 유효하지 않다.
           content:
             application/json:
               schema:
@@ -135,7 +135,7 @@ paths:
                       code: B2000
                       message: invalid credentials
         '500':
-          description: Unexpected server error
+          description: 서버 내부 오류가 발생했다.
           content:
             application/json:
               schema:
@@ -143,8 +143,9 @@ paths:
   /v1/auth/verify-email:
     post:
       tags:
-        - Auth
-      summary: Verify email with token
+        - 인증
+      summary: 이메일 인증 코드 검증
+      description: 회원가입 시 받은 6자리 인증 코드를 검증한다.
       operationId: verifyEmail
       requestBody:
         required: true
@@ -155,16 +156,16 @@ paths:
             examples:
               default:
                 value:
-                  token: verify-token
+                  code: '123456'
       responses:
         '200':
-          description: Email verified successfully
+          description: 이메일 인증이 완료되었다.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/VerifyEmailResponse'
         '400':
-          description: Invalid request or verification token not found
+          description: 요청 형식이 잘못되었거나 인증 코드를 찾을 수 없다.
           content:
             application/json:
               schema:
@@ -176,14 +177,14 @@ paths:
                     error:
                       code: E400
                       message: invalid request body
-                tokenNotFound:
+                codeNotFound:
                   value:
                     result: ERROR
                     error:
                       code: B2002
-                      message: verification token not found
+                      message: verification code not found
         '500':
-          description: Unexpected server error
+          description: 서버 내부 오류가 발생했다.
           content:
             application/json:
               schema:
@@ -191,8 +192,9 @@ paths:
   /v1/auth/oauth/login:
     post:
       tags:
-        - Auth
-      summary: Login or register with OAuth identity
+        - 인증
+      summary: OAuth 로그인
+      description: OAuth 공급자 정보로 로그인하거나 신규 사용자를 생성한 뒤 JWT 토큰을 발급한다.
       operationId: loginOAuth
       requestBody:
         required: true
@@ -200,22 +202,15 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/LoginOAuthRequest'
-            examples:
-              google:
-                value:
-                  provider: google
-                  subject: oauth-subject-123
-                  email: user@example.com
-                  display_name: Gugu User
       responses:
         '200':
-          description: OAuth login successful
+          description: OAuth 로그인에 성공했다.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LoginResponse'
         '400':
-          description: Invalid request or unsupported provider
+          description: 요청 형식이 잘못되었거나 지원하지 않는 공급자다.
           content:
             application/json:
               schema:
@@ -234,7 +229,7 @@ paths:
                       code: B2003
                       message: oauth provider is invalid
         '500':
-          description: Unexpected server error
+          description: 서버 내부 오류가 발생했다.
           content:
             application/json:
               schema:
@@ -243,28 +238,31 @@ components:
   schemas:
     ResultType:
       type: string
+      description: API 처리 결과 구분값
       enum:
         - SUCCESS
         - ERROR
     ErrorMessage:
       type: object
+      description: 에러 응답 본문
       required:
         - code
         - message
       properties:
         code:
           type: string
-          description: Application error code
+          description: 애플리케이션 에러 코드
           example: E400
         message:
           type: string
-          description: Human readable error message
+          description: 사용자 또는 클라이언트가 확인할 에러 메시지
           example: invalid request body
         data:
           nullable: true
-          description: Optional structured error data
+          description: 추가 에러 데이터
     ErrorResponse:
       type: object
+      description: 공통 에러 응답 래퍼
       required:
         - result
         - error
@@ -273,13 +271,9 @@ components:
           $ref: '#/components/schemas/ResultType'
         error:
           $ref: '#/components/schemas/ErrorMessage'
-      example:
-        result: ERROR
-        error:
-          code: E400
-          message: invalid request body
     User:
       type: object
+      description: 사용자 정보
       required:
         - id
         - email
@@ -289,40 +283,59 @@ components:
       properties:
         id:
           type: string
+          description: 사용자 고유 ID
           example: user_01
         email:
           type: string
           format: email
+          description: 사용자 이메일
           example: user@example.com
         display_name:
           type: string
+          description: 화면 표시 이름
           example: Gugu User
         email_verified:
           type: boolean
+          description: 이메일 인증 완료 여부
           example: false
         created_at:
           type: string
           format: date-time
+          description: 계정 생성 시각
           example: '2026-03-14T12:00:00Z'
-    Session:
+    Tokens:
       type: object
+      description: 로그인 성공 시 발급되는 JWT 토큰 묶음
       required:
-        - token
-        - user_id
-        - expires_at
+        - access_token
+        - refresh_token
+        - token_type
+        - access_expires_at
+        - refresh_expires_at
       properties:
-        token:
+        access_token:
           type: string
-          example: session_token_123
-        user_id:
+          description: API 인증에 사용하는 JWT access token
+        refresh_token:
           type: string
-          example: user_01
-        expires_at:
+          description: access token 재발급에 사용할 JWT refresh token
+        token_type:
+          type: string
+          description: Authorization 헤더에 사용할 토큰 타입
+          example: Bearer
+        access_expires_at:
           type: string
           format: date-time
-          example: '2026-03-15T12:00:00Z'
+          description: access token 만료 시각
+          example: '2026-03-14T12:15:00Z'
+        refresh_expires_at:
+          type: string
+          format: date-time
+          description: refresh token 만료 시각
+          example: '2026-03-28T12:00:00Z'
     RegisterEmailRequest:
       type: object
+      description: 이메일 회원가입 요청
       required:
         - email
         - password
@@ -331,13 +344,17 @@ components:
         email:
           type: string
           format: email
+          description: 회원가입 이메일
         password:
           type: string
           format: password
+          description: 로그인 비밀번호
         display_name:
           type: string
+          description: 사용자 표시 이름
     LoginEmailRequest:
       type: object
+      description: 이메일 로그인 요청
       required:
         - email
         - password
@@ -345,18 +362,24 @@ components:
         email:
           type: string
           format: email
+          description: 로그인 이메일
         password:
           type: string
           format: password
+          description: 로그인 비밀번호
     VerifyEmailRequest:
       type: object
+      description: 이메일 인증 코드 검증 요청
       required:
-        - token
+        - code
       properties:
-        token:
+        code:
           type: string
+          description: 이메일로 전달된 6자리 인증 코드
+          example: '123456'
     LoginOAuthRequest:
       type: object
+      description: OAuth 로그인 요청
       required:
         - provider
         - subject
@@ -365,25 +388,32 @@ components:
       properties:
         provider:
           type: string
+          description: OAuth 공급자 이름
           example: google
         subject:
           type: string
+          description: 공급자가 내려준 사용자 식별자
           example: oauth-subject-123
         email:
           type: string
           format: email
+          description: 공급자 기준 이메일
         display_name:
           type: string
+          description: 공급자 기준 표시 이름
     HealthData:
       type: object
+      description: 상태 확인 응답 데이터
       required:
         - status
       properties:
         status:
           type: string
+          description: 서버 상태값
           example: ok
     HealthResponse:
       type: object
+      description: 상태 확인 성공 응답
       required:
         - result
         - data
@@ -392,27 +422,27 @@ components:
           $ref: '#/components/schemas/ResultType'
         data:
           $ref: '#/components/schemas/HealthData'
-      example:
-        result: SUCCESS
-        data:
-          status: ok
     RegisterEmailData:
       type: object
+      description: 이메일 회원가입 성공 데이터
       required:
         - user
         - verification_dispatched
       properties:
         user:
           $ref: '#/components/schemas/User'
-        verification_token:
+        verification_code:
           type: string
           nullable: true
-          description: Present when a verification token is returned by the current implementation.
+          description: 현재 구현에서 개발 및 확인 용도로 함께 반환하는 6자리 인증 코드
+          example: '123456'
         verification_dispatched:
           type: boolean
+          description: 인증 코드 발송 처리 여부
           example: true
     RegisterEmailResponse:
       type: object
+      description: 이메일 회원가입 성공 응답
       required:
         - result
         - data
@@ -421,29 +451,20 @@ components:
           $ref: '#/components/schemas/ResultType'
         data:
           $ref: '#/components/schemas/RegisterEmailData'
-      example:
-        result: SUCCESS
-        data:
-          user:
-            id: user_01
-            email: user@example.com
-            display_name: Gugu User
-            email_verified: false
-            created_at: '2026-03-14T12:00:00Z'
-          verification_token: verify-token
-          verification_dispatched: true
     LoginData:
       type: object
+      description: 로그인 성공 데이터
       required:
         - user
-        - session
+        - tokens
       properties:
         user:
           $ref: '#/components/schemas/User'
-        session:
-          $ref: '#/components/schemas/Session'
+        tokens:
+          $ref: '#/components/schemas/Tokens'
     LoginResponse:
       type: object
+      description: 로그인 성공 응답
       required:
         - result
         - data
@@ -452,21 +473,9 @@ components:
           $ref: '#/components/schemas/ResultType'
         data:
           $ref: '#/components/schemas/LoginData'
-      example:
-        result: SUCCESS
-        data:
-          user:
-            id: user_01
-            email: user@example.com
-            display_name: Gugu User
-            email_verified: true
-            created_at: '2026-03-14T12:00:00Z'
-          session:
-            token: session_token_123
-            user_id: user_01
-            expires_at: '2026-03-15T12:00:00Z'
     VerifyEmailData:
       type: object
+      description: 이메일 인증 성공 데이터
       required:
         - user
       properties:
@@ -474,6 +483,7 @@ components:
           $ref: '#/components/schemas/User'
     VerifyEmailResponse:
       type: object
+      description: 이메일 인증 성공 응답
       required:
         - result
         - data
@@ -482,12 +492,3 @@ components:
           $ref: '#/components/schemas/ResultType'
         data:
           $ref: '#/components/schemas/VerifyEmailData'
-      example:
-        result: SUCCESS
-        data:
-          user:
-            id: user_01
-            email: user@example.com
-            display_name: Gugu User
-            email_verified: true
-            created_at: '2026-03-14T12:00:00Z'

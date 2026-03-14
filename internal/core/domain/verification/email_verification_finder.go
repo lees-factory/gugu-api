@@ -3,7 +3,7 @@ package verification
 import "context"
 
 type Finder interface {
-	FindByToken(ctx context.Context, token string) (*EmailVerification, error)
+	FindByCode(ctx context.Context, code string) (*EmailVerification, error)
 }
 
 type finder struct {
@@ -14,6 +14,6 @@ func NewFinder(repository Repository) Finder {
 	return &finder{repository: repository}
 }
 
-func (f *finder) FindByToken(ctx context.Context, token string) (*EmailVerification, error) {
-	return f.repository.FindByToken(ctx, token)
+func (f *finder) FindByCode(ctx context.Context, code string) (*EmailVerification, error) {
+	return f.repository.FindByCode(ctx, code)
 }

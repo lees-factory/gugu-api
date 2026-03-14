@@ -52,21 +52,37 @@ func (h fakePasswordHasher) Verify(hashedPassword string, rawPassword string) er
 
 type captureSender struct {
 	email string
-	token string
+	code  string
 	calls int
 }
 
-func (s *captureSender) SendVerification(_ context.Context, email string, token string) error {
+type fakeAuthTokenIssuer struct {
+	accessToken  string
+	refreshToken string
+}
+
+func (s *captureSender) SendVerification(_ context.Context, email string, code string) error {
 	s.email = email
-	s.token = token
+	s.code = code
 	s.calls++
 	return nil
+}
+
+func (i fakeAuthTokenIssuer) Issue(userID string, now time.Time) (domainauth.AuthTokens, error) {
+	return domainauth.AuthTokens{
+		AccessToken:      i.accessToken + ":" + userID,
+		RefreshToken:     i.refreshToken + ":" + userID,
+		TokenType:        "Bearer",
+		AccessExpiresAt:  now.Add(15 * time.Minute),
+		RefreshExpiresAt: now.Add(14 * 24 * time.Hour),
+	}, nil
 }
 
 var _ domainauth.IDGenerator = (*sequenceGenerator)(nil)
 var _ domainauth.TokenGenerator = (*sequenceGenerator)(nil)
 var _ domainauth.PasswordHasher = fakePasswordHasher{}
 var _ domainauth.VerificationSender = (*captureSender)(nil)
+var _ domainauth.AuthTokenIssuer = fakeAuthTokenIssuer{}
 var _ domainauth.Clock = (*fixedClock)(nil)
 var _ domainuser.Clock = (*fixedClock)(nil)
 var _ domainuser.IDGenerator = (*sequenceGenerator)(nil)
@@ -83,7 +99,6 @@ type authTestFixture struct {
 func newAuthTestFixture() *authTestFixture {
 	userRepository := memoryuser.NewRepository()
 	verificationRepository := memoryverification.NewRepository()
-	sessionRepository := memoryauth.NewSessionRepository()
 	oauthRepository := memoryauth.NewOAuthIdentityRepository()
 	clock := &fixedClock{now: time.Date(2026, time.March, 10, 9, 30, 0, 0, time.UTC)}
 	sender := &captureSender{}
@@ -104,9 +119,9 @@ func newAuthTestFixture() *authTestFixture {
 			domainverification.NewWriter(verificationRepository),
 			domainauth.NewOAuthIdentityFinder(oauthRepository),
 			domainauth.NewOAuthIdentityWriter(oauthRepository),
-			domainauth.NewSessionAppender(sessionRepository),
 			&sequenceGenerator{values: []string{"identity-1", "identity-2"}},
-			&sequenceGenerator{values: []string{"token-1", "token-2", "token-3", "token-4", "token-5"}},
+			&sequenceGenerator{values: []string{"123456", "654321", "111111", "222222", "333333"}},
+			fakeAuthTokenIssuer{accessToken: "access-token", refreshToken: "refresh-token"},
 			fakePasswordHasher{},
 			clock,
 			sender,
@@ -150,8 +165,8 @@ func TestRegisterEmailCreatesUserAndDispatchesVerification(t *testing.T) {
 	if createdUser.AuthSource != "email" {
 		t.Fatalf("expected auth source email, got %q", createdUser.AuthSource)
 	}
-	if verificationResult.VerificationToken != "token-1" {
-		t.Fatalf("expected verification token token-1, got %q", verificationResult.VerificationToken)
+	if verificationResult.VerificationCode != "123456" {
+		t.Fatalf("expected verification code 123456, got %q", verificationResult.VerificationCode)
 	}
 	if !verificationResult.VerificationDispatched {
 		t.Fatal("expected verification dispatched")
@@ -160,15 +175,15 @@ func TestRegisterEmailCreatesUserAndDispatchesVerification(t *testing.T) {
 		t.Fatalf("unexpected verification dispatch: calls=%d email=%q", fixture.sender.calls, fixture.sender.email)
 	}
 
-	foundVerification, err := fixture.verificationRepository.FindByToken(context.Background(), "token-1")
+	foundVerification, err := fixture.verificationRepository.FindByCode(context.Background(), "123456")
 	if err != nil {
 		t.Fatalf("find verification: %v", err)
 	}
 	if foundVerification == nil {
 		t.Fatal("expected verification stored")
 	}
-	if foundVerification.ExpiresAt != fixture.clock.now.Add(24*time.Hour) {
-		t.Fatalf("expected verification expiry %v, got %v", fixture.clock.now.Add(24*time.Hour), foundVerification.ExpiresAt)
+	if foundVerification.ExpiresAt != fixture.clock.now.Add(10*time.Minute) {
+		t.Fatalf("expected verification expiry %v, got %v", fixture.clock.now.Add(10*time.Minute), foundVerification.ExpiresAt)
 	}
 }
 
@@ -195,13 +210,13 @@ func TestUserServiceRejectsDuplicateEmail(t *testing.T) {
 	}
 }
 
-func TestVerifyEmailTokenMarksUserVerified(t *testing.T) {
+func TestVerifyEmailCodeMarksUserVerified(t *testing.T) {
 	fixture := newAuthTestFixture()
-	token := registerEmailUser(t, fixture)
+	code := registerEmailUser(t, fixture)
 
-	verifyResult, err := fixture.authService.VerifyEmailToken(context.Background(), domainauth.VerifyEmailTokenInput{Token: token})
+	verifyResult, err := fixture.authService.VerifyEmailCode(context.Background(), domainauth.VerifyEmailCodeInput{Code: code})
 	if err != nil {
-		t.Fatalf("verify email token: %v", err)
+		t.Fatalf("verify email code: %v", err)
 	}
 
 	verifiedUser, err := fixture.userService.MarkEmailVerified(context.Background(), verifyResult.UserID, verifyResult.VerifiedAt)
@@ -217,39 +232,39 @@ func TestVerifyEmailTokenMarksUserVerified(t *testing.T) {
 	}
 }
 
-func TestVerifyEmailTokenRejectsFailureCases(t *testing.T) {
+func TestVerifyEmailCodeRejectsFailureCases(t *testing.T) {
 	testCases := []struct {
 		name  string
 		setup func(t *testing.T, fixture *authTestFixture) string
 		want  error
 	}{
 		{
-			name: "token not found",
+			name: "code not found",
 			setup: func(t *testing.T, fixture *authTestFixture) string {
 				t.Helper()
-				return "missing-token"
+				return "999999"
 			},
 			want: domainauth.ErrVerificationNotFound,
 		},
 		{
-			name: "token already used",
+			name: "code already used",
 			setup: func(t *testing.T, fixture *authTestFixture) string {
 				t.Helper()
-				token := registerEmailUser(t, fixture)
-				if _, err := fixture.authService.VerifyEmailToken(context.Background(), domainauth.VerifyEmailTokenInput{Token: token}); err != nil {
-					t.Fatalf("verify email token setup: %v", err)
+				code := registerEmailUser(t, fixture)
+				if _, err := fixture.authService.VerifyEmailCode(context.Background(), domainauth.VerifyEmailCodeInput{Code: code}); err != nil {
+					t.Fatalf("verify email code setup: %v", err)
 				}
-				return token
+				return code
 			},
 			want: domainauth.ErrVerificationNotFound,
 		},
 		{
-			name: "token expired",
+			name: "code expired",
 			setup: func(t *testing.T, fixture *authTestFixture) string {
 				t.Helper()
-				token := registerEmailUser(t, fixture)
-				fixture.clock.now = fixture.clock.now.Add(25 * time.Hour)
-				return token
+				code := registerEmailUser(t, fixture)
+				fixture.clock.now = fixture.clock.now.Add(11 * time.Minute)
+				return code
 			},
 			want: domainauth.ErrVerificationNotFound,
 		},
@@ -258,9 +273,9 @@ func TestVerifyEmailTokenRejectsFailureCases(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			fixture := newAuthTestFixture()
-			token := tc.setup(t, fixture)
+			code := tc.setup(t, fixture)
 
-			_, err := fixture.authService.VerifyEmailToken(context.Background(), domainauth.VerifyEmailTokenInput{Token: token})
+			_, err := fixture.authService.VerifyEmailCode(context.Background(), domainauth.VerifyEmailCodeInput{Code: code})
 			if !errors.Is(err, tc.want) {
 				t.Fatalf("expected %v, got %v", tc.want, err)
 			}
@@ -283,16 +298,19 @@ func TestEmailLoginFlow(t *testing.T) {
 		t.Fatalf("verify password: %v", err)
 	}
 
-	session, err := fixture.authService.CreateSession(context.Background(), foundUser.ID)
+	tokens, err := fixture.authService.IssueAuthTokens(foundUser.ID)
 	if err != nil {
-		t.Fatalf("create session: %v", err)
+		t.Fatalf("issue auth tokens: %v", err)
 	}
 
-	if session.Token != "token-2" {
-		t.Fatalf("expected session token token-2, got %q", session.Token)
+	if tokens.AccessToken != "access-token:"+foundUser.ID {
+		t.Fatalf("expected access token for %q, got %q", foundUser.ID, tokens.AccessToken)
 	}
-	if session.ExpiresAt != fixture.clock.now.Add(30*24*time.Hour) {
-		t.Fatalf("expected session expiry %v, got %v", fixture.clock.now.Add(30*24*time.Hour), session.ExpiresAt)
+	if tokens.RefreshToken != "refresh-token:"+foundUser.ID {
+		t.Fatalf("expected refresh token for %q, got %q", foundUser.ID, tokens.RefreshToken)
+	}
+	if tokens.AccessExpiresAt != fixture.clock.now.Add(15*time.Minute) {
+		t.Fatalf("expected access expiry %v, got %v", fixture.clock.now.Add(15*time.Minute), tokens.AccessExpiresAt)
 	}
 }
 
@@ -340,12 +358,12 @@ func TestOAuthUserAndIdentityFlow(t *testing.T) {
 		t.Fatalf("touch oauth last login: %v", err)
 	}
 
-	session, err := fixture.authService.CreateSession(context.Background(), foundUser.ID)
+	tokens, err := fixture.authService.IssueAuthTokens(foundUser.ID)
 	if err != nil {
-		t.Fatalf("create oauth session: %v", err)
+		t.Fatalf("issue oauth auth tokens: %v", err)
 	}
-	if session.Token != "token-1" {
-		t.Fatalf("expected oauth session token token-1, got %q", session.Token)
+	if tokens.AccessToken != "access-token:"+foundUser.ID {
+		t.Fatalf("expected oauth access token for %q, got %q", foundUser.ID, tokens.AccessToken)
 	}
 }
 
@@ -383,16 +401,16 @@ func registerEmailUser(t *testing.T, fixture *authTestFixture) string {
 		t.Fatalf("issue email verification: %v", err)
 	}
 
-	return result.VerificationToken
+	return result.VerificationCode
 }
 
 func registerAndVerifyEmailUser(t *testing.T, fixture *authTestFixture) {
 	t.Helper()
 
-	token := registerEmailUser(t, fixture)
-	verifyResult, err := fixture.authService.VerifyEmailToken(context.Background(), domainauth.VerifyEmailTokenInput{Token: token})
+	code := registerEmailUser(t, fixture)
+	verifyResult, err := fixture.authService.VerifyEmailCode(context.Background(), domainauth.VerifyEmailCodeInput{Code: code})
 	if err != nil {
-		t.Fatalf("verify email token: %v", err)
+		t.Fatalf("verify email code: %v", err)
 	}
 	if _, err := fixture.userService.MarkEmailVerified(context.Background(), verifyResult.UserID, verifyResult.VerifiedAt); err != nil {
 		t.Fatalf("mark email verified: %v", err)

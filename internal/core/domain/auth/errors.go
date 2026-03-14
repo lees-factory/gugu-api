@@ -18,7 +18,7 @@ var (
 	ErrorTypeVerificationNotFound = coreerror.ErrorType{
 		Kind:    coreerror.ErrorKindClient,
 		Code:    "B2002",
-		Message: "verification token not found",
+		Message: "verification code not found",
 		Level:   coreerror.ErrorLevelInfo,
 	}
 	ErrorTypeOAuthProviderInvalid = coreerror.ErrorType{

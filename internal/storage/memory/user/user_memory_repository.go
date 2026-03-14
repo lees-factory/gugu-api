@@ -31,8 +31,7 @@ func (r *UserMemoryRepository) FindByEmail(_ context.Context, email string) (*do
 		return nil, nil
 	}
 
-	foundUser := r.users[id]
-	return &foundUser, nil
+	return new(r.users[id]), nil
 }
 
 func (r *UserMemoryRepository) FindByID(_ context.Context, userID string) (*domainuser.User, error) {

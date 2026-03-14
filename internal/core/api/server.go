@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	stdhttp "net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -25,18 +26,29 @@ type Server struct {
 	router *chi.Mux
 }
 
-func NewServer(_ config.Config) (*Server, error) {
+func NewServer(cfg config.Config) (*Server, error) {
 	clock := timeutil.SystemClock{}
 	userRepository := memoryuser.NewRepository()
 	verificationRepository := memoryverification.NewRepository()
 	oauthIdentityRepository := memoryauth.NewOAuthIdentityRepository()
-	sessionRepository := memoryauth.NewSessionRepository()
 	userIDGenerator := id.NewRandomHexGenerator(16)
 	identityIDGenerator := id.NewRandomHexGenerator(16)
-	tokenGenerator := security.NewRandomTokenGenerator(32)
+	verificationCodeGenerator := security.NewNumericCodeGenerator(6)
+	authTokenIssuer := security.NewJWTTokenIssuer(cfg.JWTSecret, cfg.JWTIssuer)
 	userWriter := domainuser.NewWriter(userRepository)
 	userFinder := domainuser.NewFinder(userRepository)
 	userCreator := domainuser.NewCreator(userWriter, userIDGenerator, clock)
+	emailSender, err := email.NewSender(email.Config{
+		Provider:     cfg.MailProvider,
+		MailFrom:     cfg.MailFrom,
+		SMTPHost:     cfg.SMTPHost,
+		SMTPPort:     cfg.SMTPPort,
+		SMTPUsername: cfg.SMTPUsername,
+		SMTPPassword: cfg.SMTPPassword,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("build email sender: %w", err)
+	}
 
 	authService := domainauth.New(
 		userFinder,
@@ -46,12 +58,12 @@ func NewServer(_ config.Config) (*Server, error) {
 		domainverification.NewWriter(verificationRepository),
 		domainauth.NewOAuthIdentityFinder(oauthIdentityRepository),
 		domainauth.NewOAuthIdentityWriter(oauthIdentityRepository),
-		domainauth.NewSessionAppender(sessionRepository),
 		identityIDGenerator,
-		tokenGenerator,
+		verificationCodeGenerator,
+		authTokenIssuer,
 		security.BcryptPasswordHasher{},
 		clock,
-		email.LogSender{},
+		emailSender,
 	)
 
 	router := chi.NewRouter()

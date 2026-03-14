@@ -12,7 +12,7 @@ type IssueEmailVerificationInput struct {
 }
 
 type IssueEmailVerificationResult struct {
-	VerificationToken      string
+	VerificationCode       string
 	VerificationDispatched bool
 }
 
@@ -24,7 +24,7 @@ type RegisterEmailInput struct {
 
 type RegisterEmailResult struct {
 	User                   user.User
-	VerificationToken      string
+	VerificationCode       string
 	VerificationDispatched bool
 }
 
@@ -34,21 +34,21 @@ type LoginEmailInput struct {
 }
 
 type LoginResult struct {
-	User    user.User
-	Session Session
+	User   user.User
+	Tokens AuthTokens
 }
 
-type VerifyEmailTokenInput struct {
-	Token string
+type VerifyEmailCodeInput struct {
+	Code string
 }
 
-type VerifyEmailTokenResult struct {
+type VerifyEmailCodeResult struct {
 	UserID     string
 	VerifiedAt time.Time
 }
 
 type VerifyEmailInput struct {
-	Token string
+	Code string
 }
 
 type VerifyEmailResult struct {

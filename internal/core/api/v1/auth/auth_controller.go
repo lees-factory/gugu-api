@@ -34,7 +34,7 @@ func (c *Controller) RegisterEmail(r *stdhttp.Request) (int, any, error) {
 	}
 
 	return stdhttp.StatusCreated, apiresponse.SuccessWithData(
-		authresponse.NewRegisterEmail(result.User, result.VerificationToken, result.VerificationDispatched),
+		authresponse.NewRegisterEmail(result.User, result.VerificationCode, result.VerificationDispatched),
 	), nil
 }
 
@@ -63,7 +63,7 @@ func (c *Controller) VerifyEmail(r *stdhttp.Request) (int, any, error) {
 		return 0, nil, err
 	}
 
-	verifiedResult, err := c.authService.VerifyEmail(r.Context(), domainauth.VerifyEmailInput{Token: req.Token})
+	verifiedResult, err := c.authService.VerifyEmail(r.Context(), domainauth.VerifyEmailInput{Code: req.Code})
 	if err != nil {
 		return 0, nil, err
 	}

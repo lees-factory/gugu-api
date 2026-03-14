@@ -24,15 +24,15 @@ func (r *EmailVerificationMemoryRepository) Create(_ context.Context, emailVerif
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.verifications[emailVerification.Token] = emailVerification
+	r.verifications[emailVerification.Code] = emailVerification
 	return nil
 }
 
-func (r *EmailVerificationMemoryRepository) FindByToken(_ context.Context, token string) (*domainverification.EmailVerification, error) {
+func (r *EmailVerificationMemoryRepository) FindByCode(_ context.Context, code string) (*domainverification.EmailVerification, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	foundVerification, ok := r.verifications[token]
+	foundVerification, ok := r.verifications[code]
 	if !ok {
 		return nil, nil
 	}
@@ -40,16 +40,16 @@ func (r *EmailVerificationMemoryRepository) FindByToken(_ context.Context, token
 	return &foundVerification, nil
 }
 
-func (r *EmailVerificationMemoryRepository) MarkUsed(_ context.Context, token string, usedAt time.Time) error {
+func (r *EmailVerificationMemoryRepository) MarkUsed(_ context.Context, code string, usedAt time.Time) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	foundVerification, ok := r.verifications[token]
+	foundVerification, ok := r.verifications[code]
 	if !ok {
 		return errors.New("verification not found")
 	}
 
 	foundVerification.UsedAt = &usedAt
-	r.verifications[token] = foundVerification
+	r.verifications[code] = foundVerification
 	return nil
 }
