@@ -15,7 +15,14 @@ Supabase SQL Editor 에서 [init.sql](/Users/LJJ/Desktop/project/go/gugu/gugu-ap
 
 ### 로컬 실행
 
-이 프로젝트는 `.env` 를 자동으로 읽지 않는다. 실행 전에 shell 에 환경 변수를 올려야 한다.
+이 프로젝트는 시작 시 루트의 `.env` 를 자동으로 읽는다.
+`.env` 파일이 없으면 조용히 넘어가고, 파일이 있는데 파싱 오류가 있을 때만 경고 로그를 남긴다.
+
+```bash
+go run ./cmd/api
+```
+
+수동으로 shell 환경 변수에 올리는 방식도 그대로 사용할 수 있다.
 
 ```bash
 set -a

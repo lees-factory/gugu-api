@@ -3,15 +3,22 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"log"
 	"net/http"
+	"os"
 
+	"github.com/joho/godotenv"
 	httpapi "github.com/ljj/gugu-api/internal/core/api"
 	"github.com/ljj/gugu-api/internal/storage/dbcore"
 	"github.com/ljj/gugu-api/internal/support/config"
 )
 
 func main() {
+	if err := godotenv.Load(); err != nil && !errors.Is(err, os.ErrNotExist) {
+		log.Printf("load .env: %v", err)
+	}
+
 	cfg := config.Load()
 	var db *sql.DB
 
