@@ -236,6 +236,109 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /v1/auth/refresh:
+    post:
+      tags:
+        - 인증
+      summary: Refresh token 재발급
+      description: 유효한 refresh token으로 access token과 refresh token을 재발급한다.
+      operationId: refreshAuthTokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+            examples:
+              default:
+                value:
+                  refresh_token: refresh-token-value
+                  device_name: Chrome on Mac
+      responses:
+        '200':
+          description: 토큰 재발급에 성공했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokensResponse'
+        '400':
+          description: 요청 형식이 잘못되었거나 refresh token이 유효하지 않다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidBody:
+                  value:
+                    result: ERROR
+                    error:
+                      code: E400
+                      message: invalid request body
+                invalidRefreshToken:
+                  value:
+                    result: ERROR
+                    error:
+                      code: B2004
+                      message: refresh token is invalid
+        '500':
+          description: 서버 내부 오류가 발생했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/auth/logout:
+    post:
+      tags:
+        - 인증
+      summary: 로그아웃
+      description: 현재 refresh token 세션을 폐기한다. 클라이언트는 응답과 별개로 로컬 토큰도 즉시 삭제해야 한다.
+      operationId: logout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+            examples:
+              default:
+                value:
+                  refresh_token: refresh-token-value
+      responses:
+        '200':
+          description: 로그아웃에 성공했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+              examples:
+                success:
+                  value:
+                    result: SUCCESS
+        '400':
+          description: 요청 형식이 잘못되었거나 refresh token이 유효하지 않다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                invalidBody:
+                  value:
+                    result: ERROR
+                    error:
+                      code: E400
+                      message: invalid request body
+                invalidRefreshToken:
+                  value:
+                    result: ERROR
+                    error:
+                      code: B2004
+                      message: refresh token is invalid
+        '500':
+          description: 서버 내부 오류가 발생했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /v1/integrations/aliexpress/authorize-url:
     post:
       tags:
@@ -500,6 +603,28 @@ components:
         display_name:
           type: string
           description: 공급자 기준 표시 이름
+    RefreshTokenRequest:
+      type: object
+      description: refresh token 재발급 요청
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          description: 재발급에 사용할 refresh token
+        device_name:
+          type: string
+          description: 클라이언트 기기 이름
+          example: Chrome on Mac
+    LogoutRequest:
+      type: object
+      description: 로그아웃 요청
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          description: 폐기할 현재 refresh token
     AliExpressAuthorizationURLRequest:
       type: object
       description: AliExpress 인가 URL 생성 요청
@@ -616,6 +741,25 @@ components:
           $ref: '#/components/schemas/ResultType'
         data:
           $ref: '#/components/schemas/VerifyEmailData'
+    TokensResponse:
+      type: object
+      description: 토큰 재발급 성공 응답
+      required:
+        - result
+        - data
+      properties:
+        result:
+          $ref: '#/components/schemas/ResultType'
+        data:
+          $ref: '#/components/schemas/Tokens'
+    SuccessResponse:
+      type: object
+      description: 데이터 없이 성공만 반환하는 응답
+      required:
+        - result
+      properties:
+        result:
+          $ref: '#/components/schemas/ResultType'
     AliExpressAuthorizationURLData:
       type: object
       description: AliExpress 인가 URL 응답 데이터
