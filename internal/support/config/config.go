@@ -29,7 +29,7 @@ func Load() Config {
 		HTTPAddress:            getenv("HTTP_ADDRESS", ":8080"),
 		GoogleOAuthCallbackURL: getenv("GOOGLE_OAUTH_CALLBACK_URL", "http://localhost:8080/v1/auth/oauth/google/callback"),
 		AliExpressBaseURL:      getenv("ALIEXPRESS_BASE_URL", "https://api-sg.aliexpress.com"),
-		AliExpressAppKey:       getenv("ALIEXPRESS_APP_KEY", "528586"),
+		AliExpressAppKey:       os.Getenv("ALIEXPRESS_APP_KEY"),
 		AliExpressAppSecret:    os.Getenv("ALIEXPRESS_APP_SECRET"),
 		AliExpressCallbackURL:  getenv("ALIEXPRESS_CALLBACK_URL", "https://googoo-client.vercel.app/callback"),
 		DatabaseURL:            os.Getenv("DATABASE_URL"),
