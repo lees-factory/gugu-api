@@ -7,40 +7,22 @@ import (
 	"time"
 
 	domainauth "github.com/ljj/gugu-api/internal/core/domain/auth"
+	"github.com/ljj/gugu-api/internal/storage/dbcore/sqldb"
 )
 
 type OAuthIdentitySQLCRepository struct {
-	db *sql.DB
+	queries *sqldb.Queries
 }
 
-func NewOAuthIdentityRepository(db *sql.DB) *OAuthIdentitySQLCRepository {
-	return &OAuthIdentitySQLCRepository{db: db}
+func NewOAuthIdentitySQLCRepository(db *sql.DB) *OAuthIdentitySQLCRepository {
+	return &OAuthIdentitySQLCRepository{queries: sqldb.New(db)}
 }
 
 func (r *OAuthIdentitySQLCRepository) FindByProviderSubject(ctx context.Context, provider string, subject string) (*domainauth.OAuthIdentity, error) {
-	const query = `
-SELECT
-	id,
-	user_id,
-	provider,
-	subject,
-	email,
-	created_at,
-	last_login_at
-	FROM gugu.oauth_identities
-WHERE provider = $1 AND subject = $2
-`
-
-	var identity domainauth.OAuthIdentity
-	err := r.db.QueryRowContext(ctx, query, provider, subject).Scan(
-		&identity.ID,
-		&identity.UserID,
-		&identity.Provider,
-		&identity.Subject,
-		&identity.Email,
-		&identity.CreatedAt,
-		&identity.LastLoginAt,
-	)
+	row, err := r.queries.FindOAuthIdentity(ctx, sqldb.FindOAuthIdentityParams{
+		Provider: provider,
+		Subject:  subject,
+	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -48,51 +30,35 @@ WHERE provider = $1 AND subject = $2
 		return nil, err
 	}
 
-	return &identity, nil
+	return &domainauth.OAuthIdentity{
+		ID:          row.ID,
+		UserID:      row.UserID,
+		Provider:    row.Provider,
+		Subject:     row.Subject,
+		Email:       row.Email,
+		CreatedAt:   row.CreatedAt,
+		LastLoginAt: row.LastLoginAt,
+	}, nil
 }
 
 func (r *OAuthIdentitySQLCRepository) Create(ctx context.Context, identity domainauth.OAuthIdentity) error {
-	const query = `
-	INSERT INTO gugu.oauth_identities (
-	id,
-	user_id,
-	provider,
-	subject,
-	email,
-	created_at,
-	last_login_at
-) VALUES (
-	$1, $2, $3, $4, $5, $6, $7
-)
-`
-
-	_, err := r.db.ExecContext(
-		ctx,
-		query,
-		identity.ID,
-		identity.UserID,
-		identity.Provider,
-		identity.Subject,
-		identity.Email,
-		identity.CreatedAt,
-		identity.LastLoginAt,
-	)
-	return err
+	return r.queries.CreateOAuthIdentity(ctx, sqldb.CreateOAuthIdentityParams{
+		ID:          identity.ID,
+		UserID:      identity.UserID,
+		Provider:    identity.Provider,
+		Subject:     identity.Subject,
+		Email:       identity.Email,
+		CreatedAt:   identity.CreatedAt,
+		LastLoginAt: identity.LastLoginAt,
+	})
 }
 
 func (r *OAuthIdentitySQLCRepository) UpdateLastLogin(ctx context.Context, provider string, subject string, lastLoginAt time.Time) error {
-	const query = `
-	UPDATE gugu.oauth_identities
-SET last_login_at = $3
-WHERE provider = $1 AND subject = $2
-`
-
-	result, err := r.db.ExecContext(ctx, query, provider, subject, lastLoginAt)
-	if err != nil {
-		return err
-	}
-
-	affected, err := result.RowsAffected()
+	affected, err := r.queries.UpdateOAuthLastLogin(ctx, sqldb.UpdateOAuthLastLoginParams{
+		Provider:    provider,
+		Subject:     subject,
+		LastLoginAt: lastLoginAt,
+	})
 	if err != nil {
 		return err
 	}

@@ -7,67 +7,30 @@ import (
 	"time"
 
 	domainverification "github.com/ljj/gugu-api/internal/core/domain/verification"
+	"github.com/ljj/gugu-api/internal/storage/dbcore/sqldb"
 )
 
 type EmailVerificationSQLCRepository struct {
-	db *sql.DB
+	queries *sqldb.Queries
 }
 
-func NewRepository(db *sql.DB) *EmailVerificationSQLCRepository {
-	return &EmailVerificationSQLCRepository{db: db}
+func NewSQLCRepository(db *sql.DB) *EmailVerificationSQLCRepository {
+	return &EmailVerificationSQLCRepository{queries: sqldb.New(db)}
 }
 
 func (r *EmailVerificationSQLCRepository) Create(ctx context.Context, emailVerification domainverification.EmailVerification) error {
-	const query = `
-	INSERT INTO gugu.email_verifications (
-	code,
-	user_id,
-	email,
-	expires_at,
-	used_at,
-	created_at
-) VALUES (
-	$1, $2, $3, $4, $5, $6
-)
-`
-
-	_, err := r.db.ExecContext(
-		ctx,
-		query,
-		emailVerification.Code,
-		emailVerification.UserID,
-		emailVerification.Email,
-		emailVerification.ExpiresAt,
-		emailVerification.UsedAt,
-		emailVerification.CreatedAt,
-	)
-	return err
+	return r.queries.CreateEmailVerification(ctx, sqldb.CreateEmailVerificationParams{
+		Code:      emailVerification.Code,
+		UserID:    emailVerification.UserID,
+		Email:     emailVerification.Email,
+		ExpiresAt: emailVerification.ExpiresAt,
+		UsedAt:    nullTime(emailVerification.UsedAt),
+		CreatedAt: emailVerification.CreatedAt,
+	})
 }
 
 func (r *EmailVerificationSQLCRepository) FindByCode(ctx context.Context, code string) (*domainverification.EmailVerification, error) {
-	const query = `
-SELECT
-	code,
-	user_id,
-	email,
-	expires_at,
-	used_at,
-	created_at
-	FROM gugu.email_verifications
-WHERE code = $1
-`
-
-	var verification domainverification.EmailVerification
-	var usedAt sql.NullTime
-
-	err := r.db.QueryRowContext(ctx, query, code).Scan(
-		&verification.Code,
-		&verification.UserID,
-		&verification.Email,
-		&verification.ExpiresAt,
-		&usedAt,
-		&verification.CreatedAt,
-	)
+	row, err := r.queries.FindEmailVerificationByCode(ctx, code)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -75,26 +38,25 @@ WHERE code = $1
 		return nil, err
 	}
 
-	if usedAt.Valid {
-		verification.UsedAt = &usedAt.Time
+	verification := &domainverification.EmailVerification{
+		Code:      row.Code,
+		UserID:    row.UserID,
+		Email:     row.Email,
+		ExpiresAt: row.ExpiresAt,
+		CreatedAt: row.CreatedAt,
+	}
+	if row.UsedAt.Valid {
+		verification.UsedAt = &row.UsedAt.Time
 	}
 
-	return &verification, nil
+	return verification, nil
 }
 
 func (r *EmailVerificationSQLCRepository) MarkUsed(ctx context.Context, code string, usedAt time.Time) error {
-	const query = `
-	UPDATE gugu.email_verifications
-SET used_at = $2
-WHERE code = $1
-`
-
-	result, err := r.db.ExecContext(ctx, query, code, usedAt)
-	if err != nil {
-		return err
-	}
-
-	affected, err := result.RowsAffected()
+	affected, err := r.queries.MarkEmailVerificationUsed(ctx, sqldb.MarkEmailVerificationUsedParams{
+		Code:   code,
+		UsedAt: sql.NullTime{Time: usedAt, Valid: true},
+	})
 	if err != nil {
 		return err
 	}
@@ -103,4 +65,11 @@ WHERE code = $1
 	}
 
 	return nil
+}
+
+func nullTime(value *time.Time) sql.NullTime {
+	if value == nil {
+		return sql.NullTime{}
+	}
+	return sql.NullTime{Time: *value, Valid: true}
 }
