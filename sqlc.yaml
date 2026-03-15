@@ -1,8 +1,8 @@
 version: "2"
 sql:
   - engine: "postgresql"
-    schema: "db/schema/auth.sql"
-    queries: "db/query/auth.sql"
+    schema: "internal/storage/dbcore/sqlc/schema/auth.sql"
+    queries: "internal/storage/dbcore/sqlc/query/auth.sql"
     gen:
       go:
         package: "sqldb"

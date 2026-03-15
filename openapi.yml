@@ -10,6 +10,8 @@ tags:
     description: 서버 상태 확인 API
   - name: 인증
     description: 회원가입, 이메일 인증, 로그인 API
+  - name: 외부 연동
+    description: 외부 서비스 연결 및 상태 조회 API
 paths:
   /health:
     get:
@@ -234,6 +236,103 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /v1/integrations/aliexpress/authorize-url:
+    post:
+      tags:
+        - 외부 연동
+      summary: AliExpress 인가 URL 생성
+      description: 사용자를 AliExpress seller authorization 화면으로 보내기 위한 URL을 생성한다.
+      operationId: buildAliExpressAuthorizationURL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AliExpressAuthorizationURLRequest'
+      responses:
+        '200':
+          description: 인가 URL 생성에 성공했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AliExpressAuthorizationURLResponse'
+        '400':
+          description: 요청 형식이 잘못되었다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 내부 오류가 발생했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/integrations/aliexpress/exchange-code:
+    post:
+      tags:
+        - 외부 연동
+      summary: AliExpress 인가 code 교환
+      description: callback 으로 받은 code를 AliExpress token으로 교환하고 내부 연결 상태를 저장한다.
+      operationId: exchangeAliExpressCode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AliExpressExchangeCodeRequest'
+      responses:
+        '200':
+          description: code 교환 및 연결 저장에 성공했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AliExpressConnectionStatusResponse'
+        '400':
+          description: code가 유효하지 않거나 요청 형식이 잘못되었다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 내부 오류가 발생했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/integrations/aliexpress/connection-status:
+    get:
+      tags:
+        - 외부 연동
+      summary: AliExpress 연결 상태 조회
+      description: 내부에 저장된 AliExpress seller 연결 상태를 조회한다. token 원문은 반환하지 않는다.
+      operationId: getAliExpressConnectionStatus
+      parameters:
+        - in: query
+          name: user_id
+          required: true
+          schema:
+            type: string
+          description: 연결 상태를 확인할 내부 사용자 ID
+      responses:
+        '200':
+          description: 연결 상태 조회에 성공했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AliExpressConnectionStatusResponse'
+        '400':
+          description: 요청 형식이 잘못되었다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 내부 오류가 발생했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
     ResultType:
@@ -401,6 +500,31 @@ components:
         display_name:
           type: string
           description: 공급자 기준 표시 이름
+    AliExpressAuthorizationURLRequest:
+      type: object
+      description: AliExpress 인가 URL 생성 요청
+      required:
+        - user_id
+      properties:
+        user_id:
+          type: string
+          description: 내부 사용자 ID
+          example: user_01
+    AliExpressExchangeCodeRequest:
+      type: object
+      description: AliExpress callback code 교환 요청
+      required:
+        - user_id
+        - code
+      properties:
+        user_id:
+          type: string
+          description: 내부 사용자 ID
+          example: user_01
+        code:
+          type: string
+          description: AliExpress callback 으로 받은 authorization code
+          example: ali-code-123
     HealthData:
       type: object
       description: 상태 확인 응답 데이터
@@ -492,3 +616,95 @@ components:
           $ref: '#/components/schemas/ResultType'
         data:
           $ref: '#/components/schemas/VerifyEmailData'
+    AliExpressAuthorizationURLData:
+      type: object
+      description: AliExpress 인가 URL 응답 데이터
+      required:
+        - user_id
+        - authorization_url
+      properties:
+        user_id:
+          type: string
+          description: 내부 사용자 ID
+          example: user_01
+        authorization_url:
+          type: string
+          description: AliExpress seller authorization 페이지 URL
+          example: https://api-sg.aliexpress.com/oauth/authorize?response_type=code
+    AliExpressAuthorizationURLResponse:
+      type: object
+      description: AliExpress 인가 URL 생성 응답
+      required:
+        - result
+        - data
+      properties:
+        result:
+          $ref: '#/components/schemas/ResultType'
+        data:
+          $ref: '#/components/schemas/AliExpressAuthorizationURLData'
+    AliExpressConnectionStatusData:
+      type: object
+      description: AliExpress 연결 상태 응답 데이터
+      required:
+        - user_id
+        - connected
+        - reauthorization_required
+      properties:
+        user_id:
+          type: string
+          description: 내부 사용자 ID
+          example: user_01
+        seller_id:
+          type: string
+          nullable: true
+          description: 연결된 AliExpress seller 식별자
+          example: '200042362'
+        account:
+          type: string
+          nullable: true
+          description: 연결된 AliExpress 계정명
+          example: seller@example.com
+        user_nick:
+          type: string
+          nullable: true
+          description: 연결된 AliExpress seller 닉네임
+          example: seller nick
+        connected:
+          type: boolean
+          description: 현재 연결 정보가 존재하는지 여부
+          example: true
+        reauthorization_required:
+          type: boolean
+          description: refresh token 만료 등으로 재인가가 필요한지 여부
+          example: false
+        authorized_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 최초 인가 완료 시각
+        access_token_expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 내부 access token 만료 시각
+        refresh_token_expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 내부 refresh token 만료 시각
+        last_refreshed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: 토큰을 마지막으로 저장 또는 갱신한 시각
+    AliExpressConnectionStatusResponse:
+      type: object
+      description: AliExpress 연결 상태 응답
+      required:
+        - result
+        - data
+      properties:
+        result:
+          $ref: '#/components/schemas/ResultType'
+        data:
+          $ref: '#/components/schemas/AliExpressConnectionStatusData'

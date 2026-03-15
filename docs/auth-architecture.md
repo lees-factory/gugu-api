@@ -5,7 +5,7 @@
 - `email account`: 이메일과 패스워드를 가진 로컬 인증 계정
 - `email verification`: 메일 인증 토큰 발급과 소모
 - `oauth identity`: 외부 provider subject를 내부 유저에 연결하는 식별자
-- `session`: 로그인 완료 후 발급되는 세션 토큰
+- `tokens`: 로그인 완료 후 발급되는 JWT access token / refresh token 묶음
 
 레이어 흐름은 `core/api -> core/domain`까지만 직접 의존한다. `storage`, `clients`, `support`는 `cmd/api`의 wiring에서 주입된다.
 
@@ -50,7 +50,7 @@ OAuth는 provider 문자열 기반으로 저장하므로 Google 이후 Apple, Ka
 - `internal/storage/memory/verification`
 - `internal/storage/memory/auth`
 
-실제 영속화는 `sqlc.yaml`, `db/schema/auth.sql`, `db/query/auth.sql`을 기준으로 `sqlc generate` 후 `internal/storage/dbcore`의 개념별 `*SqlcRepository`에 붙이면 된다.
+실제 영속화는 `sqlc.yaml`, `internal/storage/dbcore/sqlc/schema/auth.sql`, `internal/storage/dbcore/sqlc/query/auth.sql`을 기준으로 `sqlc generate` 후 `internal/storage/dbcore`의 개념별 `*SqlcRepository`에 붙이면 된다.
 
 ## Clients
 
