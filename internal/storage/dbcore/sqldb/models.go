@@ -60,6 +60,30 @@ type GuguOauthIdentity struct {
 	LastLoginAt time.Time `json:"last_login_at"`
 }
 
+type GuguProduct struct {
+	ID                string    `json:"id"`
+	Market            string    `json:"market"`
+	ExternalProductID string    `json:"external_product_id"`
+	OriginalUrl       string    `json:"original_url"`
+	Title             string    `json:"title"`
+	MainImageUrl      string    `json:"main_image_url"`
+	CurrentPrice      string    `json:"current_price"`
+	Currency          string    `json:"currency"`
+	ProductUrl        string    `json:"product_url"`
+	CollectionSource  string    `json:"collection_source"`
+	LastCollectedAt   time.Time `json:"last_collected_at"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+type GuguProductPriceHistory struct {
+	ProductID   string    `json:"product_id"`
+	RecordedAt  time.Time `json:"recorded_at"`
+	Price       string    `json:"price"`
+	Currency    string    `json:"currency"`
+	ChangeValue string    `json:"change_value"`
+}
+
 type GuguUserLoginSession struct {
 	ID               string         `json:"id"`
 	UserID           string         `json:"user_id"`
@@ -75,4 +99,13 @@ type GuguUserLoginSession struct {
 	RevokedAt        sql.NullTime   `json:"revoked_at"`
 	ReuseDetectedAt  sql.NullTime   `json:"reuse_detected_at"`
 	CreatedAt        time.Time      `json:"created_at"`
+}
+
+type GuguUserTrackedItem struct {
+	ID          string       `json:"id"`
+	UserID      string       `json:"user_id"`
+	ProductID   string       `json:"product_id"`
+	OriginalUrl string       `json:"original_url"`
+	DeletedAt   sql.NullTime `json:"deleted_at"`
+	CreatedAt   time.Time    `json:"created_at"`
 }

@@ -2,7 +2,7 @@ version: "2"
 sql:
   - engine: "postgresql"
     schema: "internal/storage/dbcore/sqlc/schema/auth.sql"
-    queries: "internal/storage/dbcore/sqlc/query/auth.sql"
+    queries: "internal/storage/dbcore/sqlc/query"
     gen:
       go:
         package: "sqldb"

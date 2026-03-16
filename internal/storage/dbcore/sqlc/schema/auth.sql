@@ -69,6 +69,41 @@ CREATE TABLE IF NOT EXISTS gugu.aliexpress_seller_tokens (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS gugu.products (
+    id TEXT PRIMARY KEY,
+    market TEXT NOT NULL,
+    external_product_id TEXT NOT NULL,
+    original_url TEXT NOT NULL DEFAULT '',
+    title TEXT NOT NULL DEFAULT '',
+    main_image_url TEXT NOT NULL DEFAULT '',
+    current_price TEXT NOT NULL DEFAULT '',
+    currency TEXT NOT NULL DEFAULT '',
+    product_url TEXT NOT NULL DEFAULT '',
+    collection_source TEXT NOT NULL DEFAULT '',
+    last_collected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (market, external_product_id)
+);
+
+CREATE TABLE IF NOT EXISTS gugu.user_tracked_items (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES gugu.app_users(id),
+    product_id TEXT NOT NULL REFERENCES gugu.products(id),
+    original_url TEXT NOT NULL DEFAULT '',
+    deleted_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS gugu.product_price_histories (
+    product_id TEXT NOT NULL REFERENCES gugu.products(id),
+    recorded_at TIMESTAMPTZ NOT NULL,
+    price TEXT NOT NULL DEFAULT '',
+    currency TEXT NOT NULL DEFAULT '',
+    change_value TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (product_id, recorded_at)
+);
+
 CREATE INDEX IF NOT EXISTS idx_app_users_email ON gugu.app_users(email);
 CREATE INDEX IF NOT EXISTS idx_email_verifications_user_id ON gugu.email_verifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_oauth_identities_user_id ON gugu.oauth_identities(user_id);
@@ -77,3 +112,10 @@ CREATE INDEX IF NOT EXISTS idx_user_login_sessions_family_id ON gugu.user_login_
 CREATE INDEX IF NOT EXISTS idx_aliexpress_seller_tokens_user_id ON gugu.aliexpress_seller_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_aliexpress_seller_tokens_access_token_expires_at ON gugu.aliexpress_seller_tokens(access_token_expires_at);
 CREATE INDEX IF NOT EXISTS idx_aliexpress_seller_tokens_refresh_token_expires_at ON gugu.aliexpress_seller_tokens(refresh_token_expires_at);
+CREATE INDEX IF NOT EXISTS idx_products_market_external_product_id ON gugu.products(market, external_product_id);
+CREATE INDEX IF NOT EXISTS idx_user_tracked_items_user_id ON gugu.user_tracked_items(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_tracked_items_product_id ON gugu.user_tracked_items(product_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_user_tracked_items_user_product_active
+    ON gugu.user_tracked_items(user_id, product_id)
+    WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_product_price_histories_product_id_recorded_at ON gugu.product_price_histories(product_id, recorded_at DESC);
