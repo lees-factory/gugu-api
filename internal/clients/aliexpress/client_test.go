@@ -178,6 +178,168 @@ func TestGetProductSnapshot(t *testing.T) {
 	}
 }
 
+func TestGetAffiliateProductDetail(t *testing.T) {
+	client := newTestClient(t, &Config{
+		BaseURL:     "https://api-sg.aliexpress.com",
+		AppKey:      "528586",
+		AppSecret:   "secret",
+		CallbackURL: "https://googoo-client.vercel.app/callback",
+		HTTPClient: &http.Client{
+			Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+				if r.URL.Path != "/rest/aliexpress.affiliate.productdetail.get" {
+					t.Fatalf("path = %q", r.URL.Path)
+				}
+
+				body, err := io.ReadAll(r.Body)
+				if err != nil {
+					t.Fatalf("ReadAll() error = %v", err)
+				}
+				values, err := url.ParseQuery(string(body))
+				if err != nil {
+					t.Fatalf("ParseQuery() error = %v", err)
+				}
+				if values.Get("product_ids") != "1005001234567890,1005001234567891" {
+					t.Fatalf("product_ids = %q", values.Get("product_ids"))
+				}
+
+				return jsonResponse(`{
+			"resp_result": {
+				"resp_code": 20010000,
+				"resp_msg": "success",
+				"result": {
+					"current_record_count": 2,
+					"products": [
+						{
+							"product_id": 1005001234567890,
+							"product_title": "Keyboard",
+							"target_sale_price": "89.99",
+							"target_sale_price_currency": "USD",
+							"product_main_image_url": "https://img.example/1.jpg",
+							"product_detail_url": "https://www.aliexpress.com/item/1005001234567890.html",
+							"product_small_image_urls": ["https://img.example/1-1.jpg"],
+							"promotion_link": "https://s.click.aliexpress.com/promo",
+							"target_original_price": "99.99",
+							"shop_name": "Gugu Store",
+							"sku_id": 20001
+						},
+						{
+							"product_id": 1005001234567891,
+							"product_title": "Mouse",
+							"target_sale_price": "19.99",
+							"target_sale_price_currency": "USD",
+							"product_main_image_url": "https://img.example/2.jpg",
+							"product_detail_url": "https://www.aliexpress.com/item/1005001234567891.html",
+							"shop_name": "Gugu Store"
+						}
+					]
+				}
+			}
+		}`)
+			}),
+		},
+	})
+
+	result, err := client.GetAffiliateProductDetail(context.Background(), ProductDetailInput{
+		ProductIDs: []string{"1005001234567890", "1005001234567891"},
+	})
+	if err != nil {
+		t.Fatalf("GetAffiliateProductDetail() error = %v", err)
+	}
+
+	if result.CurrentRecordCount != 2 {
+		t.Fatalf("CurrentRecordCount = %d", result.CurrentRecordCount)
+	}
+	if len(result.Products) != 2 {
+		t.Fatalf("len(Products) = %d", len(result.Products))
+	}
+	if result.Products[0].ProductTitle != "Keyboard" {
+		t.Fatalf("ProductTitle = %q", result.Products[0].ProductTitle)
+	}
+	if result.Products[0].SKUID != 20001 {
+		t.Fatalf("SKUID = %d", result.Products[0].SKUID)
+	}
+}
+
+func TestGetAffiliateProductSKUDetail(t *testing.T) {
+	client := newTestClient(t, &Config{
+		BaseURL:     "https://api-sg.aliexpress.com",
+		AppKey:      "528586",
+		AppSecret:   "secret",
+		CallbackURL: "https://googoo-client.vercel.app/callback",
+		HTTPClient: &http.Client{
+			Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+				if r.URL.Path != "/rest/aliexpress.affiliate.product.sku.detail.get" {
+					t.Fatalf("path = %q", r.URL.Path)
+				}
+
+				body, err := io.ReadAll(r.Body)
+				if err != nil {
+					t.Fatalf("ReadAll() error = %v", err)
+				}
+				values, err := url.ParseQuery(string(body))
+				if err != nil {
+					t.Fatalf("ParseQuery() error = %v", err)
+				}
+				if values.Get("product_id") != "1005001234567890" {
+					t.Fatalf("product_id = %q", values.Get("product_id"))
+				}
+				if values.Get("sku_ids") != "20001,20002" {
+					t.Fatalf("sku_ids = %q", values.Get("sku_ids"))
+				}
+
+				return jsonResponse(`{
+			"result": {
+				"result": {
+					"ae_item_info": {
+						"product_id": "1005001234567890",
+						"title": "Keyboard",
+						"original_link": "https://www.aliexpress.com/item/1005001234567890.html",
+						"image_link": "https://img.example/1.jpg",
+						"store_name": "Gugu Store"
+					},
+					"ae_item_sku_info": [
+						{
+							"sku_id": 20001,
+							"currency": "USD",
+							"sale_price_with_tax": "89.99",
+							"sku_image_link": "https://img.example/sku-1.jpg",
+							"size": "M"
+						}
+					],
+					"code": 0,
+					"success": true
+				}
+			}
+		}`)
+			}),
+		},
+	})
+
+	result, err := client.GetAffiliateProductSKUDetail(context.Background(), ProductSKUDetailInput{
+		ProductID:      "1005001234567890",
+		ShipToCountry:  "KR",
+		TargetCurrency: "USD",
+		TargetLanguage: "EN",
+		SKUIDs:         []string{"20001", "20002"},
+	})
+	if err != nil {
+		t.Fatalf("GetAffiliateProductSKUDetail() error = %v", err)
+	}
+
+	if !result.Success {
+		t.Fatal("Success = false, want true")
+	}
+	if result.ItemInfo.ProductID != "1005001234567890" {
+		t.Fatalf("ProductID = %q", result.ItemInfo.ProductID)
+	}
+	if len(result.SKUInfos) != 1 {
+		t.Fatalf("len(SKUInfos) = %d", len(result.SKUInfos))
+	}
+	if result.SKUInfos[0].SKUID != 20001 {
+		t.Fatalf("SKUID = %d", result.SKUInfos[0].SKUID)
+	}
+}
+
 func TestSignMatchesSDKRule(t *testing.T) {
 	client := newTestClient(t, &Config{
 		BaseURL:     "https://api-sg.aliexpress.com",

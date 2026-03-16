@@ -87,6 +87,14 @@ func (c *stubAliExpressClient) GetProductSnapshot(_ context.Context, _ clientali
 	return nil, nil
 }
 
+func (c *stubAliExpressClient) GetAffiliateProductDetail(_ context.Context, _ clientaliexpress.ProductDetailInput) (*clientaliexpress.ProductDetailResult, error) {
+	return nil, nil
+}
+
+func (c *stubAliExpressClient) GetAffiliateProductSKUDetail(_ context.Context, _ clientaliexpress.ProductSKUDetailInput) (*clientaliexpress.ProductSKUDetailResult, error) {
+	return nil, nil
+}
+
 type stubTokenStore struct {
 	items      map[string]clientaliexpress.SellerTokenRecord
 	lastUpsert *clientaliexpress.SellerTokenRecord
