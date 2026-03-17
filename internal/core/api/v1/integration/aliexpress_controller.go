@@ -5,6 +5,7 @@ import (
 	stdhttp "net/http"
 	"strings"
 
+	"github.com/go-chi/chi/v5"
 	clientaliexpress "github.com/ljj/gugu-api/internal/clients/aliexpress"
 	apiadvice "github.com/ljj/gugu-api/internal/core/api/advice"
 	apierror "github.com/ljj/gugu-api/internal/core/api/error"
@@ -20,6 +21,14 @@ type AliExpressController struct {
 
 func NewAliExpressController(service *domainintegration.AliExpressConnectionService) *AliExpressController {
 	return &AliExpressController{service: service}
+}
+
+func (c *AliExpressController) RegisterRoutes(r chi.Router) {
+	r.Route("/v1/integrations/aliexpress", func(r chi.Router) {
+		r.Post("/authorize-url", apiadvice.Wrap(c.BuildAuthorizationURL))
+		r.Post("/exchange-code", apiadvice.Wrap(c.ExchangeCode))
+		r.Get("/connection-status", apiadvice.Wrap(c.GetConnectionStatus))
+	})
 }
 
 func (c *AliExpressController) BuildAuthorizationURL(r *stdhttp.Request) (int, any, error) {

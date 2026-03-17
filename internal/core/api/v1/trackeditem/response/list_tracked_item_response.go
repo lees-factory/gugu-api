@@ -1,6 +1,9 @@
 package response
 
-import trackeditemlist "github.com/ljj/gugu-api/internal/core/domain/trackeditemlist"
+import (
+	domainproduct "github.com/ljj/gugu-api/internal/core/domain/product"
+	domaintrackeditem "github.com/ljj/gugu-api/internal/core/domain/trackeditem"
+)
 
 type ListTrackedItem struct {
 	TrackedItemID     string `json:"tracked_item_id"`
@@ -15,25 +18,17 @@ type ListTrackedItem struct {
 	ProductURL        string `json:"product_url"`
 }
 
-func NewListTrackedItems(items []trackeditemlist.Item) []ListTrackedItem {
-	result := make([]ListTrackedItem, 0, len(items))
-	for _, item := range items {
-		result = append(result, NewListTrackedItem(item))
-	}
-	return result
-}
-
-func NewListTrackedItem(item trackeditemlist.Item) ListTrackedItem {
+func NewListTrackedItem(tracked domaintrackeditem.TrackedItem, product domainproduct.Product) ListTrackedItem {
 	return ListTrackedItem{
-		TrackedItemID:     item.TrackedItem.ID,
-		ProductID:         item.Product.ID,
-		Market:            string(item.Product.Market),
-		ExternalProductID: item.Product.ExternalProductID,
-		OriginalURL:       item.TrackedItem.OriginalURL,
-		Title:             item.Product.Title,
-		MainImageURL:      item.Product.MainImageURL,
-		CurrentPrice:      item.Product.CurrentPrice,
-		Currency:          item.Product.Currency,
-		ProductURL:        item.Product.ProductURL,
+		TrackedItemID:     tracked.ID,
+		ProductID:         product.ID,
+		Market:            string(product.Market),
+		ExternalProductID: product.ExternalProductID,
+		OriginalURL:       tracked.OriginalURL,
+		Title:             product.Title,
+		MainImageURL:      product.MainImageURL,
+		CurrentPrice:      product.CurrentPrice,
+		Currency:          product.Currency,
+		ProductURL:        product.ProductURL,
 	}
 }

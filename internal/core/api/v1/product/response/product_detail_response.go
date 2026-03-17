@@ -3,7 +3,8 @@ package response
 import (
 	"time"
 
-	productdetail "github.com/ljj/gugu-api/internal/core/domain/productdetail"
+	domainpricehistory "github.com/ljj/gugu-api/internal/core/domain/pricehistory"
+	domainproduct "github.com/ljj/gugu-api/internal/core/domain/product"
 )
 
 type ProductDetail struct {
@@ -28,29 +29,29 @@ type PriceHistoryItem struct {
 	ChangeValue string    `json:"change_value"`
 }
 
-func NewProductDetail(source productdetail.Detail) ProductDetail {
-	items := make([]PriceHistoryItem, 0, len(source.PriceHistories))
-	for _, item := range source.PriceHistories {
+func NewProductDetail(product domainproduct.Product, histories []domainpricehistory.PriceHistory, isTrackedByUser bool, trackedItemID string) ProductDetail {
+	items := make([]PriceHistoryItem, 0, len(histories))
+	for _, h := range histories {
 		items = append(items, PriceHistoryItem{
-			Price:       item.Price,
-			Currency:    item.Currency,
-			RecordedAt:  item.RecordedAt,
-			ChangeValue: item.ChangeValue,
+			Price:       h.Price,
+			Currency:    h.Currency,
+			RecordedAt:  h.RecordedAt,
+			ChangeValue: h.ChangeValue,
 		})
 	}
 
 	return ProductDetail{
-		ProductID:         source.Product.ID,
-		Market:            string(source.Product.Market),
-		ExternalProductID: source.Product.ExternalProductID,
-		OriginalURL:       source.Product.OriginalURL,
-		Title:             source.Product.Title,
-		MainImageURL:      source.Product.MainImageURL,
-		CurrentPrice:      source.Product.CurrentPrice,
-		Currency:          source.Product.Currency,
-		ProductURL:        source.Product.ProductURL,
-		IsTrackedByUser:   source.IsTrackedByUser,
-		TrackedItemID:     source.TrackedItemID,
+		ProductID:         product.ID,
+		Market:            string(product.Market),
+		ExternalProductID: product.ExternalProductID,
+		OriginalURL:       product.OriginalURL,
+		Title:             product.Title,
+		MainImageURL:      product.MainImageURL,
+		CurrentPrice:      product.CurrentPrice,
+		Currency:          product.Currency,
+		ProductURL:        product.ProductURL,
+		IsTrackedByUser:   isTrackedByUser,
+		TrackedItemID:     trackedItemID,
 		PriceHistories:    items,
 	}
 }

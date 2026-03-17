@@ -3,6 +3,7 @@ package auth
 import (
 	stdhttp "net/http"
 
+	"github.com/go-chi/chi/v5"
 	apiadvice "github.com/ljj/gugu-api/internal/core/api/advice"
 	apiresponse "github.com/ljj/gugu-api/internal/core/api/response"
 	authrequest "github.com/ljj/gugu-api/internal/core/api/v1/auth/request"
@@ -10,35 +11,24 @@ import (
 	domainauth "github.com/ljj/gugu-api/internal/core/domain/auth"
 )
 
-type Controller struct {
+type AuthController struct {
 	authService *domainauth.Service
 }
 
-func NewController(authService *domainauth.Service) *Controller {
-	return &Controller{authService: authService}
+func NewAuthController(authService *domainauth.Service) *AuthController {
+	return &AuthController{authService: authService}
 }
 
-func (c *Controller) RegisterEmail(r *stdhttp.Request) (int, any, error) {
-	var req authrequest.RegisterEmail
-	if err := apiadvice.DecodeJSON(r, &req); err != nil {
-		return 0, nil, err
-	}
-
-	result, err := c.authService.RegisterEmail(r.Context(), domainauth.RegisterEmailInput{
-		Email:       req.Email,
-		Password:    req.Password,
-		DisplayName: req.DisplayName,
+func (c *AuthController) RegisterRoutes(r chi.Router) {
+	r.Route("/v1/auth", func(r chi.Router) {
+		r.Post("/login/email", apiadvice.Wrap(c.LoginEmail))
+		r.Post("/oauth/login", apiadvice.Wrap(c.LoginOAuth))
+		r.Post("/refresh", apiadvice.Wrap(c.Refresh))
+		r.Post("/logout", apiadvice.Wrap(c.Logout))
 	})
-	if err != nil {
-		return 0, nil, err
-	}
-
-	return stdhttp.StatusCreated, apiresponse.SuccessWithData(
-		authresponse.NewRegisterEmail(result.User, result.VerificationCode, result.VerificationDispatched),
-	), nil
 }
 
-func (c *Controller) LoginEmail(r *stdhttp.Request) (int, any, error) {
+func (c *AuthController) LoginEmail(r *stdhttp.Request) (int, any, error) {
 	var req authrequest.LoginEmail
 	if err := apiadvice.DecodeJSON(r, &req); err != nil {
 		return 0, nil, err
@@ -60,23 +50,7 @@ func (c *Controller) LoginEmail(r *stdhttp.Request) (int, any, error) {
 	), nil
 }
 
-func (c *Controller) VerifyEmail(r *stdhttp.Request) (int, any, error) {
-	var req authrequest.VerifyEmail
-	if err := apiadvice.DecodeJSON(r, &req); err != nil {
-		return 0, nil, err
-	}
-
-	verifiedResult, err := c.authService.VerifyEmail(r.Context(), domainauth.VerifyEmailInput{Code: req.Code})
-	if err != nil {
-		return 0, nil, err
-	}
-
-	return stdhttp.StatusOK, apiresponse.SuccessWithData(
-		authresponse.NewVerifyEmail(verifiedResult.User),
-	), nil
-}
-
-func (c *Controller) LoginOAuth(r *stdhttp.Request) (int, any, error) {
+func (c *AuthController) LoginOAuth(r *stdhttp.Request) (int, any, error) {
 	var req authrequest.LoginOAuth
 	if err := apiadvice.DecodeJSON(r, &req); err != nil {
 		return 0, nil, err
@@ -100,7 +74,7 @@ func (c *Controller) LoginOAuth(r *stdhttp.Request) (int, any, error) {
 	), nil
 }
 
-func (c *Controller) Refresh(r *stdhttp.Request) (int, any, error) {
+func (c *AuthController) Refresh(r *stdhttp.Request) (int, any, error) {
 	var req authrequest.RefreshToken
 	if err := apiadvice.DecodeJSON(r, &req); err != nil {
 		return 0, nil, err
@@ -119,7 +93,7 @@ func (c *Controller) Refresh(r *stdhttp.Request) (int, any, error) {
 	return stdhttp.StatusOK, apiresponse.SuccessWithData(authresponse.NewTokens(*tokens)), nil
 }
 
-func (c *Controller) Logout(r *stdhttp.Request) (int, any, error) {
+func (c *AuthController) Logout(r *stdhttp.Request) (int, any, error) {
 	var req authrequest.Logout
 	if err := apiadvice.DecodeJSON(r, &req); err != nil {
 		return 0, nil, err

@@ -26,18 +26,18 @@ var (
 		Status:  stdhttp.StatusInternalServerError,
 		Code:    "E500",
 		Message: "An unexpected error has occurred.",
-		Level:   coreerror.ErrorLevelError,
+		Level:   coreerror.LevelError,
 	}
 	NotFound = APIErrorType{
 		Status:  stdhttp.StatusNotFound,
 		Code:    "E501",
 		Message: "Not Found",
-		Level:   coreerror.ErrorLevelInfo,
+		Level:   coreerror.LevelInfo,
 	}
 	InvalidRequest = APIErrorType{
 		Status:  stdhttp.StatusBadRequest,
 		Code:    "E400",
 		Message: "invalid request body",
-		Level:   coreerror.ErrorLevelInfo,
+		Level:   coreerror.LevelInfo,
 	}
 )

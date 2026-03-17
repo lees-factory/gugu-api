@@ -75,9 +75,9 @@ func Log(err *APIError) {
 	}
 
 	switch err.Level {
-	case coreerror.ErrorLevelError:
+	case coreerror.LevelError:
 		log.Printf("ERROR code=%s message=%s cause=%v", err.Code, err.Message, err.Cause)
-	case coreerror.ErrorLevelWarn:
+	case coreerror.LevelWarn:
 		log.Printf("WARN code=%s message=%s cause=%v", err.Code, err.Message, err.Cause)
 	default:
 		log.Printf("INFO code=%s message=%s cause=%v", err.Code, err.Message, err.Cause)
@@ -86,9 +86,9 @@ func Log(err *APIError) {
 
 func mapKindToHTTPStatus(kind coreerror.ErrorKind) int {
 	switch kind {
-	case coreerror.ErrorKindUnauthorized:
+	case coreerror.KindUnauthorized:
 		return stdhttp.StatusUnauthorized
-	case coreerror.ErrorKindClient:
+	case coreerror.KindClient:
 		return stdhttp.StatusBadRequest
 	default:
 		return stdhttp.StatusInternalServerError
