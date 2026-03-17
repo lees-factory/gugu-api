@@ -80,7 +80,7 @@ paths:
                   value:
                     result: ERROR
                     error:
-                      code: B1000
+                      code: G1000
                       message: email already exists
         '500':
           description: 서버 내부 오류가 발생했다.
@@ -125,7 +125,7 @@ paths:
                   value:
                     result: ERROR
                     error:
-                      code: B2001
+                      code: G2001
                       message: email is not verified
         '401':
           description: 로그인 정보가 유효하지 않다.
@@ -138,7 +138,7 @@ paths:
                   value:
                     result: ERROR
                     error:
-                      code: B2000
+                      code: G2000
                       message: invalid credentials
         '500':
           description: 서버 내부 오류가 발생했다.
@@ -187,7 +187,7 @@ paths:
                   value:
                     result: ERROR
                     error:
-                      code: B2002
+                      code: G2002
                       message: verification code not found
         '500':
           description: 서버 내부 오류가 발생했다.
@@ -232,7 +232,7 @@ paths:
                   value:
                     result: ERROR
                     error:
-                      code: B2003
+                      code: G2003
                       message: oauth provider is invalid
         '500':
           description: 서버 내부 오류가 발생했다.
@@ -282,7 +282,7 @@ paths:
                   value:
                     result: ERROR
                     error:
-                      code: B2004
+                      code: G2004
                       message: refresh token is invalid
         '500':
           description: 서버 내부 오류가 발생했다.
@@ -335,7 +335,7 @@ paths:
                   value:
                     result: ERROR
                     error:
-                      code: B2004
+                      code: G2004
                       message: refresh token is invalid
         '500':
           description: 서버 내부 오류가 발생했다.
