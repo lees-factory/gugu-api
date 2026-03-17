@@ -3,7 +3,7 @@ package coreerror
 type ErrorLevel string
 
 const (
-	ErrorLevelInfo  ErrorLevel = "INFO"
-	ErrorLevelWarn  ErrorLevel = "WARN"
-	ErrorLevelError ErrorLevel = "ERROR"
+	LevelInfo  ErrorLevel = "INFO"
+	LevelWarn  ErrorLevel = "WARN"
+	LevelError ErrorLevel = "ERROR"
 )

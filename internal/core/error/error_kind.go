@@ -3,7 +3,7 @@ package coreerror
 type ErrorKind string
 
 const (
-	ErrorKindClient       ErrorKind = "CLIENT_ERROR"
-	ErrorKindServer       ErrorKind = "SERVER_ERROR"
-	ErrorKindUnauthorized ErrorKind = "UNAUTHORIZED"
+	KindClient       ErrorKind = "CLIENT_ERROR"
+	KindServer       ErrorKind = "SERVER_ERROR"
+	KindUnauthorized ErrorKind = "UNAUTHORIZED"
 )

@@ -24,3 +24,11 @@ func NewWithData(errorType ErrorType, data any) *CoreException {
 func (e *CoreException) Error() string {
 	return e.Message
 }
+
+func (e *CoreException) Is(target error) bool {
+	t, ok := target.(*CoreException)
+	if !ok {
+		return false
+	}
+	return e.Type.Code == t.Type.Code
+}
