@@ -19,17 +19,27 @@ type CreateInput struct {
 }
 
 type Service struct {
-	repository  Repository
+	finder      Finder
+	writer      Writer
 	idGenerator IDGenerator
 	clock       Clock
 }
 
-func NewService(repository Repository, idGenerator IDGenerator, clock Clock) *Service {
+func NewService(finder Finder, writer Writer, idGenerator IDGenerator, clock Clock) *Service {
 	return &Service{
-		repository:  repository,
+		finder:      finder,
+		writer:      writer,
 		idGenerator: idGenerator,
 		clock:       clock,
 	}
+}
+
+func (s *Service) FindByID(ctx context.Context, productID string) (*Product, error) {
+	return s.finder.FindByID(ctx, strings.TrimSpace(productID))
+}
+
+func (s *Service) FindByMarketAndExternalProductID(ctx context.Context, market Market, externalProductID string) (*Product, error) {
+	return s.finder.FindByMarketAndExternalProductID(ctx, market, strings.TrimSpace(externalProductID))
 }
 
 func (s *Service) Create(ctx context.Context, input CreateInput) (*Product, error) {
@@ -55,17 +65,9 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*Product, erro
 		UpdatedAt:         now,
 	}
 
-	if err := s.repository.Create(ctx, item); err != nil {
+	if err := s.writer.Create(ctx, item); err != nil {
 		return nil, fmt.Errorf("create product: %w", err)
 	}
 
 	return &item, nil
-}
-
-func (s *Service) FindByMarketAndExternalProductID(ctx context.Context, market Market, externalProductID string) (*Product, error) {
-	item, err := s.repository.FindByMarketAndExternalProductID(ctx, market, strings.TrimSpace(externalProductID))
-	if err != nil {
-		return nil, fmt.Errorf("find product by market and external product id: %w", err)
-	}
-	return item, nil
 }

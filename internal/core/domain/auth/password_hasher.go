@@ -1,6 +1,5 @@
 package auth
 
-type PasswordHasher interface {
-	Hash(password string) (string, error)
+type PasswordVerifier interface {
 	Verify(hashedPassword string, rawPassword string) error
 }

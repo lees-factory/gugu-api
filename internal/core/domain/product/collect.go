@@ -3,6 +3,8 @@ package product
 import (
 	"context"
 	"fmt"
+
+	coreerror "github.com/ljj/gugu-api/internal/core/error"
 )
 
 type CollectInput struct {
@@ -68,5 +70,5 @@ func (c *DefaultCollector) Collect(ctx context.Context, input CollectInput) (*Co
 		}
 	}
 
-	return nil, ErrProductNotFound
+	return nil, coreerror.New(coreerror.ProductNotFound)
 }

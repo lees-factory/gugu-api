@@ -9,6 +9,7 @@ import (
 	domainauth "github.com/ljj/gugu-api/internal/core/domain/auth"
 	domainuser "github.com/ljj/gugu-api/internal/core/domain/user"
 	domainverification "github.com/ljj/gugu-api/internal/core/domain/verification"
+	coreerror "github.com/ljj/gugu-api/internal/core/error"
 	memoryauth "github.com/ljj/gugu-api/internal/storage/memory/auth"
 	memoryuser "github.com/ljj/gugu-api/internal/storage/memory/user"
 	memoryverification "github.com/ljj/gugu-api/internal/storage/memory/verification"
@@ -77,12 +78,14 @@ func (i fakeAuthTokenIssuer) IssueAccessToken(userID string, now time.Time) (dom
 
 var _ domainauth.IDGenerator = (*sequenceGenerator)(nil)
 var _ domainauth.TokenGenerator = (*sequenceGenerator)(nil)
-var _ domainauth.PasswordHasher = fakePasswordHasher{}
-var _ domainauth.VerificationSender = (*captureSender)(nil)
+var _ domainauth.PasswordVerifier = fakePasswordHasher{}
 var _ domainauth.AccessTokenIssuer = fakeAuthTokenIssuer{}
 var _ domainauth.Clock = (*fixedClock)(nil)
 var _ domainuser.Clock = (*fixedClock)(nil)
 var _ domainuser.IDGenerator = (*sequenceGenerator)(nil)
+var _ domainuser.CodeGenerator = (*sequenceGenerator)(nil)
+var _ domainuser.PasswordHasher = fakePasswordHasher{}
+var _ domainuser.VerificationMailer = (*captureSender)(nil)
 
 type authTestFixture struct {
 	authService            *domainauth.Service
@@ -109,13 +112,23 @@ func newAuthTestFixture() *authTestFixture {
 		&sequenceGenerator{values: []string{"user-1", "user-2", "user-3"}},
 		clock,
 	)
+
+	userService := domainuser.NewService(
+		userFinder,
+		userCreator,
+		userWriter,
+		domainverification.NewFinder(verificationRepository),
+		domainverification.NewWriter(verificationRepository),
+		&sequenceGenerator{values: []string{"123456", "654321", "111111", "222222", "333333"}},
+		fakePasswordHasher{},
+		sender,
+		clock,
+	)
+
 	return &authTestFixture{
 		authService: domainauth.New(
 			userFinder,
 			userCreator,
-			userWriter,
-			domainverification.NewFinder(verificationRepository),
-			domainverification.NewWriter(verificationRepository),
 			domainauth.NewOAuthIdentityFinder(oauthRepository),
 			domainauth.NewOAuthIdentityWriter(oauthRepository),
 			domainauth.NewLoginSessionReader(loginSessionRepository),
@@ -123,15 +136,13 @@ func newAuthTestFixture() *authTestFixture {
 			&sequenceGenerator{values: []string{"identity-1", "identity-2"}},
 			&sequenceGenerator{values: []string{"session-1", "session-2", "session-3", "session-4"}},
 			&sequenceGenerator{values: []string{"family-1", "family-2", "family-3"}},
-			&sequenceGenerator{values: []string{"123456", "654321", "111111", "222222", "333333"}},
 			&sequenceGenerator{values: []string{"refresh-1", "refresh-2", "refresh-3", "refresh-4"}},
 			fakeAuthTokenIssuer{accessToken: "access-token"},
 			fakePasswordHasher{},
 			clock,
-			sender,
 			security.TokenSHA256Hasher{},
 		),
-		userService:            domainuser.NewService(userFinder, userCreator, userWriter),
+		userService:            userService,
 		clock:                  clock,
 		verificationRepository: verificationRepository,
 		oauthRepository:        oauthRepository,
@@ -143,38 +154,25 @@ func newAuthTestFixture() *authTestFixture {
 func TestRegisterEmailCreatesUserAndDispatchesVerification(t *testing.T) {
 	fixture := newAuthTestFixture()
 
-	passwordHash, err := fixture.authService.HashPassword("secret123")
-	if err != nil {
-		t.Fatalf("hash password: %v", err)
-	}
-
-	createdUser, err := fixture.userService.RegisterEmail(context.Background(), domainuser.RegisterEmailInput{
-		Email:        " User@Example.com ",
-		DisplayName:  "User",
-		PasswordHash: passwordHash,
+	result, err := fixture.userService.RegisterEmail(context.Background(), domainuser.RegisterEmailInput{
+		Email:       " User@Example.com ",
+		Password:    "secret123",
+		DisplayName: "User",
 	})
 	if err != nil {
-		t.Fatalf("register email user: %v", err)
+		t.Fatalf("register email: %v", err)
 	}
 
-	verificationResult, err := fixture.authService.IssueEmailVerification(context.Background(), domainauth.IssueEmailVerificationInput{
-		UserID: createdUser.ID,
-		Email:  createdUser.Email,
-	})
-	if err != nil {
-		t.Fatalf("issue email verification: %v", err)
+	if result.User.Email != "user@example.com" {
+		t.Fatalf("expected normalized email, got %q", result.User.Email)
 	}
-
-	if createdUser.Email != "user@example.com" {
-		t.Fatalf("expected normalized email, got %q", createdUser.Email)
+	if result.User.AuthSource != "email" {
+		t.Fatalf("expected auth source email, got %q", result.User.AuthSource)
 	}
-	if createdUser.AuthSource != "email" {
-		t.Fatalf("expected auth source email, got %q", createdUser.AuthSource)
+	if result.VerificationCode != "123456" {
+		t.Fatalf("expected verification code 123456, got %q", result.VerificationCode)
 	}
-	if verificationResult.VerificationCode != "123456" {
-		t.Fatalf("expected verification code 123456, got %q", verificationResult.VerificationCode)
-	}
-	if !verificationResult.VerificationDispatched {
+	if !result.VerificationDispatched {
 		t.Fatal("expected verification dispatched")
 	}
 	if fixture.sender.calls != 1 || fixture.sender.email != "user@example.com" {
@@ -195,23 +193,22 @@ func TestRegisterEmailCreatesUserAndDispatchesVerification(t *testing.T) {
 
 func TestUserServiceRejectsDuplicateEmail(t *testing.T) {
 	fixture := newAuthTestFixture()
-	passwordHash, _ := fixture.authService.HashPassword("secret123")
 
 	_, err := fixture.userService.RegisterEmail(context.Background(), domainuser.RegisterEmailInput{
-		Email:        "user@example.com",
-		DisplayName:  "User",
-		PasswordHash: passwordHash,
+		Email:       "user@example.com",
+		Password:    "secret123",
+		DisplayName: "User",
 	})
 	if err != nil {
 		t.Fatalf("register initial user: %v", err)
 	}
 
 	_, err = fixture.userService.RegisterEmail(context.Background(), domainuser.RegisterEmailInput{
-		Email:        " USER@EXAMPLE.COM ",
-		DisplayName:  "User Two",
-		PasswordHash: passwordHash,
+		Email:       " USER@EXAMPLE.COM ",
+		Password:    "secret123",
+		DisplayName: "User Two",
 	})
-	if !errors.Is(err, domainuser.ErrEmailAlreadyExists) {
+	if !errors.Is(err, coreerror.New(coreerror.EmailAlreadyExists)) {
 		t.Fatalf("expected duplicate email error, got %v", err)
 	}
 }
@@ -220,21 +217,16 @@ func TestVerifyEmailCodeMarksUserVerified(t *testing.T) {
 	fixture := newAuthTestFixture()
 	code := registerEmailUser(t, fixture)
 
-	verifyResult, err := fixture.authService.VerifyEmailCode(context.Background(), domainauth.VerifyEmailCodeInput{Code: code})
+	verifyResult, err := fixture.userService.VerifyEmail(context.Background(), domainuser.VerifyEmailInput{Code: code})
 	if err != nil {
-		t.Fatalf("verify email code: %v", err)
+		t.Fatalf("verify email: %v", err)
 	}
 
-	verifiedUser, err := fixture.userService.MarkEmailVerified(context.Background(), verifyResult.UserID, verifyResult.VerifiedAt)
-	if err != nil {
-		t.Fatalf("mark email verified: %v", err)
-	}
-
-	if !verifiedUser.EmailVerified {
+	if !verifyResult.User.EmailVerified {
 		t.Fatal("expected verified user")
 	}
-	if verifiedUser.EmailVerifiedAt == nil || !verifiedUser.EmailVerifiedAt.Equal(fixture.clock.now) {
-		t.Fatalf("expected verified at %v, got %v", fixture.clock.now, verifiedUser.EmailVerifiedAt)
+	if verifyResult.User.EmailVerifiedAt == nil || !verifyResult.User.EmailVerifiedAt.Equal(fixture.clock.now) {
+		t.Fatalf("expected verified at %v, got %v", fixture.clock.now, verifyResult.User.EmailVerifiedAt)
 	}
 }
 
@@ -250,19 +242,19 @@ func TestVerifyEmailCodeRejectsFailureCases(t *testing.T) {
 				t.Helper()
 				return "999999"
 			},
-			want: domainauth.ErrVerificationNotFound,
+			want: coreerror.New(coreerror.VerificationNotFound),
 		},
 		{
 			name: "code already used",
 			setup: func(t *testing.T, fixture *authTestFixture) string {
 				t.Helper()
 				code := registerEmailUser(t, fixture)
-				if _, err := fixture.authService.VerifyEmailCode(context.Background(), domainauth.VerifyEmailCodeInput{Code: code}); err != nil {
-					t.Fatalf("verify email code setup: %v", err)
+				if _, err := fixture.userService.VerifyEmail(context.Background(), domainuser.VerifyEmailInput{Code: code}); err != nil {
+					t.Fatalf("verify email setup: %v", err)
 				}
 				return code
 			},
-			want: domainauth.ErrVerificationNotFound,
+			want: coreerror.New(coreerror.VerificationNotFound),
 		},
 		{
 			name: "code expired",
@@ -272,7 +264,7 @@ func TestVerifyEmailCodeRejectsFailureCases(t *testing.T) {
 				fixture.clock.now = fixture.clock.now.Add(11 * time.Minute)
 				return code
 			},
-			want: domainauth.ErrVerificationNotFound,
+			want: coreerror.New(coreerror.VerificationNotFound),
 		},
 	}
 
@@ -281,7 +273,7 @@ func TestVerifyEmailCodeRejectsFailureCases(t *testing.T) {
 			fixture := newAuthTestFixture()
 			code := tc.setup(t, fixture)
 
-			_, err := fixture.authService.VerifyEmailCode(context.Background(), domainauth.VerifyEmailCodeInput{Code: code})
+			_, err := fixture.userService.VerifyEmail(context.Background(), domainuser.VerifyEmailInput{Code: code})
 			if !errors.Is(err, tc.want) {
 				t.Fatalf("expected %v, got %v", tc.want, err)
 			}
@@ -293,38 +285,34 @@ func TestEmailLoginFlow(t *testing.T) {
 	fixture := newAuthTestFixture()
 	registerAndVerifyEmailUser(t, fixture)
 
-	foundUser, err := fixture.userService.FindByEmail(context.Background(), "user@example.com")
+	loginResult, err := fixture.authService.LoginEmail(context.Background(), domainauth.LoginEmailInput{
+		Email:    "user@example.com",
+		Password: "secret123",
+	})
 	if err != nil {
-		t.Fatalf("find user by email: %v", err)
-	}
-	if foundUser == nil {
-		t.Fatal("expected registered user")
-	}
-	if err := fixture.authService.VerifyPassword(foundUser.PasswordHash, "secret123"); err != nil {
-		t.Fatalf("verify password: %v", err)
+		t.Fatalf("login email: %v", err)
 	}
 
-	tokens, err := fixture.authService.IssueAuthTokens(foundUser.ID)
-	if err != nil {
-		t.Fatalf("issue auth tokens: %v", err)
+	if loginResult.Tokens.AccessToken != "access-token:"+loginResult.User.ID {
+		t.Fatalf("expected access token for %q, got %q", loginResult.User.ID, loginResult.Tokens.AccessToken)
 	}
-
-	if tokens.AccessToken != "access-token:"+foundUser.ID {
-		t.Fatalf("expected access token for %q, got %q", foundUser.ID, tokens.AccessToken)
-	}
-	if tokens.RefreshToken == "" {
+	if loginResult.Tokens.RefreshToken == "" {
 		t.Fatal("expected refresh token to be issued")
 	}
-	if tokens.AccessExpiresAt != fixture.clock.now.Add(15*time.Minute) {
-		t.Fatalf("expected access expiry %v, got %v", fixture.clock.now.Add(15*time.Minute), tokens.AccessExpiresAt)
+	if loginResult.Tokens.AccessExpiresAt != fixture.clock.now.Add(15*time.Minute) {
+		t.Fatalf("expected access expiry %v, got %v", fixture.clock.now.Add(15*time.Minute), loginResult.Tokens.AccessExpiresAt)
 	}
 }
 
-func TestVerifyPasswordRejectsInvalidCredentials(t *testing.T) {
+func TestLoginEmailRejectsInvalidPassword(t *testing.T) {
 	fixture := newAuthTestFixture()
+	registerAndVerifyEmailUser(t, fixture)
 
-	err := fixture.authService.VerifyPassword("hashed:secret123", "wrong-password")
-	if !errors.Is(err, domainauth.ErrInvalidCredentials) {
+	_, err := fixture.authService.LoginEmail(context.Background(), domainauth.LoginEmailInput{
+		Email:    "user@example.com",
+		Password: "wrong-password",
+	})
+	if !errors.Is(err, coreerror.New(coreerror.InvalidCredentials)) {
 		t.Fatalf("expected invalid credentials, got %v", err)
 	}
 }
@@ -377,7 +365,7 @@ func TestOAuthRejectsInvalidProvider(t *testing.T) {
 	fixture := newAuthTestFixture()
 
 	_, err := fixture.authService.FindOAuthIdentity(context.Background(), "   ", "subject")
-	if !errors.Is(err, domainauth.ErrOAuthProviderInvalid) {
+	if !errors.Is(err, coreerror.New(coreerror.OAuthProviderInvalid)) {
 		t.Fatalf("expected invalid provider error, got %v", err)
 	}
 }
@@ -385,26 +373,13 @@ func TestOAuthRejectsInvalidProvider(t *testing.T) {
 func registerEmailUser(t *testing.T, fixture *authTestFixture) string {
 	t.Helper()
 
-	passwordHash, err := fixture.authService.HashPassword("secret123")
-	if err != nil {
-		t.Fatalf("hash password: %v", err)
-	}
-
-	createdUser, err := fixture.userService.RegisterEmail(context.Background(), domainuser.RegisterEmailInput{
-		Email:        "user@example.com",
-		DisplayName:  "User",
-		PasswordHash: passwordHash,
+	result, err := fixture.userService.RegisterEmail(context.Background(), domainuser.RegisterEmailInput{
+		Email:       "user@example.com",
+		Password:    "secret123",
+		DisplayName: "User",
 	})
 	if err != nil {
 		t.Fatalf("register email user: %v", err)
-	}
-
-	result, err := fixture.authService.IssueEmailVerification(context.Background(), domainauth.IssueEmailVerificationInput{
-		UserID: createdUser.ID,
-		Email:  createdUser.Email,
-	})
-	if err != nil {
-		t.Fatalf("issue email verification: %v", err)
 	}
 
 	return result.VerificationCode
@@ -414,11 +389,7 @@ func registerAndVerifyEmailUser(t *testing.T, fixture *authTestFixture) {
 	t.Helper()
 
 	code := registerEmailUser(t, fixture)
-	verifyResult, err := fixture.authService.VerifyEmailCode(context.Background(), domainauth.VerifyEmailCodeInput{Code: code})
-	if err != nil {
-		t.Fatalf("verify email code: %v", err)
-	}
-	if _, err := fixture.userService.MarkEmailVerified(context.Background(), verifyResult.UserID, verifyResult.VerifiedAt); err != nil {
-		t.Fatalf("mark email verified: %v", err)
+	if _, err := fixture.userService.VerifyEmail(context.Background(), domainuser.VerifyEmailInput{Code: code}); err != nil {
+		t.Fatalf("verify email: %v", err)
 	}
 }

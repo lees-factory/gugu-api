@@ -1,7 +1,7 @@
-package auth
+package user
 
 import "context"
 
-type VerificationSender interface {
+type VerificationMailer interface {
 	SendVerification(ctx context.Context, email string, code string) error
 }
