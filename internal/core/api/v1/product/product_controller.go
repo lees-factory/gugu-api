@@ -35,6 +35,7 @@ func NewController(
 func (c *Controller) RegisterRoutes(r chi.Router) {
 	r.Route("/v1/products", func(r chi.Router) {
 		r.Get("/{productID}", apiadvice.Wrap(c.GetDetail))
+		r.Get("/{productID}/skus", apiadvice.Wrap(c.ListSKUs))
 	})
 }
 
@@ -55,6 +56,11 @@ func (c *Controller) GetDetail(r *stdhttp.Request) (int, any, error) {
 		return 0, nil, err
 	}
 
+	skus, err := c.productService.FindSKUsByProductID(r.Context(), foundProduct.ID)
+	if err != nil {
+		return 0, nil, err
+	}
+
 	isTrackedByUser := false
 	trackedItemID := ""
 	if userID != "" {
@@ -69,6 +75,27 @@ func (c *Controller) GetDetail(r *stdhttp.Request) (int, any, error) {
 	}
 
 	return stdhttp.StatusOK, apiresponse.SuccessWithData(productresponse.NewProductDetail(
-		*foundProduct, histories, isTrackedByUser, trackedItemID,
+		*foundProduct, histories, skus, isTrackedByUser, trackedItemID,
 	)), nil
+}
+
+func (c *Controller) ListSKUs(r *stdhttp.Request) (int, any, error) {
+	productID := strings.TrimSpace(chi.URLParam(r, "productID"))
+
+	foundProduct, err := c.productService.FindByID(r.Context(), productID)
+	if err != nil {
+		return 0, nil, err
+	}
+	if foundProduct == nil {
+		return 0, nil, coreerror.New(coreerror.ProductNotFound)
+	}
+
+	skus, err := c.productService.FindSKUsByProductID(r.Context(), foundProduct.ID)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return stdhttp.StatusOK, apiresponse.SuccessWithData(
+		productresponse.NewProductSKUs(skus),
+	), nil
 }

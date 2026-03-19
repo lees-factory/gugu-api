@@ -20,10 +20,8 @@ func NewUserController(userService *domainuser.Service) *UserController {
 }
 
 func (c *UserController) RegisterRoutes(r chi.Router) {
-	r.Route("/v1/auth", func(r chi.Router) {
-		r.Post("/register/email", apiadvice.Wrap(c.RegisterEmail))
-		r.Post("/verify-email", apiadvice.Wrap(c.VerifyEmail))
-	})
+	r.Post("/v1/auth/register/email", apiadvice.Wrap(c.RegisterEmail))
+	r.Post("/v1/auth/verify-email", apiadvice.Wrap(c.VerifyEmail))
 }
 
 func (c *UserController) RegisterEmail(r *stdhttp.Request) (int, any, error) {

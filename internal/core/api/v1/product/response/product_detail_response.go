@@ -20,6 +20,7 @@ type ProductDetail struct {
 	IsTrackedByUser   bool               `json:"is_tracked_by_user"`
 	TrackedItemID     string             `json:"tracked_item_id,omitempty"`
 	PriceHistories    []PriceHistoryItem `json:"price_histories"`
+	SKUs              []ProductSKU       `json:"skus"`
 }
 
 type PriceHistoryItem struct {
@@ -29,7 +30,7 @@ type PriceHistoryItem struct {
 	ChangeValue string    `json:"change_value"`
 }
 
-func NewProductDetail(product domainproduct.Product, histories []domainpricehistory.PriceHistory, isTrackedByUser bool, trackedItemID string) ProductDetail {
+func NewProductDetail(product domainproduct.Product, histories []domainpricehistory.PriceHistory, skus []domainproduct.ProductSKU, isTrackedByUser bool, trackedItemID string) ProductDetail {
 	items := make([]PriceHistoryItem, 0, len(histories))
 	for _, h := range histories {
 		items = append(items, PriceHistoryItem{
@@ -53,5 +54,6 @@ func NewProductDetail(product domainproduct.Product, histories []domainpricehist
 		IsTrackedByUser:   isTrackedByUser,
 		TrackedItemID:     trackedItemID,
 		PriceHistories:    items,
+		SKUs:              NewProductSKUs(skus),
 	}
 }
