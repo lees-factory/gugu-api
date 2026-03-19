@@ -1,5 +1,5 @@
 -- name: CreateEmailVerification :exec
-INSERT INTO gugu.email_verifications (
+INSERT INTO gugu.email_verification (
     code,
     user_id,
     email,
@@ -18,10 +18,10 @@ SELECT
     expires_at,
     used_at,
     created_at
-FROM gugu.email_verifications
+FROM gugu.email_verification
 WHERE code = $1;
 
 -- name: MarkEmailVerificationUsed :execrows
-UPDATE gugu.email_verifications
+UPDATE gugu.email_verification
 SET used_at = $2
 WHERE code = $1;

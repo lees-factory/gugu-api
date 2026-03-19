@@ -32,6 +32,19 @@ func (r *ProductMemoryRepository) FindByID(_ context.Context, productID string) 
 	return &found, nil
 }
 
+func (r *ProductMemoryRepository) FindByIDs(_ context.Context, productIDs []string) ([]domainproduct.Product, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var products []domainproduct.Product
+	for _, id := range productIDs {
+		if item, ok := r.byID[id]; ok {
+			products = append(products, item)
+		}
+	}
+	return products, nil
+}
+
 func (r *ProductMemoryRepository) FindByMarketAndExternalProductID(_ context.Context, market domainproduct.Market, externalProductID string) (*domainproduct.Product, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

@@ -84,6 +84,22 @@ type GuguProductPriceHistory struct {
 	ChangeValue string    `json:"change_value"`
 }
 
+type GuguProductSku struct {
+	ID            string    `json:"id"`
+	ProductID     string    `json:"product_id"`
+	ExternalSkuID string    `json:"external_sku_id"`
+	SkuName       string    `json:"sku_name"`
+	Color         string    `json:"color"`
+	Size          string    `json:"size"`
+	Price         string    `json:"price"`
+	OriginalPrice string    `json:"original_price"`
+	Currency      string    `json:"currency"`
+	ImageUrl      string    `json:"image_url"`
+	SkuProperties string    `json:"sku_properties"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
 type GuguUserLoginSession struct {
 	ID               string         `json:"id"`
 	UserID           string         `json:"user_id"`
@@ -102,10 +118,11 @@ type GuguUserLoginSession struct {
 }
 
 type GuguUserTrackedItem struct {
-	ID          string       `json:"id"`
-	UserID      string       `json:"user_id"`
-	ProductID   string       `json:"product_id"`
-	OriginalUrl string       `json:"original_url"`
-	DeletedAt   sql.NullTime `json:"deleted_at"`
-	CreatedAt   time.Time    `json:"created_at"`
+	ID          string         `json:"id"`
+	UserID      string         `json:"user_id"`
+	ProductID   string         `json:"product_id"`
+	SkuID       sql.NullString `json:"sku_id"`
+	OriginalUrl string         `json:"original_url"`
+	DeletedAt   sql.NullTime   `json:"deleted_at"`
+	CreatedAt   time.Time      `json:"created_at"`
 }

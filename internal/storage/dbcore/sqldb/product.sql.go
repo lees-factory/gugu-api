@@ -8,10 +8,12 @@ package sqldb
 import (
 	"context"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 const createProduct = `-- name: CreateProduct :exec
-INSERT INTO gugu.products (
+INSERT INTO gugu.product (
     id,
     market,
     external_product_id,
@@ -80,7 +82,7 @@ SELECT
     last_collected_at,
     created_at,
     updated_at
-FROM gugu.products
+FROM gugu.product
 WHERE id = $1
 `
 
@@ -120,7 +122,7 @@ SELECT
     last_collected_at,
     created_at,
     updated_at
-FROM gugu.products
+FROM gugu.product
 WHERE market = $1 AND external_product_id = $2
 `
 
@@ -150,8 +152,64 @@ func (q *Queries) FindProductByMarketAndExternalProductID(ctx context.Context, a
 	return i, err
 }
 
+const findProductsByIDs = `-- name: FindProductsByIDs :many
+SELECT
+    id,
+    market,
+    external_product_id,
+    original_url,
+    title,
+    main_image_url,
+    current_price,
+    currency,
+    product_url,
+    collection_source,
+    last_collected_at,
+    created_at,
+    updated_at
+FROM gugu.product
+WHERE id = ANY($1::text[])
+`
+
+func (q *Queries) FindProductsByIDs(ctx context.Context, dollar_1 []string) ([]GuguProduct, error) {
+	rows, err := q.db.QueryContext(ctx, findProductsByIDs, pq.Array(dollar_1))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GuguProduct
+	for rows.Next() {
+		var i GuguProduct
+		if err := rows.Scan(
+			&i.ID,
+			&i.Market,
+			&i.ExternalProductID,
+			&i.OriginalUrl,
+			&i.Title,
+			&i.MainImageUrl,
+			&i.CurrentPrice,
+			&i.Currency,
+			&i.ProductUrl,
+			&i.CollectionSource,
+			&i.LastCollectedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateProduct = `-- name: UpdateProduct :execrows
-UPDATE gugu.products
+UPDATE gugu.product
 SET
     original_url = $2,
     title = $3,

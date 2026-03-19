@@ -1,5 +1,5 @@
 -- name: CreateProduct :exec
-INSERT INTO gugu.products (
+INSERT INTO gugu.product (
     id,
     market,
     external_product_id,
@@ -18,7 +18,7 @@ INSERT INTO gugu.products (
 );
 
 -- name: UpdateProduct :execrows
-UPDATE gugu.products
+UPDATE gugu.product
 SET
     original_url = $2,
     title = $3,
@@ -46,7 +46,7 @@ SELECT
     last_collected_at,
     created_at,
     updated_at
-FROM gugu.products
+FROM gugu.product
 WHERE id = $1;
 
 -- name: FindProductByMarketAndExternalProductID :one
@@ -64,5 +64,23 @@ SELECT
     last_collected_at,
     created_at,
     updated_at
-FROM gugu.products
+FROM gugu.product
 WHERE market = $1 AND external_product_id = $2;
+
+-- name: FindProductsByIDs :many
+SELECT
+    id,
+    market,
+    external_product_id,
+    original_url,
+    title,
+    main_image_url,
+    current_price,
+    currency,
+    product_url,
+    collection_source,
+    last_collected_at,
+    created_at,
+    updated_at
+FROM gugu.product
+WHERE id = ANY($1::text[]);

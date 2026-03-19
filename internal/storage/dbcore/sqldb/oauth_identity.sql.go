@@ -11,7 +11,7 @@ import (
 )
 
 const createOAuthIdentity = `-- name: CreateOAuthIdentity :exec
-INSERT INTO gugu.oauth_identities (
+INSERT INTO gugu.oauth_identity (
     id,
     user_id,
     provider,
@@ -56,7 +56,7 @@ SELECT
     email,
     created_at,
     last_login_at
-FROM gugu.oauth_identities
+FROM gugu.oauth_identity
 WHERE provider = $1 AND subject = $2
 `
 
@@ -81,7 +81,7 @@ func (q *Queries) FindOAuthIdentity(ctx context.Context, arg FindOAuthIdentityPa
 }
 
 const updateOAuthLastLogin = `-- name: UpdateOAuthLastLogin :execrows
-UPDATE gugu.oauth_identities
+UPDATE gugu.oauth_identity
 SET last_login_at = $3
 WHERE provider = $1 AND subject = $2
 `

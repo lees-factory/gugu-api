@@ -79,3 +79,16 @@ func (r *TrackedItemMemoryRepository) DeleteByIDAndUserID(_ context.Context, tra
 	delete(r.index, item.UserID+":"+item.ProductID)
 	return nil
 }
+
+func (r *TrackedItemMemoryRepository) UpdateSKU(_ context.Context, trackedItemID string, userID string, skuID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	item, ok := r.byID[trackedItemID]
+	if !ok || item.UserID != userID {
+		return nil
+	}
+	item.SKUID = skuID
+	r.byID[trackedItemID] = item
+	return nil
+}

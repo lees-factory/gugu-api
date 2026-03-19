@@ -17,7 +17,7 @@ SELECT
     currency,
     recorded_at,
     change_value
-FROM gugu.product_price_histories
+FROM gugu.product_price_history
 WHERE product_id = $1
 ORDER BY recorded_at DESC
 `

@@ -9,6 +9,20 @@ import (
 	"github.com/ljj/gugu-api/internal/storage/dbcore/sqldb"
 )
 
+func toNullString(s string) sql.NullString {
+	if s == "" {
+		return sql.NullString{}
+	}
+	return sql.NullString{String: s, Valid: true}
+}
+
+func fromNullString(ns sql.NullString) string {
+	if ns.Valid {
+		return ns.String
+	}
+	return ""
+}
+
 type TrackedItemSQLCRepository struct {
 	queries *sqldb.Queries
 }
@@ -65,9 +79,25 @@ func (r *TrackedItemSQLCRepository) Create(ctx context.Context, trackedItem doma
 		ID:          trackedItem.ID,
 		UserID:      trackedItem.UserID,
 		ProductID:   trackedItem.ProductID,
+		SkuID:       toNullString(trackedItem.SKUID),
 		OriginalUrl: trackedItem.OriginalURL,
 		CreatedAt:   trackedItem.CreatedAt,
 	})
+}
+
+func (r *TrackedItemSQLCRepository) UpdateSKU(ctx context.Context, trackedItemID string, userID string, skuID string) error {
+	affected, err := r.queries.UpdateTrackedItemSKU(ctx, sqldb.UpdateTrackedItemSKUParams{
+		ID:     trackedItemID,
+		UserID: userID,
+		SkuID:  toNullString(skuID),
+	})
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
 func (r *TrackedItemSQLCRepository) DeleteByIDAndUserID(ctx context.Context, trackedItemID string, userID string) error {
@@ -89,6 +119,7 @@ func toDomainTrackedItem(row sqldb.GuguUserTrackedItem) domaintrackeditem.Tracke
 		ID:          row.ID,
 		UserID:      row.UserID,
 		ProductID:   row.ProductID,
+		SKUID:       fromNullString(row.SkuID),
 		OriginalURL: row.OriginalUrl,
 		CreatedAt:   row.CreatedAt,
 	}

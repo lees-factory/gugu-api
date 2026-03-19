@@ -31,7 +31,7 @@ SELECT
     authorized_at,
     created_at,
     updated_at
-FROM gugu.aliexpress_seller_tokens
+FROM gugu.aliexpress_seller_token
 WHERE seller_id = $1
 `
 
@@ -81,7 +81,7 @@ SELECT
     authorized_at,
     created_at,
     updated_at
-FROM gugu.aliexpress_seller_tokens
+FROM gugu.aliexpress_seller_token
 WHERE user_id = $1
 `
 
@@ -131,7 +131,7 @@ SELECT
     authorized_at,
     created_at,
     updated_at
-FROM gugu.aliexpress_seller_tokens
+FROM gugu.aliexpress_seller_token
 WHERE access_token_expires_at <= $1
 ORDER BY access_token_expires_at ASC
 `
@@ -179,7 +179,7 @@ func (q *Queries) ListAliExpressSellerTokensExpiringBefore(ctx context.Context, 
 }
 
 const upsertAliExpressSellerToken = `-- name: UpsertAliExpressSellerToken :exec
-INSERT INTO gugu.aliexpress_seller_tokens (
+INSERT INTO gugu.aliexpress_seller_token (
     id,
     user_id,
     seller_id,

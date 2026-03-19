@@ -7,27 +7,30 @@ package sqldb
 
 import (
 	"context"
+	"database/sql"
 	"time"
 )
 
 const createTrackedItem = `-- name: CreateTrackedItem :exec
-INSERT INTO gugu.user_tracked_items (
+INSERT INTO gugu.user_tracked_item (
     id,
     user_id,
     product_id,
+    sku_id,
     original_url,
     created_at
 ) VALUES (
-    $1, $2, $3, $4, $5
+    $1, $2, $3, $4, $5, $6
 )
 `
 
 type CreateTrackedItemParams struct {
-	ID          string    `json:"id"`
-	UserID      string    `json:"user_id"`
-	ProductID   string    `json:"product_id"`
-	OriginalUrl string    `json:"original_url"`
-	CreatedAt   time.Time `json:"created_at"`
+	ID          string         `json:"id"`
+	UserID      string         `json:"user_id"`
+	ProductID   string         `json:"product_id"`
+	SkuID       sql.NullString `json:"sku_id"`
+	OriginalUrl string         `json:"original_url"`
+	CreatedAt   time.Time      `json:"created_at"`
 }
 
 func (q *Queries) CreateTrackedItem(ctx context.Context, arg CreateTrackedItemParams) error {
@@ -35,6 +38,7 @@ func (q *Queries) CreateTrackedItem(ctx context.Context, arg CreateTrackedItemPa
 		arg.ID,
 		arg.UserID,
 		arg.ProductID,
+		arg.SkuID,
 		arg.OriginalUrl,
 		arg.CreatedAt,
 	)
@@ -42,7 +46,7 @@ func (q *Queries) CreateTrackedItem(ctx context.Context, arg CreateTrackedItemPa
 }
 
 const deleteTrackedItemByIDAndUserID = `-- name: DeleteTrackedItemByIDAndUserID :execrows
-UPDATE gugu.user_tracked_items
+UPDATE gugu.user_tracked_item
 SET deleted_at = NOW()
 WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
 `
@@ -65,10 +69,11 @@ SELECT
     id,
     user_id,
     product_id,
+    sku_id,
     original_url,
     deleted_at,
     created_at
-FROM gugu.user_tracked_items
+FROM gugu.user_tracked_item
 WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
 `
 
@@ -84,6 +89,7 @@ func (q *Queries) FindTrackedItemByIDAndUserID(ctx context.Context, arg FindTrac
 		&i.ID,
 		&i.UserID,
 		&i.ProductID,
+		&i.SkuID,
 		&i.OriginalUrl,
 		&i.DeletedAt,
 		&i.CreatedAt,
@@ -96,10 +102,11 @@ SELECT
     id,
     user_id,
     product_id,
+    sku_id,
     original_url,
     deleted_at,
     created_at
-FROM gugu.user_tracked_items
+FROM gugu.user_tracked_item
 WHERE user_id = $1 AND product_id = $2 AND deleted_at IS NULL
 `
 
@@ -115,6 +122,7 @@ func (q *Queries) FindTrackedItemByUserIDAndProductID(ctx context.Context, arg F
 		&i.ID,
 		&i.UserID,
 		&i.ProductID,
+		&i.SkuID,
 		&i.OriginalUrl,
 		&i.DeletedAt,
 		&i.CreatedAt,
@@ -127,10 +135,11 @@ SELECT
     id,
     user_id,
     product_id,
+    sku_id,
     original_url,
     deleted_at,
     created_at
-FROM gugu.user_tracked_items
+FROM gugu.user_tracked_item
 WHERE user_id = $1 AND deleted_at IS NULL
 ORDER BY created_at DESC
 `
@@ -148,6 +157,7 @@ func (q *Queries) ListTrackedItemsByUserID(ctx context.Context, userID string) (
 			&i.ID,
 			&i.UserID,
 			&i.ProductID,
+			&i.SkuID,
 			&i.OriginalUrl,
 			&i.DeletedAt,
 			&i.CreatedAt,
@@ -163,4 +173,24 @@ func (q *Queries) ListTrackedItemsByUserID(ctx context.Context, userID string) (
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateTrackedItemSKU = `-- name: UpdateTrackedItemSKU :execrows
+UPDATE gugu.user_tracked_item
+SET sku_id = $3
+WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+`
+
+type UpdateTrackedItemSKUParams struct {
+	ID     string         `json:"id"`
+	UserID string         `json:"user_id"`
+	SkuID  sql.NullString `json:"sku_id"`
+}
+
+func (q *Queries) UpdateTrackedItemSKU(ctx context.Context, arg UpdateTrackedItemSKUParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateTrackedItemSKU, arg.ID, arg.UserID, arg.SkuID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

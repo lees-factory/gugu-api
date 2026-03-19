@@ -29,6 +29,18 @@ func (r *ProductSQLCRepository) FindByID(ctx context.Context, productID string) 
 	return &item, nil
 }
 
+func (r *ProductSQLCRepository) FindByIDs(ctx context.Context, productIDs []string) ([]domainproduct.Product, error) {
+	rows, err := r.queries.FindProductsByIDs(ctx, productIDs)
+	if err != nil {
+		return nil, err
+	}
+	products := make([]domainproduct.Product, len(rows))
+	for i, row := range rows {
+		products[i] = toDomainProduct(row)
+	}
+	return products, nil
+}
+
 func (r *ProductSQLCRepository) FindByMarketAndExternalProductID(ctx context.Context, market domainproduct.Market, externalProductID string) (*domainproduct.Product, error) {
 	row, err := r.queries.FindProductByMarketAndExternalProductID(ctx, sqldb.FindProductByMarketAndExternalProductIDParams{
 		Market:            string(market),
