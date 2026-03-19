@@ -12,6 +12,7 @@ type Config struct {
 	AliExpressAppKey       string
 	AliExpressAppSecret    string
 	AliExpressCallbackURL  string
+	CrawlerBaseURL         string
 	DatabaseURL            string
 	CORSAllowedOrigins     []string
 	JWTSecret              string
@@ -32,6 +33,7 @@ func Load() Config {
 		AliExpressAppKey:       os.Getenv("ALIEXPRESS_APP_KEY"),
 		AliExpressAppSecret:    os.Getenv("ALIEXPRESS_APP_SECRET"),
 		AliExpressCallbackURL:  getenv("ALIEXPRESS_CALLBACK_URL", "https://googoo-client.vercel.app/callback"),
+		CrawlerBaseURL:         getenv("CRAWLER_BASE_URL", "http://localhost:8000"),
 		DatabaseURL:            os.Getenv("DATABASE_URL"),
 		CORSAllowedOrigins:     splitCSV(getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173")),
 		JWTSecret:              getenv("JWT_SECRET", "change-me"),
