@@ -94,7 +94,39 @@ func (f *AliExpressProductFinder) Find(ctx context.Context, input CollectInput) 
 		Currency:          currency,
 		ProductURL:        productURL,
 		CollectionSource:  affiliateCollectionSource,
+		SKUs:              collectSKUs(skuResult),
 	}, nil
+}
+
+func collectSKUs(result *clientaliexpress.ProductSKUDetailResult) []CollectedSKU {
+	if result == nil || len(result.SKUInfos) == 0 {
+		return nil
+	}
+
+	skus := make([]CollectedSKU, len(result.SKUInfos))
+	for i, info := range result.SKUInfos {
+		skuName := strings.TrimSpace(info.Color)
+		if size := strings.TrimSpace(info.Size); size != "" {
+			if skuName != "" {
+				skuName += " / " + size
+			} else {
+				skuName = size
+			}
+		}
+
+		skus[i] = CollectedSKU{
+			ExternalSKUID: fmt.Sprintf("%d", info.SKUID),
+			SKUName:       skuName,
+			Color:         strings.TrimSpace(info.Color),
+			Size:          strings.TrimSpace(info.Size),
+			Price:         firstNonEmpty(info.SalePriceWithTax, info.PriceWithTax),
+			OriginalPrice: strings.TrimSpace(info.PriceWithTax),
+			Currency:      strings.TrimSpace(info.Currency),
+			ImageURL:      strings.TrimSpace(info.SKUImageLink),
+			SKUProperties: strings.TrimSpace(info.SKUProperties),
+		}
+	}
+	return skus
 }
 
 func firstSKUPrice(result *clientaliexpress.ProductSKUDetailResult) string {

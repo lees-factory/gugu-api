@@ -23,6 +23,19 @@ type CollectedProduct struct {
 	Currency          string
 	ProductURL        string
 	CollectionSource  string
+	SKUs              []CollectedSKU
+}
+
+type CollectedSKU struct {
+	ExternalSKUID string
+	SKUName       string
+	Color         string
+	Size          string
+	Price         string
+	OriginalPrice string
+	Currency      string
+	ImageURL      string
+	SKUProperties string
 }
 
 type AffiliateProductFinder interface {

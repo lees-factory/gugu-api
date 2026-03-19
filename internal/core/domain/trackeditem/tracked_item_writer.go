@@ -5,6 +5,7 @@ import "context"
 type Writer interface {
 	Create(ctx context.Context, trackedItem TrackedItem) error
 	DeleteByIDAndUserID(ctx context.Context, trackedItemID string, userID string) error
+	UpdateSKU(ctx context.Context, trackedItemID string, userID string, skuID string) error
 }
 
 type writer struct {
@@ -21,4 +22,8 @@ func (w *writer) Create(ctx context.Context, trackedItem TrackedItem) error {
 
 func (w *writer) DeleteByIDAndUserID(ctx context.Context, trackedItemID string, userID string) error {
 	return w.repository.DeleteByIDAndUserID(ctx, trackedItemID, userID)
+}
+
+func (w *writer) UpdateSKU(ctx context.Context, trackedItemID string, userID string, skuID string) error {
+	return w.repository.UpdateSKU(ctx, trackedItemID, userID, skuID)
 }
