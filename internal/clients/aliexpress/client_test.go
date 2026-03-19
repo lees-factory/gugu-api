@@ -115,8 +115,8 @@ func TestGetProductSnapshot(t *testing.T) {
 		CallbackURL: "https://googoo-client.vercel.app/callback",
 		HTTPClient: &http.Client{
 			Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
-				if r.URL.Path != "/rest/aliexpress.affiliate.productdetail.get" {
-					t.Fatalf("path = %q", r.URL.Path)
+				if r.URL.Path != "/sync" {
+					t.Fatalf("path = %q, want /sync", r.URL.Path)
 				}
 
 				body, err := io.ReadAll(r.Body)
@@ -130,26 +130,36 @@ func TestGetProductSnapshot(t *testing.T) {
 				if values.Get("product_ids") != "1005001234567890" {
 					t.Fatalf("product_ids = %q", values.Get("product_ids"))
 				}
+				if values.Get("method") != "aliexpress.affiliate.productdetail.get" {
+					t.Fatalf("method = %q", values.Get("method"))
+				}
+				if values.Get("v") != "2.0" {
+					t.Fatalf("v = %q", values.Get("v"))
+				}
 
 				return jsonResponse(`{
-			"resp_result": {
-				"resp_code": 20010000,
-				"resp_msg": "success",
-				"result": {
-					"current_record_count": 1,
-					"products": [
-						{
-							"product_id": 1005001234567890,
-							"product_title": "Keyboard",
-							"target_sale_price": "89.99",
-							"target_sale_price_currency": "USD",
-							"product_main_image_url": "https://img.example/1.jpg",
-							"product_detail_url": "https://www.aliexpress.com/item/1005001234567890.html",
-							"promotion_link": "https://s.click.aliexpress.com/promo",
-							"target_original_price": "99.99",
-							"shop_name": "Gugu Store"
+			"aliexpress_affiliate_productdetail_get_response": {
+				"resp_result": {
+					"resp_code": 20010000,
+					"resp_msg": "success",
+					"result": {
+						"current_record_count": 1,
+						"products": {
+							"product": [
+								{
+									"product_id": 1005001234567890,
+									"product_title": "Keyboard",
+									"target_sale_price": "89.99",
+									"target_sale_price_currency": "USD",
+									"product_main_image_url": "https://img.example/1.jpg",
+									"product_detail_url": "https://www.aliexpress.com/item/1005001234567890.html",
+									"promotion_link": "https://s.click.aliexpress.com/promo",
+									"target_original_price": "99.99",
+									"shop_name": "Gugu Store"
+								}
+							]
 						}
-					]
+					}
 				}
 			}
 		}`)
@@ -186,8 +196,8 @@ func TestGetAffiliateProductDetail(t *testing.T) {
 		CallbackURL: "https://googoo-client.vercel.app/callback",
 		HTTPClient: &http.Client{
 			Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
-				if r.URL.Path != "/rest/aliexpress.affiliate.productdetail.get" {
-					t.Fatalf("path = %q", r.URL.Path)
+				if r.URL.Path != "/sync" {
+					t.Fatalf("path = %q, want /sync", r.URL.Path)
 				}
 
 				body, err := io.ReadAll(r.Body)
@@ -201,37 +211,44 @@ func TestGetAffiliateProductDetail(t *testing.T) {
 				if values.Get("product_ids") != "1005001234567890,1005001234567891" {
 					t.Fatalf("product_ids = %q", values.Get("product_ids"))
 				}
+				if values.Get("method") != "aliexpress.affiliate.productdetail.get" {
+					t.Fatalf("method = %q", values.Get("method"))
+				}
 
 				return jsonResponse(`{
-			"resp_result": {
-				"resp_code": 20010000,
-				"resp_msg": "success",
-				"result": {
-					"current_record_count": 2,
-					"products": [
-						{
-							"product_id": 1005001234567890,
-							"product_title": "Keyboard",
-							"target_sale_price": "89.99",
-							"target_sale_price_currency": "USD",
-							"product_main_image_url": "https://img.example/1.jpg",
-							"product_detail_url": "https://www.aliexpress.com/item/1005001234567890.html",
-							"product_small_image_urls": ["https://img.example/1-1.jpg"],
-							"promotion_link": "https://s.click.aliexpress.com/promo",
-							"target_original_price": "99.99",
-							"shop_name": "Gugu Store",
-							"sku_id": 20001
-						},
-						{
-							"product_id": 1005001234567891,
-							"product_title": "Mouse",
-							"target_sale_price": "19.99",
-							"target_sale_price_currency": "USD",
-							"product_main_image_url": "https://img.example/2.jpg",
-							"product_detail_url": "https://www.aliexpress.com/item/1005001234567891.html",
-							"shop_name": "Gugu Store"
+			"aliexpress_affiliate_productdetail_get_response": {
+				"resp_result": {
+					"resp_code": 20010000,
+					"resp_msg": "success",
+					"result": {
+						"current_record_count": 2,
+						"products": {
+							"product": [
+								{
+									"product_id": 1005001234567890,
+									"product_title": "Keyboard",
+									"target_sale_price": "89.99",
+									"target_sale_price_currency": "USD",
+									"product_main_image_url": "https://img.example/1.jpg",
+									"product_detail_url": "https://www.aliexpress.com/item/1005001234567890.html",
+									"product_small_image_urls": ["https://img.example/1-1.jpg"],
+									"promotion_link": "https://s.click.aliexpress.com/promo",
+									"target_original_price": "99.99",
+									"shop_name": "Gugu Store",
+									"sku_id": 20001
+								},
+								{
+									"product_id": 1005001234567891,
+									"product_title": "Mouse",
+									"target_sale_price": "19.99",
+									"target_sale_price_currency": "USD",
+									"product_main_image_url": "https://img.example/2.jpg",
+									"product_detail_url": "https://www.aliexpress.com/item/1005001234567891.html",
+									"shop_name": "Gugu Store"
+								}
+							]
 						}
-					]
+					}
 				}
 			}
 		}`)
@@ -268,8 +285,8 @@ func TestGetAffiliateProductSKUDetail(t *testing.T) {
 		CallbackURL: "https://googoo-client.vercel.app/callback",
 		HTTPClient: &http.Client{
 			Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
-				if r.URL.Path != "/rest/aliexpress.affiliate.product.sku.detail.get" {
-					t.Fatalf("path = %q", r.URL.Path)
+				if r.URL.Path != "/sync" {
+					t.Fatalf("path = %q, want /sync", r.URL.Path)
 				}
 
 				body, err := io.ReadAll(r.Body)
@@ -286,28 +303,35 @@ func TestGetAffiliateProductSKUDetail(t *testing.T) {
 				if values.Get("sku_ids") != "20001,20002" {
 					t.Fatalf("sku_ids = %q", values.Get("sku_ids"))
 				}
+				if values.Get("method") != "aliexpress.affiliate.product.sku.detail.get" {
+					t.Fatalf("method = %q", values.Get("method"))
+				}
 
 				return jsonResponse(`{
-			"result": {
+			"aliexpress_affiliate_product_sku_detail_get_response": {
 				"result": {
-					"ae_item_info": {
-						"product_id": "1005001234567890",
-						"title": "Keyboard",
-						"original_link": "https://www.aliexpress.com/item/1005001234567890.html",
-						"image_link": "https://img.example/1.jpg",
-						"store_name": "Gugu Store"
-					},
-					"ae_item_sku_info": [
-						{
-							"sku_id": 20001,
-							"currency": "USD",
-							"sale_price_with_tax": "89.99",
-							"sku_image_link": "https://img.example/sku-1.jpg",
-							"size": "M"
-						}
-					],
-					"code": 0,
-					"success": true
+					"result": {
+						"ae_item_info": {
+							"product_id": "1005001234567890",
+							"title": "Keyboard",
+							"original_link": "https://www.aliexpress.com/item/1005001234567890.html",
+							"image_link": "https://img.example/1.jpg",
+							"store_name": "Gugu Store"
+						},
+						"ae_item_sku_info": {
+							"traffic_sku_info_list": [
+								{
+									"sku_id": 20001,
+									"currency": "USD",
+									"sale_price_with_tax": "89.99",
+									"sku_image_link": "https://img.example/sku-1.jpg",
+									"size": "M"
+								}
+							]
+						},
+						"code": 0,
+						"success": true
+					}
 				}
 			}
 		}`)
@@ -355,7 +379,7 @@ func TestSignMatchesSDKRule(t *testing.T) {
 	values.Set("partner_id", defaultPartnerID)
 	values.Set("code", "auth-code")
 
-	signature := client.sign("/auth/token/create", values)
+	signature := client.signLegacy("/auth/token/create", values)
 	if signature == "" {
 		t.Fatal("signature was empty")
 	}

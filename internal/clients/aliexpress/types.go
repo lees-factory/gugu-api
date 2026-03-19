@@ -36,8 +36,8 @@ type productDetailResult struct {
 }
 
 type productDetailProductBlock struct {
-	CurrentRecordCount int64              `json:"current_record_count"`
-	Products           []AffiliateProduct `json:"products"`
+	CurrentRecordCount int64                       `json:"current_record_count"`
+	Products           productDetailProductWrapper `json:"products"`
 }
 
 type productSKUDetailEnvelope struct {
@@ -49,8 +49,16 @@ type productSKUDetailOuterResult struct {
 }
 
 type productSKUDetailInnerResult struct {
-	ItemInfo AffiliateSKUItemInfo `json:"ae_item_info"`
-	SKUInfos []AffiliateSKUInfo   `json:"ae_item_sku_info"`
-	Code     int64                `json:"code"`
-	Success  bool                 `json:"success"`
+	ItemInfo AffiliateSKUItemInfo   `json:"ae_item_info"`
+	SKUInfos skuInfoTrafficWrapper  `json:"ae_item_sku_info"`
+	Code     int64                  `json:"code"`
+	Success  bool                   `json:"success"`
+}
+
+type skuInfoTrafficWrapper struct {
+	TrafficSKUInfoList []AffiliateSKUInfo `json:"traffic_sku_info_list"`
+}
+
+type productDetailProductWrapper struct {
+	Product []AffiliateProduct `json:"product"`
 }

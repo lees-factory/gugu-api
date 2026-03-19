@@ -76,6 +76,7 @@ func (c *HTTPClient) GetAffiliateProductDetail(ctx context.Context, input Produc
 			"country":         defaultString(input.Country, "US"),
 			"tracking_id":     strings.TrimSpace(input.TrackingID),
 		},
+		topProtocol: true,
 	})
 	if err != nil {
 		return nil, err
@@ -91,7 +92,7 @@ func (c *HTTPClient) GetAffiliateProductDetail(ctx context.Context, input Produc
 
 	return &ProductDetailResult{
 		CurrentRecordCount: payload.RespResult.Result.CurrentRecordCount,
-		Products:           payload.RespResult.Result.Products,
+		Products:           payload.RespResult.Result.Products.Product,
 	}, nil
 }
 
@@ -115,6 +116,7 @@ func (c *HTTPClient) GetAffiliateProductSKUDetail(ctx context.Context, input Pro
 			"need_deliver_info": defaultString(input.NeedDeliverInfo, "No"),
 			"sku_ids":           strings.Join(normalizeCSV(input.SKUIDs), ","),
 		},
+		topProtocol: true,
 	})
 	if err != nil {
 		return nil, err
@@ -129,6 +131,6 @@ func (c *HTTPClient) GetAffiliateProductSKUDetail(ctx context.Context, input Pro
 		Code:     payload.Result.Result.Code,
 		Success:  payload.Result.Result.Success,
 		ItemInfo: payload.Result.Result.ItemInfo,
-		SKUInfos: payload.Result.Result.SKUInfos,
+		SKUInfos: payload.Result.Result.SKUInfos.TrafficSKUInfoList,
 	}, nil
 }

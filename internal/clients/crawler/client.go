@@ -7,10 +7,15 @@ type CrawlInput struct {
 }
 
 type SKU struct {
-	Name          string
+	ExternalSKUID string
+	SKUName       string
+	Color         string
+	Size          string
 	Price         string
 	OriginalPrice string
+	Currency      string
 	ImageURL      string
+	SKUProperties string
 }
 
 type Product struct {
