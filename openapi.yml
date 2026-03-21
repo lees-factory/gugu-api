@@ -1620,6 +1620,12 @@ components:
         image_url:
           type: string
           description: SKU 이미지 URL
+        origin_sku_id:
+          type: string
+          description: 외부 마켓 원본 SKU ID
+        sku_properties:
+          type: string
+          description: 'SKU 속성 JSON 문자열 예: [{"색상":"000000","크기":"XXXL"}]'
     ListProductSKUsResponse:
       type: object
       description: 상품 SKU 목록 응답
