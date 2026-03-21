@@ -169,10 +169,18 @@ const data = await response.json()
 | `POST` | `/v1/auth/logout` | 로그아웃 |
 | `GET` | `/v1/tracked-items?user_id=` | 추적 상품 목록 |
 | `POST` | `/v1/tracked-items` | 추적 상품 추가 |
+| `GET` | `/v1/tracked-items/{id}?user_id=` | 추적 상품 상세 |
 | `DELETE` | `/v1/tracked-items/{id}?user_id=` | 추적 상품 삭제 |
 | `PATCH` | `/v1/tracked-items/{id}/sku` | SKU 선택 |
 | `GET` | `/v1/products/{id}?user_id=` | 상품 상세 (SKU 포함) |
 | `GET` | `/v1/products/{id}/skus` | 상품 SKU 목록 |
+| `POST` | `/v1/integrations/aliexpress/authorize-url` | AliExpress 인가 URL 생성 |
+| `POST` | `/v1/integrations/aliexpress/exchange-code` | AliExpress 토큰 교환 |
+| `POST` | `/v1/integrations/aliexpress/refresh-token` | AliExpress 토큰 갱신 |
+| `GET` | `/v1/integrations/aliexpress/connection-status` | AliExpress 연결 상태 |
+| `GET` | `/v1/integrations/aliexpress/product-detail?product_id=` | AliExpress 상품 상세 (개발자용) |
+| `GET` | `/v1/integrations/aliexpress/product-sku-detail?product_id=` | AliExpress SKU 상세 (개발자용) |
+| `POST` | `/v1/batch/update-prices` | 전체 상품 가격 일괄 업데이트 |
 
 ## 6. 요청 예시
 
@@ -204,7 +212,52 @@ curl -X POST http://localhost:8080/v1/auth/login/email \
 이메일 인증 코드는 Gmail SMTP로 발송한다.
 개발 중 발송 없이 로그만 보려면 `MAIL_PROVIDER='log'` 로 바꾸면 된다.
 
-## 7. 현재 제한 사항
+## 7. AliExpress 토큰 설정
+
+AliExpress Affiliate API는 `access_token`이 필수다. 최초 1회 OAuth 인증이 필요하다.
+
+```bash
+# 1. 인가 URL 생성
+curl -X POST http://localhost:8080/v1/integrations/aliexpress/authorize-url
+
+# 2. 응답의 authorization_url을 브라우저에서 열고 로그인 → callback URL에서 code 확인
+
+# 3. code를 토큰으로 교환
+curl -X POST http://localhost:8080/v1/integrations/aliexpress/exchange-code \
+  -H 'Content-Type: application/json' \
+  -d '{"code":"받은_code"}'
+```
+
+access_token은 24시간 만료. refresh_token(6개월)으로 갱신 가능:
+
+```bash
+curl -X POST http://localhost:8080/v1/integrations/aliexpress/refresh-token
+```
+
+토큰 상태 확인:
+
+```bash
+curl http://localhost:8080/v1/integrations/aliexpress/connection-status
+```
+
+## 8. 가격 배치 업데이트
+
+등록된 모든 상품의 가격을 외부 API에서 일괄 조회하여 업데이트한다.
+
+수동 실행:
+
+```bash
+curl -X POST http://localhost:8080/v1/batch/update-prices
+```
+
+AWS Lightsail 배포 시 crontab으로 하루 1회 자동 실행:
+
+```bash
+# crontab -e
+0 3 * * * curl -sS -X POST http://localhost:8080/v1/batch/update-prices
+```
+
+## 9. 현재 제한 사항
 
 - 프론트 앱 자체는 이 저장소에 없다.
 - `DATABASE_URL` 이 없으면 저장소는 메모리 기반으로 동작한다.

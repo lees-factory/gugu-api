@@ -16,6 +16,8 @@ tags:
     description: 상품 상세 조회 API
   - name: 유저 저장 상품
     description: Tracked Items 조회, 추가, 삭제 API
+  - name: 배치
+    description: 운영자/개발자 전용 배치 작업 API
 paths:
   /health:
     get:
@@ -702,6 +704,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 내부 오류가 발생했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/batch/update-prices:
+    post:
+      tags:
+        - 배치
+      summary: 전체 상품 가격 일괄 업데이트
+      description: |
+        product 테이블의 모든 상품을 마켓별로 그룹핑하여 외부 API에서 최신 가격을 조회하고 업데이트한다.
+        가격이 변동된 상품만 업데이트하며, 변동 시 price_history에 기록한다.
+        운영자/개발자 전용. 하루 1회 실행 권장.
+      operationId: batchUpdatePrices
+      responses:
+        '200':
+          description: 배치 업데이트가 성공했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
         '500':
           description: 서버 내부 오류가 발생했다.
           content:
