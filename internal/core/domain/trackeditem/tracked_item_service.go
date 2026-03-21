@@ -63,7 +63,7 @@ func NewService(
 }
 
 func (s *Service) AddTrackedItem(ctx context.Context, input AddTrackedItemInput) (*AddTrackedItemResult, error) {
-	market := domainproduct.Market(input.ProviderCommerce)
+	market := domainproduct.Market(input.ProviderCommerce).Normalize()
 	if !market.IsSupported() {
 		return nil, coreerror.New(coreerror.UnsupportedMarket)
 	}

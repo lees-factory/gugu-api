@@ -1,5 +1,7 @@
 package product
 
+import "strings"
+
 type Market string
 
 const (
@@ -8,8 +10,12 @@ const (
 	MarketEBay       Market = "EBAY"
 )
 
+func (m Market) Normalize() Market {
+	return Market(strings.ToUpper(strings.TrimSpace(string(m))))
+}
+
 func (m Market) IsSupported() bool {
-	switch m {
+	switch m.Normalize() {
 	case MarketAliExpress, MarketCoupang, MarketEBay:
 		return true
 	default:

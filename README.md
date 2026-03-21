@@ -7,7 +7,22 @@
 
 ### 환경 변수 준비
 
-루트의 [`.env`](/Users/LJJ/Desktop/project/go/gugu/gugu-api/.env) 파일준비한다 root 경로
+```bash
+cp .env.example .env
+# .env 파일을 열어서 값 채우기
+```
+
+`.env.example`을 복사해서 값을 채운다. 주요 환경변수:
+
+| 변수 | 필수 | 기본값 | 설명 |
+|------|------|--------|------|
+| `DATABASE_URL` | 선택 | (빈값=in-memory) | Supabase PostgreSQL 접속 URL |
+| `ALIEXPRESS_APP_KEY` | 필수 | | AliExpress Affiliate API 키 |
+| `ALIEXPRESS_APP_SECRET` | 필수 | | AliExpress Affiliate API 시크릿 |
+| `CRAWLER_BASE_URL` | 선택 | `http://localhost:8000` | 크롤러 서버 주소 |
+| `HTTP_ADDRESS` | 선택 | `:8080` | API 서버 포트 |
+| `CORS_ALLOWED_ORIGINS` | 선택 | `http://localhost:3000,http://localhost:5173` | 프론트 허용 origin |
+| `JWT_SECRET` | 선택 | `change-me` | JWT 서명 키 |
 
 ### Supabase 초기 스키마 적용
 
@@ -33,6 +48,27 @@ go run ./cmd/api
 ```
 
 정상 실행되면 API 는 `http://localhost:8080` 에서 뜬다.
+별도 빌드 과정 없이 `go run`이 자동으로 컴파일 후 실행한다.
+
+바이너리를 만들고 싶은 경우:
+
+```bash
+go build -o bin/api cmd/api/main.go
+./bin/api
+```
+
+### 크롤러 서버 연동
+
+크롤러 서버(gugu-crawler)는 AliExpress Affiliate API가 실패할 때 fallback으로 사용된다.
+
+```bash
+# .env에 크롤러 서버 주소 설정 (기본값: http://localhost:8000)
+CRAWLER_BASE_URL=http://localhost:8000
+```
+
+- 크롤러 서버가 꺼져 있어도 API 서버는 정상 기동된다.
+- Affiliate API가 성공하면 크롤러를 호출하지 않는다.
+- 크롤러 서버를 로컬에서 띄우려면 gugu-crawler 저장소의 안내를 따른다.
 
 확인:
 
@@ -122,11 +158,21 @@ const data = await response.json()
 
 주요 엔드포인트:
 
-- `GET /health`
-- `POST /v1/auth/register/email`
-- `POST /v1/auth/login/email`
-- `POST /v1/auth/verify-email`
-- `POST /v1/auth/oauth/login`
+| Method | Path | 설명 |
+|--------|------|------|
+| `GET` | `/health` | 헬스 체크 |
+| `POST` | `/v1/auth/register/email` | 이메일 회원가입 |
+| `POST` | `/v1/auth/verify-email` | 이메일 인증 |
+| `POST` | `/v1/auth/login/email` | 이메일 로그인 |
+| `POST` | `/v1/auth/oauth/login` | OAuth 로그인 |
+| `POST` | `/v1/auth/refresh` | 토큰 갱신 |
+| `POST` | `/v1/auth/logout` | 로그아웃 |
+| `GET` | `/v1/tracked-items?user_id=` | 추적 상품 목록 |
+| `POST` | `/v1/tracked-items` | 추적 상품 추가 |
+| `DELETE` | `/v1/tracked-items/{id}?user_id=` | 추적 상품 삭제 |
+| `PATCH` | `/v1/tracked-items/{id}/sku` | SKU 선택 |
+| `GET` | `/v1/products/{id}?user_id=` | 상품 상세 (SKU 포함) |
+| `GET` | `/v1/products/{id}/skus` | 상품 SKU 목록 |
 
 ## 6. 요청 예시
 

@@ -65,10 +65,7 @@ func NewDefaultCollector(affiliateProductFinder AffiliateProductFinder, crawlerP
 func (c *DefaultCollector) Collect(ctx context.Context, input CollectInput) (*CollectedProduct, error) {
 	if c.affiliateProductFinder != nil {
 		item, err := c.affiliateProductFinder.Find(ctx, input)
-		if err != nil {
-			return nil, fmt.Errorf("find affiliate product: %w", err)
-		}
-		if item != nil {
+		if err == nil && item != nil {
 			return item, nil
 		}
 	}
