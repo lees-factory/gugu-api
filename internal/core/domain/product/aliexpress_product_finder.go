@@ -119,8 +119,15 @@ func collectSKUs(result *clientaliexpress.ProductSKUDetailResult) []CollectedSKU
 		return nil
 	}
 
-	skus := make([]CollectedSKU, len(result.SKUInfos))
-	for i, info := range result.SKUInfos {
+	seen := make(map[string]bool)
+	skus := make([]CollectedSKU, 0, len(result.SKUInfos))
+	for _, info := range result.SKUInfos {
+		externalID := fmt.Sprintf("%d", info.SKUID)
+		if seen[externalID] {
+			continue
+		}
+		seen[externalID] = true
+
 		skuName := strings.TrimSpace(info.Color)
 		if size := strings.TrimSpace(info.Size); size != "" {
 			if skuName != "" {
@@ -130,8 +137,8 @@ func collectSKUs(result *clientaliexpress.ProductSKUDetailResult) []CollectedSKU
 			}
 		}
 
-		skus[i] = CollectedSKU{
-			ExternalSKUID: fmt.Sprintf("%d", info.SKUID),
+		skus = append(skus, CollectedSKU{
+			ExternalSKUID: externalID,
 			SKUName:       skuName,
 			Color:         strings.TrimSpace(info.Color),
 			Size:          strings.TrimSpace(info.Size),
@@ -140,7 +147,7 @@ func collectSKUs(result *clientaliexpress.ProductSKUDetailResult) []CollectedSKU
 			Currency:      strings.TrimSpace(info.Currency),
 			ImageURL:      strings.TrimSpace(info.SKUImageLink),
 			SKUProperties: strings.TrimSpace(info.SKUProperties),
-		}
+		})
 	}
 	return skus
 }
