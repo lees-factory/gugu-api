@@ -32,7 +32,7 @@ func Wire(cfg config.Config, db *sql.DB) (*AliExpressController, error) {
 		recordIDGenerator,
 	)
 
-	return NewAliExpressController(connectionService), nil
+	return NewAliExpressController(connectionService, aliExpressClient), nil
 }
 
 func buildAliExpressTokenStore(db *sql.DB) clientaliexpress.TokenStore {

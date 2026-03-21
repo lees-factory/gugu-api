@@ -87,7 +87,7 @@ func (c *HTTPClient) GetAffiliateProductDetail(ctx context.Context, input Produc
 		return nil, fmt.Errorf("decode product detail response: %w", err)
 	}
 	if payload.RespResult.RespCode != 20010000 {
-		return nil, fmt.Errorf("aliexpress product detail failed: code=%d msg=%s", payload.RespResult.RespCode, payload.RespResult.RespMsg)
+		return &ProductDetailResult{}, nil
 	}
 
 	return &ProductDetailResult{

@@ -440,6 +440,74 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /v1/integrations/aliexpress/product-detail:
+    get:
+      tags:
+        - 외부 연동
+      summary: AliExpress Affiliate 상품 상세 조회
+      description: AliExpress Affiliate API를 호출하여 상품 상세 정보를 조회한다. 개발자 확인용.
+      operationId: getAliExpressProductDetail
+      parameters:
+        - in: query
+          name: product_id
+          required: true
+          schema:
+            type: string
+          description: AliExpress 외부 상품 ID
+          example: '1005010555086223'
+      responses:
+        '200':
+          description: 조회에 성공했다. 상품이 없으면 빈 products 배열을 반환한다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AliExpressProductDetailResponse'
+        '400':
+          description: 요청 형식이 잘못되었거나 AliExpress API 에러가 발생했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 내부 오류가 발생했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/integrations/aliexpress/product-sku-detail:
+    get:
+      tags:
+        - 외부 연동
+      summary: AliExpress Affiliate 상품 SKU 상세 조회
+      description: AliExpress Affiliate API를 호출하여 상품 SKU 정보를 조회한다. 개발자 확인용.
+      operationId: getAliExpressProductSKUDetail
+      parameters:
+        - in: query
+          name: product_id
+          required: true
+          schema:
+            type: string
+          description: AliExpress 외부 상품 ID
+          example: '1005010555086223'
+      responses:
+        '200':
+          description: 조회에 성공했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AliExpressProductSKUDetailResponse'
+        '400':
+          description: 요청 형식이 잘못되었거나 AliExpress API 에러가 발생했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 내부 오류가 발생했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /v1/tracked-items/:
     get:
       tags:
@@ -1127,6 +1195,107 @@ components:
           $ref: '#/components/schemas/ResultType'
         data:
           $ref: '#/components/schemas/AliExpressConnectionStatusData'
+    AliExpressProductDetailResponse:
+      type: object
+      description: AliExpress Affiliate 상품 상세 응답
+      required:
+        - result
+        - data
+      properties:
+        result:
+          $ref: '#/components/schemas/ResultType'
+        data:
+          type: object
+          properties:
+            CurrentRecordCount:
+              type: integer
+              description: 조회된 상품 수
+            Products:
+              type: array
+              description: 상품 목록 (없으면 빈 배열)
+              items:
+                type: object
+                properties:
+                  product_id:
+                    type: integer
+                  product_title:
+                    type: string
+                  product_main_image_url:
+                    type: string
+                  product_detail_url:
+                    type: string
+                  promotion_link:
+                    type: string
+                  target_sale_price:
+                    type: string
+                  target_sale_price_currency:
+                    type: string
+                  target_original_price:
+                    type: string
+                  sale_price:
+                    type: string
+                  sale_price_currency:
+                    type: string
+                  commission_rate:
+                    type: string
+                  shop_name:
+                    type: string
+    AliExpressProductSKUDetailResponse:
+      type: object
+      description: AliExpress Affiliate 상품 SKU 상세 응답
+      required:
+        - result
+        - data
+      properties:
+        result:
+          $ref: '#/components/schemas/ResultType'
+        data:
+          type: object
+          properties:
+            Code:
+              type: integer
+            Success:
+              type: boolean
+            ItemInfo:
+              type: object
+              properties:
+                product_id:
+                  type: string
+                title:
+                  type: string
+                en_title:
+                  type: string
+                image_link:
+                  type: string
+                original_link:
+                  type: string
+                store_name:
+                  type: string
+            SKUInfos:
+              type: array
+              items:
+                type: object
+                properties:
+                  sku_id:
+                    type: integer
+                  color:
+                    type: string
+                  size:
+                    type: string
+                  price_with_tax:
+                    type: string
+                  sale_price_with_tax:
+                    type: string
+                  currency:
+                    type: string
+                  sku_image_link:
+                    type: string
+                  sku_properties:
+                    type: string
+                  link:
+                    type: string
+                  discount_rate:
+                    type: string
     TrackedItemData:
       type: object
       description: 유저 저장 상품 카드 데이터

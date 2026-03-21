@@ -16,11 +16,12 @@ import (
 )
 
 type AliExpressController struct {
-	service *domainintegration.AliExpressConnectionService
+	service       *domainintegration.AliExpressConnectionService
+	productClient clientaliexpress.ProductClient
 }
 
-func NewAliExpressController(service *domainintegration.AliExpressConnectionService) *AliExpressController {
-	return &AliExpressController{service: service}
+func NewAliExpressController(service *domainintegration.AliExpressConnectionService, productClient clientaliexpress.ProductClient) *AliExpressController {
+	return &AliExpressController{service: service, productClient: productClient}
 }
 
 func (c *AliExpressController) RegisterRoutes(r chi.Router) {
@@ -28,6 +29,8 @@ func (c *AliExpressController) RegisterRoutes(r chi.Router) {
 		r.Post("/authorize-url", apiadvice.Wrap(c.BuildAuthorizationURL))
 		r.Post("/exchange-code", apiadvice.Wrap(c.ExchangeCode))
 		r.Get("/connection-status", apiadvice.Wrap(c.GetConnectionStatus))
+		r.Get("/product-detail", apiadvice.Wrap(c.GetProductDetail))
+		r.Get("/product-sku-detail", apiadvice.Wrap(c.GetProductSKUDetail))
 	})
 }
 
@@ -81,6 +84,44 @@ func mapAliExpressError(err error) error {
 	}
 
 	return err
+}
+
+func (c *AliExpressController) GetProductDetail(r *stdhttp.Request) (int, any, error) {
+	productID := strings.TrimSpace(r.URL.Query().Get("product_id"))
+	if productID == "" {
+		return 0, nil, apierror.InvalidRequestError()
+	}
+
+	result, err := c.productClient.GetAffiliateProductDetail(r.Context(), clientaliexpress.ProductDetailInput{
+		ProductIDs:     []string{productID},
+		TargetCurrency: "KRW",
+		TargetLanguage: "KO",
+		Country:        "KR",
+	})
+	if err != nil {
+		return 0, nil, mapAliExpressError(err)
+	}
+
+	return stdhttp.StatusOK, apiresponse.SuccessWithData(result), nil
+}
+
+func (c *AliExpressController) GetProductSKUDetail(r *stdhttp.Request) (int, any, error) {
+	productID := strings.TrimSpace(r.URL.Query().Get("product_id"))
+	if productID == "" {
+		return 0, nil, apierror.InvalidRequestError()
+	}
+
+	result, err := c.productClient.GetAffiliateProductSKUDetail(r.Context(), clientaliexpress.ProductSKUDetailInput{
+		ProductID:      productID,
+		ShipToCountry:  "KR",
+		TargetCurrency: "KRW",
+		TargetLanguage: "KO",
+	})
+	if err != nil {
+		return 0, nil, mapAliExpressError(err)
+	}
+
+	return stdhttp.StatusOK, apiresponse.SuccessWithData(result), nil
 }
 
 func (c *AliExpressController) GetConnectionStatus(r *stdhttp.Request) (int, any, error) {
