@@ -67,6 +67,25 @@ SELECT
 FROM gugu.product
 WHERE market = $1 AND external_product_id = $2;
 
+-- name: ListProductsByMarket :many
+SELECT
+    id,
+    market,
+    external_product_id,
+    original_url,
+    title,
+    main_image_url,
+    current_price,
+    currency,
+    product_url,
+    collection_source,
+    last_collected_at,
+    created_at,
+    updated_at
+FROM gugu.product
+WHERE market = $1
+ORDER BY created_at;
+
 -- name: FindProductsByIDs :many
 SELECT
     id,

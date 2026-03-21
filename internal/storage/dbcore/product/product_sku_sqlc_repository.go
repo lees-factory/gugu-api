@@ -17,11 +17,12 @@ func NewSKUSQLCRepository(db *sql.DB) *ProductSKUSQLCRepository {
 	return &ProductSKUSQLCRepository{queries: sqldb.New(db)}
 }
 
-func (r *ProductSKUSQLCRepository) Create(ctx context.Context, sku domainproduct.ProductSKU) error {
+func (r *ProductSKUSQLCRepository) Create(ctx context.Context, sku domainproduct.SKU) error {
 	return r.queries.CreateProductSKU(ctx, sqldb.CreateProductSKUParams{
 		ID:            sku.ID,
 		ProductID:     sku.ProductID,
 		ExternalSkuID: sku.ExternalSKUID,
+		OriginSkuID:   sku.OriginSKUID,
 		SkuName:       sku.SKUName,
 		Color:         sku.Color,
 		Size:          sku.Size,
@@ -35,7 +36,7 @@ func (r *ProductSKUSQLCRepository) Create(ctx context.Context, sku domainproduct
 	})
 }
 
-func (r *ProductSKUSQLCRepository) FindByID(ctx context.Context, skuID string) (*domainproduct.ProductSKU, error) {
+func (r *ProductSKUSQLCRepository) FindByID(ctx context.Context, skuID string) (*domainproduct.SKU, error) {
 	row, err := r.queries.FindProductSKUByID(ctx, skuID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -47,23 +48,24 @@ func (r *ProductSKUSQLCRepository) FindByID(ctx context.Context, skuID string) (
 	return &item, nil
 }
 
-func (r *ProductSKUSQLCRepository) FindByProductID(ctx context.Context, productID string) ([]domainproduct.ProductSKU, error) {
+func (r *ProductSKUSQLCRepository) FindByProductID(ctx context.Context, productID string) ([]domainproduct.SKU, error) {
 	rows, err := r.queries.FindProductSKUsByProductID(ctx, productID)
 	if err != nil {
 		return nil, err
 	}
-	skus := make([]domainproduct.ProductSKU, len(rows))
+	skus := make([]domainproduct.SKU, len(rows))
 	for i, row := range rows {
 		skus[i] = toDomainProductSKU(row)
 	}
 	return skus, nil
 }
 
-func toDomainProductSKU(row sqldb.GuguProductSku) domainproduct.ProductSKU {
-	return domainproduct.ProductSKU{
+func toDomainProductSKU(row sqldb.GuguSku) domainproduct.SKU {
+	return domainproduct.SKU{
 		ID:            row.ID,
 		ProductID:     row.ProductID,
 		ExternalSKUID: row.ExternalSkuID,
+		OriginSKUID:   row.OriginSkuID,
 		SKUName:       row.SkuName,
 		Color:         row.Color,
 		Size:          row.Size,

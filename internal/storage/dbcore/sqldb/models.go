@@ -83,10 +83,11 @@ type GuguProductPriceHistory struct {
 	ChangeValue string    `json:"change_value"`
 }
 
-type GuguProductSku struct {
+type GuguSku struct {
 	ID            string    `json:"id"`
 	ProductID     string    `json:"product_id"`
 	ExternalSkuID string    `json:"external_sku_id"`
+	OriginSkuID   string    `json:"origin_sku_id"`
 	SkuName       string    `json:"sku_name"`
 	Color         string    `json:"color"`
 	Size          string    `json:"size"`

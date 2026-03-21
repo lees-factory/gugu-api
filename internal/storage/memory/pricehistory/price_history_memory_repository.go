@@ -18,6 +18,14 @@ func NewRepository() *PriceHistoryMemoryRepository {
 	}
 }
 
+func (r *PriceHistoryMemoryRepository) Create(_ context.Context, history domainpricehistory.PriceHistory) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.byProductID[history.ProductID] = append(r.byProductID[history.ProductID], history)
+	return nil
+}
+
 func (r *PriceHistoryMemoryRepository) ListByProductID(_ context.Context, productID string) ([]domainpricehistory.PriceHistory, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

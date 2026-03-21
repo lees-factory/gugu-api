@@ -10,6 +10,37 @@ import (
 	"time"
 )
 
+const createPriceHistory = `-- name: CreatePriceHistory :exec
+INSERT INTO gugu.product_price_history (
+    product_id,
+    price,
+    currency,
+    recorded_at,
+    change_value
+) VALUES (
+    $1, $2, $3, $4, $5
+)
+`
+
+type CreatePriceHistoryParams struct {
+	ProductID   string    `json:"product_id"`
+	Price       string    `json:"price"`
+	Currency    string    `json:"currency"`
+	RecordedAt  time.Time `json:"recorded_at"`
+	ChangeValue string    `json:"change_value"`
+}
+
+func (q *Queries) CreatePriceHistory(ctx context.Context, arg CreatePriceHistoryParams) error {
+	_, err := q.db.ExecContext(ctx, createPriceHistory,
+		arg.ProductID,
+		arg.Price,
+		arg.Currency,
+		arg.RecordedAt,
+		arg.ChangeValue,
+	)
+	return err
+}
+
 const listPriceHistoriesByProductID = `-- name: ListPriceHistoriesByProductID :many
 SELECT
     product_id,

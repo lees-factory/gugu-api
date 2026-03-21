@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	domainproduct "github.com/ljj/gugu-api/internal/core/domain/product"
+	"github.com/ljj/gugu-api/internal/core/enum"
 	"github.com/ljj/gugu-api/internal/storage/dbcore/sqldb"
 )
 
@@ -41,7 +42,7 @@ func (r *ProductSQLCRepository) FindByIDs(ctx context.Context, productIDs []stri
 	return products, nil
 }
 
-func (r *ProductSQLCRepository) FindByMarketAndExternalProductID(ctx context.Context, market domainproduct.Market, externalProductID string) (*domainproduct.Product, error) {
+func (r *ProductSQLCRepository) FindByMarketAndExternalProductID(ctx context.Context, market enum.Market, externalProductID string) (*domainproduct.Product, error) {
 	row, err := r.queries.FindProductByMarketAndExternalProductID(ctx, sqldb.FindProductByMarketAndExternalProductIDParams{
 		Market:            string(market),
 		ExternalProductID: externalProductID,
@@ -96,10 +97,22 @@ func (r *ProductSQLCRepository) Update(ctx context.Context, product domainproduc
 	return nil
 }
 
+func (r *ProductSQLCRepository) ListByMarket(ctx context.Context, market enum.Market) ([]domainproduct.Product, error) {
+	rows, err := r.queries.ListProductsByMarket(ctx, string(market))
+	if err != nil {
+		return nil, err
+	}
+	products := make([]domainproduct.Product, len(rows))
+	for i, row := range rows {
+		products[i] = toDomainProduct(row)
+	}
+	return products, nil
+}
+
 func toDomainProduct(row sqldb.GuguProduct) domainproduct.Product {
 	return domainproduct.Product{
 		ID:                row.ID,
-		Market:            domainproduct.Market(row.Market),
+		Market:            enum.Market(row.Market),
 		ExternalProductID: row.ExternalProductID,
 		OriginalURL:       row.OriginalUrl,
 		Title:             row.Title,

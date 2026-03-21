@@ -16,6 +16,16 @@ func NewSQLCRepository(db *sql.DB) *PriceHistorySQLCRepository {
 	return &PriceHistorySQLCRepository{queries: sqldb.New(db)}
 }
 
+func (r *PriceHistorySQLCRepository) Create(ctx context.Context, history domainpricehistory.PriceHistory) error {
+	return r.queries.CreatePriceHistory(ctx, sqldb.CreatePriceHistoryParams{
+		ProductID:   history.ProductID,
+		Price:       history.Price,
+		Currency:    history.Currency,
+		RecordedAt:  history.RecordedAt,
+		ChangeValue: history.ChangeValue,
+	})
+}
+
 func (r *PriceHistorySQLCRepository) ListByProductID(ctx context.Context, productID string) ([]domainpricehistory.PriceHistory, error) {
 	rows, err := r.queries.ListPriceHistoriesByProductID(ctx, productID)
 	if err != nil {

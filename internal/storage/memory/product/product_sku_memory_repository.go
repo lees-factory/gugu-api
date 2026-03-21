@@ -9,18 +9,18 @@ import (
 
 type ProductSKUMemoryRepository struct {
 	mu          sync.RWMutex
-	byID        map[string]domainproduct.ProductSKU
+	byID        map[string]domainproduct.SKU
 	byProductID map[string][]string
 }
 
 func NewSKURepository() *ProductSKUMemoryRepository {
 	return &ProductSKUMemoryRepository{
-		byID:        make(map[string]domainproduct.ProductSKU),
+		byID:        make(map[string]domainproduct.SKU),
 		byProductID: make(map[string][]string),
 	}
 }
 
-func (r *ProductSKUMemoryRepository) Create(_ context.Context, sku domainproduct.ProductSKU) error {
+func (r *ProductSKUMemoryRepository) Create(_ context.Context, sku domainproduct.SKU) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -29,7 +29,7 @@ func (r *ProductSKUMemoryRepository) Create(_ context.Context, sku domainproduct
 	return nil
 }
 
-func (r *ProductSKUMemoryRepository) FindByID(_ context.Context, skuID string) (*domainproduct.ProductSKU, error) {
+func (r *ProductSKUMemoryRepository) FindByID(_ context.Context, skuID string) (*domainproduct.SKU, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -41,12 +41,12 @@ func (r *ProductSKUMemoryRepository) FindByID(_ context.Context, skuID string) (
 	return &found, nil
 }
 
-func (r *ProductSKUMemoryRepository) FindByProductID(_ context.Context, productID string) ([]domainproduct.ProductSKU, error) {
+func (r *ProductSKUMemoryRepository) FindByProductID(_ context.Context, productID string) ([]domainproduct.SKU, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	ids := r.byProductID[productID]
-	skus := make([]domainproduct.ProductSKU, 0, len(ids))
+	skus := make([]domainproduct.SKU, 0, len(ids))
 	for _, id := range ids {
 		if sku, ok := r.byID[id]; ok {
 			skus = append(skus, sku)

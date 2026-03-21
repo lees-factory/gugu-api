@@ -119,10 +119,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_user_tracked_item_user_product_active
     WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_product_price_history_product_id_recorded_at ON gugu.product_price_history(product_id, recorded_at DESC);
 
-CREATE TABLE IF NOT EXISTS gugu.product_sku (
+CREATE TABLE IF NOT EXISTS gugu.sku (
     id TEXT PRIMARY KEY,
     product_id TEXT NOT NULL REFERENCES gugu.product(id),
     external_sku_id TEXT NOT NULL DEFAULT '',
+    origin_sku_id TEXT NOT NULL DEFAULT '',
     sku_name TEXT NOT NULL DEFAULT '',
     color TEXT NOT NULL DEFAULT '',
     size TEXT NOT NULL DEFAULT '',
@@ -136,4 +137,4 @@ CREATE TABLE IF NOT EXISTS gugu.product_sku (
     UNIQUE (product_id, external_sku_id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_product_sku_product_id ON gugu.product_sku(product_id);
+CREATE INDEX IF NOT EXISTS idx_product_sku_product_id ON gugu.sku(product_id);

@@ -208,6 +208,63 @@ func (q *Queries) FindProductsByIDs(ctx context.Context, dollar_1 []string) ([]G
 	return items, nil
 }
 
+const listProductsByMarket = `-- name: ListProductsByMarket :many
+SELECT
+    id,
+    market,
+    external_product_id,
+    original_url,
+    title,
+    main_image_url,
+    current_price,
+    currency,
+    product_url,
+    collection_source,
+    last_collected_at,
+    created_at,
+    updated_at
+FROM gugu.product
+WHERE market = $1
+ORDER BY created_at
+`
+
+func (q *Queries) ListProductsByMarket(ctx context.Context, market string) ([]GuguProduct, error) {
+	rows, err := q.db.QueryContext(ctx, listProductsByMarket, market)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GuguProduct
+	for rows.Next() {
+		var i GuguProduct
+		if err := rows.Scan(
+			&i.ID,
+			&i.Market,
+			&i.ExternalProductID,
+			&i.OriginalUrl,
+			&i.Title,
+			&i.MainImageUrl,
+			&i.CurrentPrice,
+			&i.Currency,
+			&i.ProductUrl,
+			&i.CollectionSource,
+			&i.LastCollectedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateProduct = `-- name: UpdateProduct :execrows
 UPDATE gugu.product
 SET

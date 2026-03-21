@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	domainproduct "github.com/ljj/gugu-api/internal/core/domain/product"
+	"github.com/ljj/gugu-api/internal/core/enum"
 )
 
 type ProductMemoryRepository struct {
@@ -45,7 +46,7 @@ func (r *ProductMemoryRepository) FindByIDs(_ context.Context, productIDs []stri
 	return products, nil
 }
 
-func (r *ProductMemoryRepository) FindByMarketAndExternalProductID(_ context.Context, market domainproduct.Market, externalProductID string) (*domainproduct.Product, error) {
+func (r *ProductMemoryRepository) FindByMarketAndExternalProductID(_ context.Context, market enum.Market, externalProductID string) (*domainproduct.Product, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -57,6 +58,19 @@ func (r *ProductMemoryRepository) FindByMarketAndExternalProductID(_ context.Con
 	item := r.byID[productID]
 	found := item
 	return &found, nil
+}
+
+func (r *ProductMemoryRepository) ListByMarket(_ context.Context, market enum.Market) ([]domainproduct.Product, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var products []domainproduct.Product
+	for _, p := range r.byID {
+		if p.Market == market {
+			products = append(products, p)
+		}
+	}
+	return products, nil
 }
 
 func (r *ProductMemoryRepository) Create(_ context.Context, product domainproduct.Product) error {
