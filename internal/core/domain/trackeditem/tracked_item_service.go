@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	coreerror "github.com/ljj/gugu-api/internal/core/error"
-
 	domainproduct "github.com/ljj/gugu-api/internal/core/domain/product"
+	"github.com/ljj/gugu-api/internal/core/enum"
+	coreerror "github.com/ljj/gugu-api/internal/core/error"
 )
 
 type AddInput struct {
@@ -34,12 +34,12 @@ type AddTrackedItemResult struct {
 }
 
 type Service struct {
-	finder           Finder
-	writer           Writer
-	idGenerator      IDGenerator
-	clock            Clock
-	productService   *domainproduct.Service
-	productCollector domainproduct.Collector
+	finder          Finder
+	writer          Writer
+	idGenerator     IDGenerator
+	clock           Clock
+	productService  *domainproduct.Service
+	productProvider domainproduct.ProductProvider
 }
 
 func NewService(
@@ -48,20 +48,20 @@ func NewService(
 	idGenerator IDGenerator,
 	clock Clock,
 	productService *domainproduct.Service,
-	productCollector domainproduct.Collector,
+	productProvider domainproduct.ProductProvider,
 ) *Service {
 	return &Service{
-		finder:           finder,
-		writer:           writer,
-		idGenerator:      idGenerator,
-		clock:            clock,
-		productService:   productService,
-		productCollector: productCollector,
+		finder:          finder,
+		writer:          writer,
+		idGenerator:     idGenerator,
+		clock:           clock,
+		productService:  productService,
+		productProvider: productProvider,
 	}
 }
 
 func (s *Service) AddTrackedItem(ctx context.Context, input AddTrackedItemInput) (*AddTrackedItemResult, error) {
-	market := domainproduct.Market(input.ProviderCommerce).Normalize()
+	market := enum.Market(input.ProviderCommerce).Normalize()
 	if !market.IsSupported() {
 		return nil, coreerror.New(coreerror.UnsupportedMarket)
 	}
@@ -86,7 +86,7 @@ func (s *Service) AddTrackedItem(ctx context.Context, input AddTrackedItemInput)
 	}, nil
 }
 
-func (s *Service) resolveProduct(ctx context.Context, market domainproduct.Market, externalProductID string, originalURL string) (*domainproduct.Product, error) {
+func (s *Service) resolveProduct(ctx context.Context, market enum.Market, externalProductID string, originalURL string) (*domainproduct.Product, error) {
 	found, err := s.productService.FindByMarketAndExternalProductID(ctx, market, externalProductID)
 	if err != nil {
 		return nil, fmt.Errorf("find product by market and external product id: %w", err)
@@ -95,42 +95,12 @@ func (s *Service) resolveProduct(ctx context.Context, market domainproduct.Marke
 		return found, nil
 	}
 
-	collected, err := s.productCollector.Collect(ctx, domainproduct.CollectInput{
-		Market:            market,
-		ExternalProductID: externalProductID,
-		OriginalURL:       originalURL,
-	})
+	newProduct, err := s.productProvider.Provide(ctx, market, externalProductID, originalURL)
 	if err != nil {
-		return nil, fmt.Errorf("collect product: %w", err)
+		return nil, fmt.Errorf("provide product: %w", err)
 	}
 
-	skus := make([]domainproduct.CreateSKUInput, len(collected.SKUs))
-	for i, sku := range collected.SKUs {
-		skus[i] = domainproduct.CreateSKUInput{
-			ExternalSKUID: sku.ExternalSKUID,
-			SKUName:       sku.SKUName,
-			Color:         sku.Color,
-			Size:          sku.Size,
-			Price:         sku.Price,
-			OriginalPrice: sku.OriginalPrice,
-			Currency:      sku.Currency,
-			ImageURL:      sku.ImageURL,
-			SKUProperties: sku.SKUProperties,
-		}
-	}
-
-	return s.productService.Create(ctx, domainproduct.CreateInput{
-		Market:            collected.Market,
-		ExternalProductID: collected.ExternalProductID,
-		OriginalURL:       collected.OriginalURL,
-		Title:             collected.Title,
-		MainImageURL:      collected.MainImageURL,
-		CurrentPrice:      collected.CurrentPrice,
-		Currency:          collected.Currency,
-		ProductURL:        collected.ProductURL,
-		CollectionSource:  collected.CollectionSource,
-		SKUs:              skus,
-	})
+	return s.productService.Create(ctx, *newProduct)
 }
 
 func (s *Service) Add(ctx context.Context, input AddInput) (*AddResult, error) {
@@ -215,7 +185,7 @@ func (s *Service) ListWithProducts(ctx context.Context, userID string) ([]Tracke
 type TrackedItemDetail struct {
 	TrackedItem TrackedItem
 	Product     domainproduct.Product
-	SKUs        []domainproduct.ProductSKU
+	SKUs        []domainproduct.SKU
 }
 
 func (s *Service) GetDetail(ctx context.Context, trackedItemID string, userID string) (*TrackedItemDetail, error) {

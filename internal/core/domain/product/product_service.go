@@ -4,32 +4,9 @@ import (
 	"context"
 	"fmt"
 	"strings"
+
+	"github.com/ljj/gugu-api/internal/core/enum"
 )
-
-type CreateInput struct {
-	Market            Market
-	ExternalProductID string
-	OriginalURL       string
-	Title             string
-	MainImageURL      string
-	CurrentPrice      string
-	Currency          string
-	ProductURL        string
-	CollectionSource  string
-	SKUs              []CreateSKUInput
-}
-
-type CreateSKUInput struct {
-	ExternalSKUID string
-	SKUName       string
-	Color         string
-	Size          string
-	Price         string
-	OriginalPrice string
-	Currency      string
-	ImageURL      string
-	SKUProperties string
-}
 
 type Service struct {
 	finder        Finder
@@ -61,15 +38,40 @@ func (s *Service) FindByIDs(ctx context.Context, productIDs []string) ([]Product
 	return s.finder.FindByIDs(ctx, trimmed)
 }
 
-func (s *Service) FindSKUsByProductID(ctx context.Context, productID string) ([]ProductSKU, error) {
+func (s *Service) FindSKUsByProductID(ctx context.Context, productID string) ([]SKU, error) {
 	return s.skuRepository.FindByProductID(ctx, strings.TrimSpace(productID))
 }
 
-func (s *Service) FindByMarketAndExternalProductID(ctx context.Context, market Market, externalProductID string) (*Product, error) {
+func (s *Service) FindByMarketAndExternalProductID(ctx context.Context, market enum.Market, externalProductID string) (*Product, error) {
 	return s.finder.FindByMarketAndExternalProductID(ctx, market, strings.TrimSpace(externalProductID))
 }
 
-func (s *Service) Create(ctx context.Context, input CreateInput) (*Product, error) {
+func (s *Service) ListByMarket(ctx context.Context, market enum.Market) ([]Product, error) {
+	return s.finder.ListByMarket(ctx, market)
+}
+
+func (s *Service) UpdatePrice(ctx context.Context, productID string, price string, currency string) error {
+	found, err := s.finder.FindByID(ctx, productID)
+	if err != nil {
+		return fmt.Errorf("find product: %w", err)
+	}
+	if found == nil {
+		return fmt.Errorf("product not found: %s", productID)
+	}
+
+	now := s.clock.Now()
+	found.CurrentPrice = strings.TrimSpace(price)
+	found.Currency = strings.TrimSpace(currency)
+	found.LastCollectedAt = now
+	found.UpdatedAt = now
+
+	if err := s.writer.Update(ctx, *found); err != nil {
+		return fmt.Errorf("update product: %w", err)
+	}
+	return nil
+}
+
+func (s *Service) Create(ctx context.Context, input NewProduct) (*Product, error) {
 	productID, err := s.idGenerator.New()
 	if err != nil {
 		return nil, fmt.Errorf("generate product id: %w", err)
@@ -101,10 +103,11 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*Product, erro
 		if err != nil {
 			return nil, fmt.Errorf("generate sku id: %w", err)
 		}
-		sku := ProductSKU{
+		sku := SKU{
 			ID:            skuID,
 			ProductID:     item.ID,
 			ExternalSKUID: strings.TrimSpace(skuInput.ExternalSKUID),
+			OriginSKUID:   strings.TrimSpace(skuInput.OriginSKUID),
 			SKUName:       strings.TrimSpace(skuInput.SKUName),
 			Color:         strings.TrimSpace(skuInput.Color),
 			Size:          strings.TrimSpace(skuInput.Size),

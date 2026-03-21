@@ -1,11 +1,16 @@
 package product
 
-import "context"
+import (
+	"context"
+
+	"github.com/ljj/gugu-api/internal/core/enum"
+)
 
 type Finder interface {
 	FindByID(ctx context.Context, productID string) (*Product, error)
 	FindByIDs(ctx context.Context, productIDs []string) ([]Product, error)
-	FindByMarketAndExternalProductID(ctx context.Context, market Market, externalProductID string) (*Product, error)
+	FindByMarketAndExternalProductID(ctx context.Context, market enum.Market, externalProductID string) (*Product, error)
+	ListByMarket(ctx context.Context, market enum.Market) ([]Product, error)
 }
 
 type finder struct {
@@ -24,6 +29,10 @@ func (f *finder) FindByIDs(ctx context.Context, productIDs []string) ([]Product,
 	return f.repository.FindByIDs(ctx, productIDs)
 }
 
-func (f *finder) FindByMarketAndExternalProductID(ctx context.Context, market Market, externalProductID string) (*Product, error) {
+func (f *finder) FindByMarketAndExternalProductID(ctx context.Context, market enum.Market, externalProductID string) (*Product, error) {
 	return f.repository.FindByMarketAndExternalProductID(ctx, market, externalProductID)
+}
+
+func (f *finder) ListByMarket(ctx context.Context, market enum.Market) ([]Product, error) {
+	return f.repository.ListByMarket(ctx, market)
 }

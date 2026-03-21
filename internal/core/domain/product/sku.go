@@ -2,10 +2,11 @@ package product
 
 import "time"
 
-type ProductSKU struct {
+type SKU struct {
 	ID            string
 	ProductID     string
 	ExternalSKUID string
+	OriginSKUID   string
 	SKUName       string
 	Color         string
 	Size          string

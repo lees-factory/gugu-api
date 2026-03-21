@@ -1,13 +1,8 @@
 package product
 
-import (
-	"time"
+import "github.com/ljj/gugu-api/internal/core/enum"
 
-	"github.com/ljj/gugu-api/internal/core/enum"
-)
-
-type Product struct {
-	ID                string
+type NewProduct struct {
 	Market            enum.Market
 	ExternalProductID string
 	OriginalURL       string
@@ -17,7 +12,5 @@ type Product struct {
 	Currency          string
 	ProductURL        string
 	CollectionSource  string
-	LastCollectedAt   time.Time
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
+	SKUs              []NewSKU
 }
