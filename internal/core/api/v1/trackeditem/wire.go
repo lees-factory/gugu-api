@@ -8,6 +8,9 @@ import (
 	clientcrawler "github.com/ljj/gugu-api/internal/clients/crawler"
 	domainproduct "github.com/ljj/gugu-api/internal/core/domain/product"
 	domaintrackeditem "github.com/ljj/gugu-api/internal/core/domain/trackeditem"
+	productprovider "github.com/ljj/gugu-api/internal/provider/product"
+	provideraliexpress "github.com/ljj/gugu-api/internal/provider/product/aliexpress"
+	providercrawler "github.com/ljj/gugu-api/internal/provider/product/crawler"
 	dbcoreproduct "github.com/ljj/gugu-api/internal/storage/dbcore/product"
 	dbcoretrackeditem "github.com/ljj/gugu-api/internal/storage/dbcore/trackeditem"
 	memoryproduct "github.com/ljj/gugu-api/internal/storage/memory/product"
@@ -32,7 +35,6 @@ func Wire(cfg config.Config, db *sql.DB, aliExpressTokenStore clientaliexpress.T
 	}
 
 	clock := timeutil.SystemClock{}
-
 	skuRepository := buildSKURepository(db)
 
 	productService := domainproduct.NewService(
@@ -42,15 +44,15 @@ func Wire(cfg config.Config, db *sql.DB, aliExpressTokenStore clientaliexpress.T
 		id.NewRandomHexGenerator(16),
 		clock,
 	)
+
 	crawlerClient := clientcrawler.NewHTTPClient(clientcrawler.Config{
 		BaseURL: cfg.CrawlerBaseURL,
 	})
 
-	tokenProvider := domainproduct.NewAliExpressTokenProvider(aliExpressTokenStore)
-
-	productCollector := domainproduct.NewDefaultCollector(
-		domainproduct.NewAliExpressProductFinder(aliExpressClient, tokenProvider, "KRW", "KO", "KR"),
-		domainproduct.NewCrawlerProductFinder(crawlerClient),
+	tokenProvider := provideraliexpress.NewTokenProvider(aliExpressTokenStore)
+	provider := productprovider.NewFallbackProvider(
+		provideraliexpress.NewProvider(aliExpressClient, tokenProvider, "KRW", "KO", "KR"),
+		providercrawler.NewProvider(crawlerClient),
 	)
 
 	trackedItemService := domaintrackeditem.NewService(
@@ -59,7 +61,7 @@ func Wire(cfg config.Config, db *sql.DB, aliExpressTokenStore clientaliexpress.T
 		id.NewRandomHexGenerator(16),
 		clock,
 		productService,
-		productCollector,
+		provider,
 	)
 
 	controller := NewController(trackedItemService)
