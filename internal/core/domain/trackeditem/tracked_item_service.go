@@ -30,8 +30,6 @@ type AddTrackedItemInput struct {
 
 type AddTrackedItemResult struct {
 	TrackedItem    TrackedItem
-	Product        domainproduct.Product
-	SKUs           []domainproduct.ProductSKU
 	AlreadyTracked bool
 }
 
@@ -82,15 +80,8 @@ func (s *Service) AddTrackedItem(ctx context.Context, input AddTrackedItemInput)
 		return nil, err
 	}
 
-	skus, err := s.productService.FindSKUsByProductID(ctx, product.ID)
-	if err != nil {
-		return nil, fmt.Errorf("find product skus: %w", err)
-	}
-
 	return &AddTrackedItemResult{
 		TrackedItem:    addResult.TrackedItem,
-		Product:        *product,
-		SKUs:           skus,
 		AlreadyTracked: addResult.AlreadyTracked,
 	}, nil
 }
@@ -219,6 +210,41 @@ func (s *Service) ListWithProducts(ctx context.Context, userID string) ([]Tracke
 	}
 
 	return result, nil
+}
+
+type TrackedItemDetail struct {
+	TrackedItem TrackedItem
+	Product     domainproduct.Product
+	SKUs        []domainproduct.ProductSKU
+}
+
+func (s *Service) GetDetail(ctx context.Context, trackedItemID string, userID string) (*TrackedItemDetail, error) {
+	found, err := s.finder.FindByIDAndUserID(ctx, strings.TrimSpace(trackedItemID), strings.TrimSpace(userID))
+	if err != nil {
+		return nil, fmt.Errorf("find tracked item by id and user id: %w", err)
+	}
+	if found == nil {
+		return nil, coreerror.New(coreerror.TrackedItemNotFound)
+	}
+
+	product, err := s.productService.FindByID(ctx, found.ProductID)
+	if err != nil {
+		return nil, fmt.Errorf("find product by id: %w", err)
+	}
+	if product == nil {
+		return nil, coreerror.New(coreerror.ProductNotFound)
+	}
+
+	skus, err := s.productService.FindSKUsByProductID(ctx, found.ProductID)
+	if err != nil {
+		return nil, fmt.Errorf("find product skus: %w", err)
+	}
+
+	return &TrackedItemDetail{
+		TrackedItem: *found,
+		Product:     *product,
+		SKUs:        skus,
+	}, nil
 }
 
 func (s *Service) ListByUserID(ctx context.Context, userID string) ([]TrackedItem, error) {

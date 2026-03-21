@@ -499,6 +499,44 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
   /v1/tracked-items/{trackedItemID}:
+    get:
+      tags:
+        - 유저 저장 상품
+      summary: Tracked Item 상세 조회
+      description: 유저 저장 상품의 상세 정보(상품 정보, SKU 목록 포함)를 조회한다.
+      operationId: getTrackedItemDetail
+      parameters:
+        - in: path
+          name: trackedItemID
+          required: true
+          schema:
+            type: string
+          description: 유저 저장 상품 ID
+        - in: query
+          name: user_id
+          required: true
+          schema:
+            type: string
+          description: 조회 요청 사용자 ID
+      responses:
+        '200':
+          description: 조회에 성공했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackedItemDetailResponse'
+        '400':
+          description: 요청 값이 잘못되었거나 조회 대상이 없다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 내부 오류가 발생했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     delete:
       tags:
         - 유저 저장 상품
@@ -1137,16 +1175,82 @@ components:
         product_url:
           type: string
           description: 외부 상품 상세 URL
+    TrackedItemDetailData:
+      type: object
+      description: 유저 저장 상품 상세 데이터
+      required:
+        - tracked_item_id
+        - market
+        - external_product_id
+        - original_url
+        - title
+        - main_image_url
+        - current_price
+        - currency
+        - product_url
+        - skus
+      properties:
+        tracked_item_id:
+          type: string
+          description: 유저 저장 상품 ID
+        sku_id:
+          type: string
+          description: 선택된 SKU ID
+        market:
+          type: string
+          description: 마켓 식별자
+          example: ALIEXPRESS
+        external_product_id:
+          type: string
+          description: 외부 상품 식별자
+        original_url:
+          type: string
+          description: 사용자가 추가할 때 입력한 원본 URL
+        title:
+          type: string
+          description: 상품명
+        main_image_url:
+          type: string
+          description: 대표 이미지 URL
+        current_price:
+          type: string
+          description: 현재 가격
+          example: '8335'
+        currency:
+          type: string
+          description: 가격 통화
+          example: KRW
+        product_url:
+          type: string
+          description: 외부 상품 상세 URL
+        skus:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductSKUData'
+    TrackedItemDetailResponse:
+      type: object
+      description: 유저 저장 상품 상세 응답
+      required:
+        - result
+        - data
+      properties:
+        result:
+          $ref: '#/components/schemas/ResultType'
+        data:
+          $ref: '#/components/schemas/TrackedItemDetailData'
     AddTrackedItemData:
-      allOf:
-        - $ref: '#/components/schemas/TrackedItemData'
-        - type: object
-          required:
-            - already_tracked
-          properties:
-            already_tracked:
-              type: boolean
-              description: 이미 저장된 상품이어서 기존 관계를 재사용했는지 여부
+      type: object
+      description: 유저 저장 상품 추가 응답 데이터
+      required:
+        - tracked_item_id
+        - already_tracked
+      properties:
+        tracked_item_id:
+          type: string
+          description: 유저 저장 상품 ID
+        already_tracked:
+          type: boolean
+          description: 이미 저장된 상품이어서 기존 관계를 재사용했는지 여부
     AddTrackedItemResponse:
       type: object
       description: 유저 저장 상품 추가 응답

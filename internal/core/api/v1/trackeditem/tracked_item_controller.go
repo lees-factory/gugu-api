@@ -24,6 +24,7 @@ func (c *Controller) RegisterRoutes(r chi.Router) {
 	r.Route("/v1/tracked-items", func(r chi.Router) {
 		r.Get("/", apiadvice.Wrap(c.List))
 		r.Post("/", apiadvice.Wrap(c.Add))
+		r.Get("/{trackedItemID}", apiadvice.Wrap(c.GetDetail))
 		r.Delete("/{trackedItemID}", apiadvice.Wrap(c.Delete))
 		r.Patch("/{trackedItemID}/sku", apiadvice.Wrap(c.SelectSKU))
 	})
@@ -47,6 +48,20 @@ func (c *Controller) Add(r *stdhttp.Request) (int, any, error) {
 
 	return stdhttp.StatusCreated, apiresponse.SuccessWithData(
 		trackeditemresponse.NewAddTrackedItemFromResult(result),
+	), nil
+}
+
+func (c *Controller) GetDetail(r *stdhttp.Request) (int, any, error) {
+	trackedItemID := strings.TrimSpace(chi.URLParam(r, "trackedItemID"))
+	userID := strings.TrimSpace(r.URL.Query().Get("user_id"))
+
+	detail, err := c.trackedItemService.GetDetail(r.Context(), trackedItemID, userID)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return stdhttp.StatusOK, apiresponse.SuccessWithData(
+		trackeditemresponse.NewTrackedItemDetail(detail),
 	), nil
 }
 
