@@ -51,7 +51,7 @@ func Wire(cfg config.Config, db *sql.DB, aliExpressTokenStore clientaliexpress.T
 
 	tokenProvider := provideraliexpress.NewTokenProvider(aliExpressTokenStore)
 	provider := productprovider.NewFallbackProvider(
-		provideraliexpress.NewProvider(aliExpressClient, tokenProvider, "KRW", "KO", "KR"),
+		provideraliexpress.NewProvider(aliExpressClient, tokenProvider, crawlerClient, "KRW", "KO", "KR"),
 		providercrawler.NewProvider(crawlerClient),
 	)
 

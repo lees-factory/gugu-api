@@ -40,6 +40,7 @@ func (c *AliExpressController) RegisterRoutes(r chi.Router) {
 		r.Post("/exchange-code", apiadvice.Wrap(c.ExchangeCode))
 		r.Post("/refresh-token", apiadvice.Wrap(c.RefreshToken))
 		r.Get("/connection-status", apiadvice.Wrap(c.GetConnectionStatus))
+		r.Get("/products", apiadvice.Wrap(c.GetProducts))
 		r.Get("/product-detail", apiadvice.Wrap(c.GetProductDetail))
 		r.Get("/product-sku-detail", apiadvice.Wrap(c.GetProductSKUDetail))
 	})
@@ -89,6 +90,30 @@ func mapAliExpressError(err error) error {
 	return err
 }
 
+func (c *AliExpressController) GetProducts(r *stdhttp.Request) (int, any, error) {
+	q := r.URL.Query()
+
+	result, err := c.productClient.GetAffiliateProducts(r.Context(), clientaliexpress.ProductQueryInput{
+		CategoryIDs:    strings.TrimSpace(q.Get("category_ids")),
+		Keywords:       strings.TrimSpace(q.Get("keywords")),
+		MaxSalePrice:   strings.TrimSpace(q.Get("max_sale_price")),
+		MinSalePrice:   strings.TrimSpace(q.Get("min_sale_price")),
+		PageNo:         strings.TrimSpace(q.Get("page_no")),
+		PageSize:       strings.TrimSpace(q.Get("page_size")),
+		Sort:           strings.TrimSpace(q.Get("sort")),
+		TargetCurrency: "KRW",
+		TargetLanguage: "KO",
+		ShipToCountry:  strings.TrimSpace(q.Get("ship_to_country")),
+		TrackingID:     strings.TrimSpace(q.Get("tracking_id")),
+		AccessToken:    c.resolveAccessToken(r.Context()),
+	})
+	if err != nil {
+		return 0, nil, mapAliExpressError(err)
+	}
+
+	return stdhttp.StatusOK, apiresponse.SuccessWithData(result), nil
+}
+
 func (c *AliExpressController) GetProductDetail(r *stdhttp.Request) (int, any, error) {
 	productID := strings.TrimSpace(r.URL.Query().Get("product_id"))
 	if productID == "" {
@@ -114,11 +139,17 @@ func (c *AliExpressController) GetProductSKUDetail(r *stdhttp.Request) (int, any
 		return 0, nil, apierror.InvalidRequestError()
 	}
 
+	var skuIDs []string
+	if raw := strings.TrimSpace(r.URL.Query().Get("sku_ids")); raw != "" {
+		skuIDs = strings.Split(raw, ",")
+	}
+
 	result, err := c.productClient.GetAffiliateProductSKUDetail(r.Context(), clientaliexpress.ProductSKUDetailInput{
 		ProductID:      productID,
 		ShipToCountry:  "KR",
 		TargetCurrency: "KRW",
 		TargetLanguage: "KO",
+		SKUIDs:         skuIDs,
 		AccessToken:    c.resolveAccessToken(r.Context()),
 	})
 	if err != nil {

@@ -6,11 +6,15 @@ import (
 	"strings"
 
 	clientaliexpress "github.com/ljj/gugu-api/internal/clients/aliexpress"
+	clientcrawler "github.com/ljj/gugu-api/internal/clients/crawler"
 	domainproduct "github.com/ljj/gugu-api/internal/core/domain/product"
 	"github.com/ljj/gugu-api/internal/core/enum"
 )
 
-const collectionSource = "AFFILIATE_API"
+const (
+	collectionSource = "AFFILIATE_API"
+	skuBatchSize     = 20
+)
 
 type ProductDetailClient interface {
 	GetAffiliateProductDetail(ctx context.Context, input clientaliexpress.ProductDetailInput) (*clientaliexpress.ProductDetailResult, error)
@@ -24,15 +28,17 @@ type TokenProvider interface {
 type Provider struct {
 	client         ProductDetailClient
 	tokenProvider  TokenProvider
+	crawler        clientcrawler.Client
 	targetCurrency string
 	targetLanguage string
 	shipToCountry  string
 }
 
-func NewProvider(client ProductDetailClient, tokenProvider TokenProvider, targetCurrency string, targetLanguage string, shipToCountry string) *Provider {
+func NewProvider(client ProductDetailClient, tokenProvider TokenProvider, crawler clientcrawler.Client, targetCurrency string, targetLanguage string, shipToCountry string) *Provider {
 	return &Provider{
 		client:         client,
 		tokenProvider:  tokenProvider,
+		crawler:        crawler,
 		targetCurrency: strings.TrimSpace(targetCurrency),
 		targetLanguage: strings.TrimSpace(targetLanguage),
 		shipToCountry:  strings.TrimSpace(shipToCountry),
@@ -67,13 +73,9 @@ func (p *Provider) Provide(ctx context.Context, market enum.Market, externalProd
 
 	detailProduct := detailResult.Products[0]
 
-	skuResult, err := p.client.GetAffiliateProductSKUDetail(ctx, clientaliexpress.ProductSKUDetailInput{
-		ProductID:      externalProductID,
-		ShipToCountry:  defaultValue(p.shipToCountry, "US"),
-		TargetCurrency: defaultValue(p.targetCurrency, "USD"),
-		TargetLanguage: defaultValue(p.targetLanguage, "EN"),
-		AccessToken:    accessToken,
-	})
+	allSKUIDs := p.crawlSKUIDs(ctx, originalURL, externalProductID)
+
+	skuResult, err := p.fetchAllSKUs(ctx, externalProductID, accessToken, allSKUIDs)
 	if err != nil {
 		return nil, fmt.Errorf("get aliexpress affiliate product sku detail: %w", err)
 	}
@@ -108,6 +110,73 @@ func (p *Provider) Provide(ctx context.Context, market enum.Market, externalProd
 		CollectionSource:  collectionSource,
 		SKUs:              buildSKUs(skuResult),
 	}, nil
+}
+
+func (p *Provider) crawlSKUIDs(ctx context.Context, originalURL string, externalProductID string) []string {
+	if p.crawler == nil || originalURL == "" {
+		return nil
+	}
+
+	crawlURL := originalURL
+	if crawlURL == "" {
+		crawlURL = fmt.Sprintf("https://www.aliexpress.com/item/%s.html", externalProductID)
+	}
+
+	result, err := p.crawler.Crawl(ctx, clientcrawler.CrawlInput{URL: crawlURL})
+	if err != nil || result == nil {
+		return nil
+	}
+
+	skuIDs := make([]string, 0, len(result.SKUs))
+	seen := make(map[string]bool)
+	for _, sku := range result.SKUs {
+		id := strings.TrimSpace(sku.ExternalSKUID)
+		if id != "" && !seen[id] {
+			seen[id] = true
+			skuIDs = append(skuIDs, id)
+		}
+	}
+	return skuIDs
+}
+
+func (p *Provider) fetchAllSKUs(ctx context.Context, externalProductID string, accessToken string, allSKUIDs []string) (*clientaliexpress.ProductSKUDetailResult, error) {
+	baseInput := clientaliexpress.ProductSKUDetailInput{
+		ProductID:      externalProductID,
+		ShipToCountry:  defaultValue(p.shipToCountry, "US"),
+		TargetCurrency: defaultValue(p.targetCurrency, "USD"),
+		TargetLanguage: defaultValue(p.targetLanguage, "EN"),
+		AccessToken:    accessToken,
+	}
+
+	// SKU ID 목록이 없거나 20개 이하면 한번에 호출
+	if len(allSKUIDs) <= skuBatchSize {
+		baseInput.SKUIDs = allSKUIDs
+		return p.client.GetAffiliateProductSKUDetail(ctx, baseInput)
+	}
+
+	// 20개 초과면 배치 호출 후 합치기
+	var combined *clientaliexpress.ProductSKUDetailResult
+	for i := 0; i < len(allSKUIDs); i += skuBatchSize {
+		end := i + skuBatchSize
+		if end > len(allSKUIDs) {
+			end = len(allSKUIDs)
+		}
+
+		batchInput := baseInput
+		batchInput.SKUIDs = allSKUIDs[i:end]
+
+		result, err := p.client.GetAffiliateProductSKUDetail(ctx, batchInput)
+		if err != nil {
+			return nil, err
+		}
+
+		if combined == nil {
+			combined = result
+		} else {
+			combined.SKUInfos = append(combined.SKUInfos, result.SKUInfos...)
+		}
+	}
+	return combined, nil
 }
 
 func (p *Provider) resolveAccessToken(ctx context.Context) (string, error) {

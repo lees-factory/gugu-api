@@ -10,6 +10,29 @@ type ProductLookupInput struct {
 	AccessToken    string
 }
 
+type ProductQueryInput struct {
+	CategoryIDs    string
+	Keywords       string
+	MaxSalePrice   string
+	MinSalePrice   string
+	PageNo         string
+	PageSize       string
+	Sort           string
+	TargetCurrency string
+	TargetLanguage string
+	TrackingID     string
+	ShipToCountry  string
+	AccessToken    string
+}
+
+type ProductQueryResult struct {
+	CurrentPageNo      int64              `json:"current_page_no"`
+	CurrentRecordCount int64              `json:"current_record_count"`
+	TotalPageNo        int64              `json:"total_page_no"`
+	TotalRecordCount   int64              `json:"total_record_count"`
+	Products           []AffiliateProduct `json:"products"`
+}
+
 type ProductDetailInput struct {
 	ProductIDs     []string
 	TargetCurrency string

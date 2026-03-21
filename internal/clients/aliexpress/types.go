@@ -25,6 +25,24 @@ type remoteErrorEnvelope struct {
 	RequestID string `json:"request_id"`
 }
 
+type productQueryEnvelope struct {
+	RespResult productQueryResult `json:"resp_result"`
+}
+
+type productQueryResult struct {
+	RespCode int64                    `json:"resp_code"`
+	RespMsg  string                   `json:"resp_msg"`
+	Result   productQueryProductBlock `json:"result"`
+}
+
+type productQueryProductBlock struct {
+	CurrentPageNo      int64                       `json:"current_page_no"`
+	CurrentRecordCount int64                       `json:"current_record_count"`
+	TotalPageNo        int64                       `json:"total_page_no"`
+	TotalRecordCount   int64                       `json:"total_record_count"`
+	Products           productDetailProductWrapper `json:"products"`
+}
+
 type productDetailEnvelope struct {
 	RespResult productDetailResult `json:"resp_result"`
 }
@@ -49,10 +67,10 @@ type productSKUDetailOuterResult struct {
 }
 
 type productSKUDetailInnerResult struct {
-	ItemInfo AffiliateSKUItemInfo   `json:"ae_item_info"`
-	SKUInfos skuInfoTrafficWrapper  `json:"ae_item_sku_info"`
-	Code     int64                  `json:"code"`
-	Success  bool                   `json:"success"`
+	ItemInfo AffiliateSKUItemInfo  `json:"ae_item_info"`
+	SKUInfos skuInfoTrafficWrapper `json:"ae_item_sku_info"`
+	Code     int64                 `json:"code"`
+	Success  bool                  `json:"success"`
 }
 
 type skuInfoTrafficWrapper struct {
