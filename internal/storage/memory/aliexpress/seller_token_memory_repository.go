@@ -11,13 +11,11 @@ import (
 type SellerTokenMemoryRepository struct {
 	mu         sync.RWMutex
 	bySellerID map[string]clientaliexpress.SellerTokenRecord
-	byUserID   map[string]string
 }
 
 func NewRepository() *SellerTokenMemoryRepository {
 	return &SellerTokenMemoryRepository{
 		bySellerID: make(map[string]clientaliexpress.SellerTokenRecord),
-		byUserID:   make(map[string]string),
 	}
 }
 
@@ -26,21 +24,17 @@ func (r *SellerTokenMemoryRepository) Upsert(_ context.Context, token clientalie
 	defer r.mu.Unlock()
 
 	r.bySellerID[token.SellerID] = token
-	r.byUserID[token.UserID] = token.SellerID
 	return nil
 }
 
-func (r *SellerTokenMemoryRepository) FindByUserID(_ context.Context, userID string) (*clientaliexpress.SellerTokenRecord, error) {
+func (r *SellerTokenMemoryRepository) FindOne(_ context.Context) (*clientaliexpress.SellerTokenRecord, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	sellerID, ok := r.byUserID[userID]
-	if !ok {
-		return nil, nil
+	for _, token := range r.bySellerID {
+		return &token, nil
 	}
-
-	token := r.bySellerID[sellerID]
-	return &token, nil
+	return nil, nil
 }
 
 func (r *SellerTokenMemoryRepository) FindBySellerID(_ context.Context, sellerID string) (*clientaliexpress.SellerTokenRecord, error) {

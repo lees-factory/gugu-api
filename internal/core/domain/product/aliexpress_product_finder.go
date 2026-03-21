@@ -17,16 +17,22 @@ type aliExpressProductDetailClient interface {
 	GetAffiliateProductSKUDetail(ctx context.Context, input clientaliexpress.ProductSKUDetailInput) (*clientaliexpress.ProductSKUDetailResult, error)
 }
 
+type AccessTokenProvider interface {
+	GetAccessToken(ctx context.Context) (string, error)
+}
+
 type AliExpressProductFinder struct {
 	client         aliExpressProductDetailClient
+	tokenProvider  AccessTokenProvider
 	targetCurrency string
 	targetLanguage string
 	shipToCountry  string
 }
 
-func NewAliExpressProductFinder(client aliExpressProductDetailClient, targetCurrency string, targetLanguage string, shipToCountry string) *AliExpressProductFinder {
+func NewAliExpressProductFinder(client aliExpressProductDetailClient, tokenProvider AccessTokenProvider, targetCurrency string, targetLanguage string, shipToCountry string) *AliExpressProductFinder {
 	return &AliExpressProductFinder{
 		client:         client,
+		tokenProvider:  tokenProvider,
 		targetCurrency: strings.TrimSpace(targetCurrency),
 		targetLanguage: strings.TrimSpace(targetLanguage),
 		shipToCountry:  strings.TrimSpace(shipToCountry),
@@ -41,11 +47,20 @@ func (f *AliExpressProductFinder) Find(ctx context.Context, input CollectInput) 
 		return nil, fmt.Errorf("aliexpress client is required")
 	}
 
+	accessToken := ""
+	if f.tokenProvider != nil {
+		token, err := f.tokenProvider.GetAccessToken(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("get aliexpress access token: %w", err)
+		}
+		accessToken = token
+	}
+
 	detailResult, err := f.client.GetAffiliateProductDetail(ctx, clientaliexpress.ProductDetailInput{
 		ProductIDs:     []string{input.ExternalProductID},
 		TargetCurrency: defaultValue(f.targetCurrency, "USD"),
 		TargetLanguage: defaultValue(f.targetLanguage, "EN"),
-		Country:        defaultValue(f.shipToCountry, "US"),
+		AccessToken:    accessToken,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("get aliexpress affiliate product detail: %w", err)
@@ -61,6 +76,7 @@ func (f *AliExpressProductFinder) Find(ctx context.Context, input CollectInput) 
 		ShipToCountry:  defaultValue(f.shipToCountry, "US"),
 		TargetCurrency: defaultValue(f.targetCurrency, "USD"),
 		TargetLanguage: defaultValue(f.targetLanguage, "EN"),
+		AccessToken:    accessToken,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("get aliexpress affiliate product sku detail: %w", err)

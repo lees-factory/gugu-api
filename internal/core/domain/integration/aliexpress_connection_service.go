@@ -19,22 +19,15 @@ type AliExpressConnectionService struct {
 	now         func() time.Time
 }
 
-type BuildAliExpressAuthorizationURLInput struct {
-	UserID string
-}
-
 type BuildAliExpressAuthorizationURLResult struct {
-	UserID           string
 	AuthorizationURL string
 }
 
 type ExchangeAliExpressCodeInput struct {
-	UserID string
-	Code   string
+	Code string
 }
 
 type AliExpressConnectionStatus struct {
-	UserID                  string
 	SellerID                string
 	Account                 string
 	UserNick                string
@@ -55,14 +48,13 @@ func NewAliExpressConnectionService(client clientaliexpress.Client, tokenStore c
 	}
 }
 
-func (s *AliExpressConnectionService) BuildAuthorizationURL(_ context.Context, input BuildAliExpressAuthorizationURLInput) (*BuildAliExpressAuthorizationURLResult, error) {
+func (s *AliExpressConnectionService) BuildAuthorizationURL(_ context.Context) (*BuildAliExpressAuthorizationURLResult, error) {
 	url, err := s.client.BuildAuthorizationURL()
 	if err != nil {
 		return nil, err
 	}
 
 	return &BuildAliExpressAuthorizationURLResult{
-		UserID:           input.UserID,
 		AuthorizationURL: url,
 	}, nil
 }
@@ -74,14 +66,13 @@ func (s *AliExpressConnectionService) ExchangeCode(ctx context.Context, input Ex
 	}
 
 	now := s.now()
-	recordID, err := s.resolveRecordID(ctx, input.UserID, tokenSet.SellerID)
+	recordID, err := s.resolveRecordID(ctx, tokenSet.SellerID)
 	if err != nil {
 		return nil, err
 	}
 
 	record := clientaliexpress.SellerTokenRecord{
 		ID:                   recordID,
-		UserID:               input.UserID,
 		SellerID:             tokenSet.SellerID,
 		HavanaID:             tokenSet.HavanaID,
 		AppUserID:            tokenSet.UserID,
@@ -119,14 +110,47 @@ func (s *AliExpressConnectionService) ExchangeCode(ctx context.Context, input Ex
 	return s.buildStatus(record, now), nil
 }
 
-func (s *AliExpressConnectionService) GetConnectionStatus(ctx context.Context, userID string) (*AliExpressConnectionStatus, error) {
-	record, err := s.tokenStore.FindByUserID(ctx, userID)
+func (s *AliExpressConnectionService) RefreshToken(ctx context.Context) (*AliExpressConnectionStatus, error) {
+	record, err := s.tokenStore.FindOne(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("find token: %w", err)
+	}
+	if record == nil {
+		return nil, fmt.Errorf("no token to refresh: run exchange-code first")
+	}
+
+	tokenSet, err := s.client.RefreshAccessToken(ctx, clientaliexpress.RefreshTokenInput{
+		RefreshToken: record.RefreshToken,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	now := s.now()
+	record.AccessToken = tokenSet.AccessToken
+	record.RefreshToken = tokenSet.RefreshToken
+	record.AccessTokenExpiresAt = time.UnixMilli(tokenSet.ExpireTime)
+	record.LastRefreshedAt = now
+	record.UpdatedAt = now
+	if tokenSet.RefreshTokenValidTime > 0 {
+		refreshExpiresAt := time.UnixMilli(tokenSet.RefreshTokenValidTime)
+		record.RefreshTokenExpiresAt = &refreshExpiresAt
+	}
+
+	if err := s.tokenStore.Upsert(ctx, *record); err != nil {
+		return nil, fmt.Errorf("upsert refreshed token: %w", err)
+	}
+
+	return s.buildStatus(*record, now), nil
+}
+
+func (s *AliExpressConnectionService) GetConnectionStatus(ctx context.Context) (*AliExpressConnectionStatus, error) {
+	record, err := s.tokenStore.FindOne(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if record == nil {
 		return &AliExpressConnectionStatus{
-			UserID:                  userID,
 			Connected:               false,
 			ReauthorizationRequired: false,
 		}, nil
@@ -135,7 +159,7 @@ func (s *AliExpressConnectionService) GetConnectionStatus(ctx context.Context, u
 	return s.buildStatus(*record, s.now()), nil
 }
 
-func (s *AliExpressConnectionService) resolveRecordID(ctx context.Context, userID string, sellerID string) (string, error) {
+func (s *AliExpressConnectionService) resolveRecordID(ctx context.Context, sellerID string) (string, error) {
 	existingRecord, err := s.tokenStore.FindBySellerID(ctx, sellerID)
 	if err != nil {
 		return "", err
@@ -144,7 +168,7 @@ func (s *AliExpressConnectionService) resolveRecordID(ctx context.Context, userI
 		return existingRecord.ID, nil
 	}
 
-	existingRecord, err = s.tokenStore.FindByUserID(ctx, userID)
+	existingRecord, err = s.tokenStore.FindOne(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -162,7 +186,6 @@ func (s *AliExpressConnectionService) buildStatus(record clientaliexpress.Seller
 	}
 
 	return &AliExpressConnectionStatus{
-		UserID:                  record.UserID,
 		SellerID:                record.SellerID,
 		Account:                 record.Account,
 		UserNick:                record.UserNick,

@@ -30,16 +30,12 @@ func TestAliExpressConnectionServiceExchangeCode(t *testing.T) {
 	service.now = func() time.Time { return now }
 
 	result, err := service.ExchangeCode(context.Background(), ExchangeAliExpressCodeInput{
-		UserID: "user-1",
-		Code:   "code-1",
+		Code: "code-1",
 	})
 	if err != nil {
 		t.Fatalf("ExchangeCode() error = %v", err)
 	}
 
-	if result.UserID != "user-1" {
-		t.Fatalf("UserID = %q", result.UserID)
-	}
 	if result.SellerID != "seller-1" {
 		t.Fatalf("SellerID = %q", result.SellerID)
 	}
@@ -54,7 +50,7 @@ func TestAliExpressConnectionServiceExchangeCode(t *testing.T) {
 func TestAliExpressConnectionServiceGetConnectionStatusWithoutRecord(t *testing.T) {
 	service := NewAliExpressConnectionService(&stubAliExpressClient{}, &stubTokenStore{}, stubIDGenerator{id: "record-1"})
 
-	result, err := service.GetConnectionStatus(context.Background(), "user-1")
+	result, err := service.GetConnectionStatus(context.Background())
 	if err != nil {
 		t.Fatalf("GetConnectionStatus() error = %v", err)
 	}
@@ -109,12 +105,10 @@ func (s *stubTokenStore) Upsert(_ context.Context, token clientaliexpress.Seller
 	return nil
 }
 
-func (s *stubTokenStore) FindByUserID(_ context.Context, userID string) (*clientaliexpress.SellerTokenRecord, error) {
+func (s *stubTokenStore) FindOne(_ context.Context) (*clientaliexpress.SellerTokenRecord, error) {
 	for _, item := range s.items {
-		if item.UserID == userID {
-			found := item
-			return &found, nil
-		}
+		found := item
+		return &found, nil
 	}
 	return nil, nil
 }

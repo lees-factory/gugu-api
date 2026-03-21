@@ -7,6 +7,7 @@ type ProductLookupInput struct {
 	Country        string
 	TrackingID     string
 	Fields         []string
+	AccessToken    string
 }
 
 type ProductDetailInput struct {
@@ -16,6 +17,7 @@ type ProductDetailInput struct {
 	Country        string
 	TrackingID     string
 	Fields         []string
+	AccessToken    string
 }
 
 type ProductDetailResult struct {
@@ -30,6 +32,7 @@ type ProductSKUDetailInput struct {
 	TargetLanguage  string
 	NeedDeliverInfo string
 	SKUIDs          []string
+	AccessToken     string
 }
 
 type ProductSKUDetailResult struct {

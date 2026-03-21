@@ -37,7 +37,13 @@ func NewServer(cfg config.Config, db *sql.DB) (*Server, error) {
 	authControllers.Auth.RegisterRoutes(router)
 	authControllers.User.RegisterRoutes(router)
 
-	trackedItemController, trackedItemService, productService, err := apitrackeditem.Wire(cfg, db)
+	aliExpressController, aliExpressTokenStore, err := apiintegration.Wire(cfg, db)
+	if err != nil {
+		return nil, fmt.Errorf("wire aliexpress integration: %w", err)
+	}
+	aliExpressController.RegisterRoutes(router)
+
+	trackedItemController, trackedItemService, productService, err := apitrackeditem.Wire(cfg, db, aliExpressTokenStore)
 	if err != nil {
 		return nil, fmt.Errorf("wire tracked item: %w", err)
 	}
@@ -45,12 +51,6 @@ func NewServer(cfg config.Config, db *sql.DB) (*Server, error) {
 
 	productController := apiproduct.Wire(db, productService, trackedItemService)
 	productController.RegisterRoutes(router)
-
-	aliExpressController, err := apiintegration.Wire(cfg, db)
-	if err != nil {
-		return nil, fmt.Errorf("wire aliexpress integration: %w", err)
-	}
-	aliExpressController.RegisterRoutes(router)
 
 	return &Server{router: router}, nil
 }

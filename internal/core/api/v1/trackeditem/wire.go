@@ -17,7 +17,7 @@ import (
 	timeutil "github.com/ljj/gugu-api/internal/support/time"
 )
 
-func Wire(cfg config.Config, db *sql.DB) (*Controller, *domaintrackeditem.Service, *domainproduct.Service, error) {
+func Wire(cfg config.Config, db *sql.DB, aliExpressTokenStore clientaliexpress.TokenStore) (*Controller, *domaintrackeditem.Service, *domainproduct.Service, error) {
 	trackedItemRepository := buildTrackedItemRepository(db)
 	productRepository := buildProductRepository(db)
 
@@ -46,8 +46,10 @@ func Wire(cfg config.Config, db *sql.DB) (*Controller, *domaintrackeditem.Servic
 		BaseURL: cfg.CrawlerBaseURL,
 	})
 
+	tokenProvider := domainproduct.NewAliExpressTokenProvider(aliExpressTokenStore)
+
 	productCollector := domainproduct.NewDefaultCollector(
-		domainproduct.NewAliExpressProductFinder(aliExpressClient, "KRW", "KO", "KR"),
+		domainproduct.NewAliExpressProductFinder(aliExpressClient, tokenProvider, "KRW", "KO", "KR"),
 		domainproduct.NewCrawlerProductFinder(crawlerClient),
 	)
 

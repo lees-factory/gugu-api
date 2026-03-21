@@ -73,8 +73,9 @@ func (c *HTTPClient) GetAffiliateProductDetail(ctx context.Context, input Produc
 			"product_ids":     strings.Join(productIDs, ","),
 			"target_currency": defaultString(input.TargetCurrency, "USD"),
 			"target_language": defaultString(input.TargetLanguage, "EN"),
-			"country":         defaultString(input.Country, "US"),
+			"country":         strings.TrimSpace(input.Country),
 			"tracking_id":     strings.TrimSpace(input.TrackingID),
+			"access_token":    strings.TrimSpace(input.AccessToken),
 		},
 		topProtocol: true,
 	})
@@ -86,10 +87,6 @@ func (c *HTTPClient) GetAffiliateProductDetail(ctx context.Context, input Produc
 	if err := json.Unmarshal(response, &payload); err != nil {
 		return nil, fmt.Errorf("decode product detail response: %w", err)
 	}
-	if payload.RespResult.RespCode != 20010000 {
-		return &ProductDetailResult{}, nil
-	}
-
 	return &ProductDetailResult{
 		CurrentRecordCount: payload.RespResult.Result.CurrentRecordCount,
 		Products:           payload.RespResult.Result.Products.Product,
@@ -115,6 +112,7 @@ func (c *HTTPClient) GetAffiliateProductSKUDetail(ctx context.Context, input Pro
 			"target_language":   defaultString(input.TargetLanguage, "EN"),
 			"need_deliver_info": defaultString(input.NeedDeliverInfo, "No"),
 			"sku_ids":           strings.Join(normalizeCSV(input.SKUIDs), ","),
+			"access_token":      strings.TrimSpace(input.AccessToken),
 		},
 		topProtocol: true,
 	})

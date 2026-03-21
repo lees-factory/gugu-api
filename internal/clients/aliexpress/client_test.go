@@ -231,7 +231,7 @@ func TestGetAffiliateProductDetail(t *testing.T) {
 									"target_sale_price_currency": "USD",
 									"product_main_image_url": "https://img.example/1.jpg",
 									"product_detail_url": "https://www.aliexpress.com/item/1005001234567890.html",
-									"product_small_image_urls": ["https://img.example/1-1.jpg"],
+									"product_small_image_urls": {"string": ["https://img.example/1-1.jpg"]},
 									"promotion_link": "https://s.click.aliexpress.com/promo",
 									"target_original_price": "99.99",
 									"shop_name": "Gugu Store",

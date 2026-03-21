@@ -348,14 +348,10 @@ paths:
       tags:
         - 외부 연동
       summary: AliExpress 인가 URL 생성
-      description: 사용자를 AliExpress seller authorization 화면으로 보내기 위한 URL을 생성한다.
+      description: |
+        AliExpress seller authorization 화면으로 보내기 위한 URL을 생성한다. 운영자/개발자 전용.
+        발급받은 access_token은 내부 TokenStore에 저장되어 상품 조회 API에서 자동으로 사용된다.
       operationId: buildAliExpressAuthorizationURL
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AliExpressAuthorizationURLRequest'
       responses:
         '200':
           description: 인가 URL 생성에 성공했다.
@@ -380,7 +376,9 @@ paths:
       tags:
         - 외부 연동
       summary: AliExpress 인가 code 교환
-      description: callback 으로 받은 code를 AliExpress token으로 교환하고 내부 연결 상태를 저장한다.
+      description: |
+        callback으로 받은 code를 AliExpress access_token으로 교환하고 내부 TokenStore에 저장한다. 운영자/개발자 전용.
+        저장된 토큰은 상품 조회(product-detail, product-sku-detail) 및 tracked-items 추가 시 자동으로 사용된다.
       operationId: exchangeAliExpressCode
       requestBody:
         required: true
@@ -407,6 +405,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /v1/integrations/aliexpress/refresh-token:
+    post:
+      tags:
+        - 외부 연동
+      summary: AliExpress access_token 갱신
+      description: |
+        저장된 refresh_token으로 access_token을 갱신한다. 운영자/개발자 전용.
+        access_token은 24시간 만료이며, refresh_token(6개월)이 유효한 동안 갱신 가능하다.
+        refresh_token 만료 시 authorize-url → exchange-code 재인증이 필요하다.
+      operationId: refreshAliExpressToken
+      responses:
+        '200':
+          description: 토큰 갱신에 성공했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AliExpressConnectionStatusResponse'
+        '400':
+          description: AliExpress API 에러가 발생했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 저장된 토큰이 없거나 서버 내부 오류가 발생했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /v1/integrations/aliexpress/connection-status:
     get:
       tags:
@@ -414,13 +441,6 @@ paths:
       summary: AliExpress 연결 상태 조회
       description: 내부에 저장된 AliExpress seller 연결 상태를 조회한다. token 원문은 반환하지 않는다.
       operationId: getAliExpressConnectionStatus
-      parameters:
-        - in: query
-          name: user_id
-          required: true
-          schema:
-            type: string
-          description: 연결 상태를 확인할 내부 사용자 ID
       responses:
         '200':
           description: 연결 상태 조회에 성공했다.
@@ -445,7 +465,10 @@ paths:
       tags:
         - 외부 연동
       summary: AliExpress Affiliate 상품 상세 조회
-      description: AliExpress Affiliate API를 호출하여 상품 상세 정보를 조회한다. 개발자 확인용.
+      description: |
+        AliExpress Affiliate API를 호출하여 상품 상세 정보를 조회한다. 개발자 확인용.
+        내부 TokenStore에 저장된 access_token을 자동으로 사용한다.
+        토큰이 없으면 access_token 없이 호출되어 빈 결과가 반환될 수 있다.
       operationId: getAliExpressProductDetail
       parameters:
         - in: query
@@ -479,7 +502,10 @@ paths:
       tags:
         - 외부 연동
       summary: AliExpress Affiliate 상품 SKU 상세 조회
-      description: AliExpress Affiliate API를 호출하여 상품 SKU 정보를 조회한다. 개발자 확인용.
+      description: |
+        AliExpress Affiliate API를 호출하여 상품 SKU 정보를 조회한다. 개발자 확인용.
+        내부 TokenStore에 저장된 access_token을 자동으로 사용한다.
+        토큰이 없으면 access_token 없이 호출되어 빈 결과가 반환될 수 있다.
       operationId: getAliExpressProductSKUDetail
       parameters:
         - in: query
@@ -943,27 +969,12 @@ components:
         refresh_token:
           type: string
           description: 폐기할 현재 refresh token
-    AliExpressAuthorizationURLRequest:
-      type: object
-      description: AliExpress 인가 URL 생성 요청
-      required:
-        - user_id
-      properties:
-        user_id:
-          type: string
-          description: 내부 사용자 ID
-          example: user_01
     AliExpressExchangeCodeRequest:
       type: object
       description: AliExpress callback code 교환 요청
       required:
-        - user_id
         - code
       properties:
-        user_id:
-          type: string
-          description: 내부 사용자 ID
-          example: user_01
         code:
           type: string
           description: AliExpress callback 으로 받은 authorization code
@@ -1107,13 +1118,8 @@ components:
       type: object
       description: AliExpress 인가 URL 응답 데이터
       required:
-        - user_id
         - authorization_url
       properties:
-        user_id:
-          type: string
-          description: 내부 사용자 ID
-          example: user_01
         authorization_url:
           type: string
           description: AliExpress seller authorization 페이지 URL
@@ -1133,14 +1139,9 @@ components:
       type: object
       description: AliExpress 연결 상태 응답 데이터
       required:
-        - user_id
         - connected
         - reauthorization_required
       properties:
-        user_id:
-          type: string
-          description: 내부 사용자 ID
-          example: user_01
         seller_id:
           type: string
           nullable: true

@@ -12,7 +12,7 @@ import (
 	"github.com/ljj/gugu-api/internal/support/id"
 )
 
-func Wire(cfg config.Config, db *sql.DB) (*AliExpressController, error) {
+func Wire(cfg config.Config, db *sql.DB) (*AliExpressController, clientaliexpress.TokenStore, error) {
 	tokenStore := buildAliExpressTokenStore(db)
 	recordIDGenerator := id.NewRandomHexGenerator(16)
 
@@ -23,7 +23,7 @@ func Wire(cfg config.Config, db *sql.DB) (*AliExpressController, error) {
 		CallbackURL: cfg.AliExpressCallbackURL,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("build aliexpress client: %w", err)
+		return nil, nil, fmt.Errorf("build aliexpress client: %w", err)
 	}
 
 	connectionService := domainintegration.NewAliExpressConnectionService(
@@ -32,7 +32,7 @@ func Wire(cfg config.Config, db *sql.DB) (*AliExpressController, error) {
 		recordIDGenerator,
 	)
 
-	return NewAliExpressController(connectionService, aliExpressClient), nil
+	return NewAliExpressController(connectionService, aliExpressClient, tokenStore), tokenStore, nil
 }
 
 func buildAliExpressTokenStore(db *sql.DB) clientaliexpress.TokenStore {

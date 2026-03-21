@@ -42,7 +42,7 @@ func TestAliExpressProductFinderFind(t *testing.T) {
 				},
 			},
 		},
-	}, "USD", "EN", "KR")
+	}, nil, "USD", "EN", "KR")
 
 	result, err := finder.Find(context.Background(), CollectInput{
 		Market:            MarketAliExpress,
@@ -67,7 +67,7 @@ func TestAliExpressProductFinderFind(t *testing.T) {
 }
 
 func TestAliExpressProductFinderFindSkipsOtherMarket(t *testing.T) {
-	finder := NewAliExpressProductFinder(&stubAliExpressProductClient{}, "USD", "EN", "KR")
+	finder := NewAliExpressProductFinder(&stubAliExpressProductClient{}, nil, "USD", "EN", "KR")
 
 	result, err := finder.Find(context.Background(), CollectInput{
 		Market:            MarketEBay,

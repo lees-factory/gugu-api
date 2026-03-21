@@ -11,7 +11,6 @@ import (
 
 type GuguAliexpressSellerToken struct {
 	ID                    string       `json:"id"`
-	UserID                string       `json:"user_id"`
 	SellerID              string       `json:"seller_id"`
 	HavanaID              string       `json:"havana_id"`
 	AppUserID             string       `json:"app_user_id"`

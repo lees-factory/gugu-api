@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"context"
 	"errors"
 	stdhttp "net/http"
 	"strings"
@@ -18,16 +19,26 @@ import (
 type AliExpressController struct {
 	service       *domainintegration.AliExpressConnectionService
 	productClient clientaliexpress.ProductClient
+	tokenStore    clientaliexpress.TokenStore
 }
 
-func NewAliExpressController(service *domainintegration.AliExpressConnectionService, productClient clientaliexpress.ProductClient) *AliExpressController {
-	return &AliExpressController{service: service, productClient: productClient}
+func NewAliExpressController(service *domainintegration.AliExpressConnectionService, productClient clientaliexpress.ProductClient, tokenStore clientaliexpress.TokenStore) *AliExpressController {
+	return &AliExpressController{service: service, productClient: productClient, tokenStore: tokenStore}
+}
+
+func (c *AliExpressController) resolveAccessToken(ctx context.Context) string {
+	record, err := c.tokenStore.FindOne(ctx)
+	if err != nil || record == nil {
+		return ""
+	}
+	return record.AccessToken
 }
 
 func (c *AliExpressController) RegisterRoutes(r chi.Router) {
 	r.Route("/v1/integrations/aliexpress", func(r chi.Router) {
 		r.Post("/authorize-url", apiadvice.Wrap(c.BuildAuthorizationURL))
 		r.Post("/exchange-code", apiadvice.Wrap(c.ExchangeCode))
+		r.Post("/refresh-token", apiadvice.Wrap(c.RefreshToken))
 		r.Get("/connection-status", apiadvice.Wrap(c.GetConnectionStatus))
 		r.Get("/product-detail", apiadvice.Wrap(c.GetProductDetail))
 		r.Get("/product-sku-detail", apiadvice.Wrap(c.GetProductSKUDetail))
@@ -35,14 +46,7 @@ func (c *AliExpressController) RegisterRoutes(r chi.Router) {
 }
 
 func (c *AliExpressController) BuildAuthorizationURL(r *stdhttp.Request) (int, any, error) {
-	var req alirequest.AliExpressAuthorizationURL
-	if err := apiadvice.DecodeJSON(r, &req); err != nil {
-		return 0, nil, err
-	}
-
-	result, err := c.service.BuildAuthorizationURL(r.Context(), domainintegration.BuildAliExpressAuthorizationURLInput{
-		UserID: req.UserID,
-	})
+	result, err := c.service.BuildAuthorizationURL(r.Context())
 	if err != nil {
 		return 0, nil, err
 	}
@@ -57,8 +61,7 @@ func (c *AliExpressController) ExchangeCode(r *stdhttp.Request) (int, any, error
 	}
 
 	result, err := c.service.ExchangeCode(r.Context(), domainintegration.ExchangeAliExpressCodeInput{
-		UserID: req.UserID,
-		Code:   req.Code,
+		Code: req.Code,
 	})
 	if err != nil {
 		return 0, nil, mapAliExpressError(err)
@@ -96,7 +99,7 @@ func (c *AliExpressController) GetProductDetail(r *stdhttp.Request) (int, any, e
 		ProductIDs:     []string{productID},
 		TargetCurrency: "KRW",
 		TargetLanguage: "KO",
-		Country:        "KR",
+		AccessToken:    c.resolveAccessToken(r.Context()),
 	})
 	if err != nil {
 		return 0, nil, mapAliExpressError(err)
@@ -116,6 +119,7 @@ func (c *AliExpressController) GetProductSKUDetail(r *stdhttp.Request) (int, any
 		ShipToCountry:  "KR",
 		TargetCurrency: "KRW",
 		TargetLanguage: "KO",
+		AccessToken:    c.resolveAccessToken(r.Context()),
 	})
 	if err != nil {
 		return 0, nil, mapAliExpressError(err)
@@ -124,9 +128,17 @@ func (c *AliExpressController) GetProductSKUDetail(r *stdhttp.Request) (int, any
 	return stdhttp.StatusOK, apiresponse.SuccessWithData(result), nil
 }
 
+func (c *AliExpressController) RefreshToken(r *stdhttp.Request) (int, any, error) {
+	result, err := c.service.RefreshToken(r.Context())
+	if err != nil {
+		return 0, nil, mapAliExpressError(err)
+	}
+
+	return stdhttp.StatusOK, apiresponse.SuccessWithData(aliresponse.NewAliExpressConnectionStatus(*result)), nil
+}
+
 func (c *AliExpressController) GetConnectionStatus(r *stdhttp.Request) (int, any, error) {
-	userID := strings.TrimSpace(r.URL.Query().Get("user_id"))
-	result, err := c.service.GetConnectionStatus(r.Context(), userID)
+	result, err := c.service.GetConnectionStatus(r.Context())
 	if err != nil {
 		return 0, nil, err
 	}

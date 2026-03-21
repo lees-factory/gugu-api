@@ -7,12 +7,10 @@ import (
 )
 
 type AliExpressAuthorizationURL struct {
-	UserID           string `json:"user_id"`
 	AuthorizationURL string `json:"authorization_url"`
 }
 
 type AliExpressConnectionStatus struct {
-	UserID                  string     `json:"user_id"`
 	SellerID                string     `json:"seller_id,omitempty"`
 	Account                 string     `json:"account,omitempty"`
 	UserNick                string     `json:"user_nick,omitempty"`
@@ -26,14 +24,12 @@ type AliExpressConnectionStatus struct {
 
 func NewAliExpressAuthorizationURL(source domainintegration.BuildAliExpressAuthorizationURLResult) AliExpressAuthorizationURL {
 	return AliExpressAuthorizationURL{
-		UserID:           source.UserID,
 		AuthorizationURL: source.AuthorizationURL,
 	}
 }
 
 func NewAliExpressConnectionStatus(source domainintegration.AliExpressConnectionStatus) AliExpressConnectionStatus {
 	result := AliExpressConnectionStatus{
-		UserID:                  source.UserID,
 		SellerID:                source.SellerID,
 		Account:                 source.Account,
 		UserNick:                source.UserNick,

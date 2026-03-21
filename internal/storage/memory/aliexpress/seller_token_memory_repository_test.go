@@ -15,7 +15,6 @@ func TestSellerTokenMemoryRepository(t *testing.T) {
 
 	token := clientaliexpress.SellerTokenRecord{
 		ID:                    "ali-token-1",
-		UserID:                "user-1",
 		SellerID:              "seller-1",
 		HavanaID:              "havana-1",
 		AppUserID:             "app-user-1",
@@ -38,19 +37,19 @@ func TestSellerTokenMemoryRepository(t *testing.T) {
 		t.Fatalf("Upsert() error = %v", err)
 	}
 
-	foundByUserID, err := repository.FindByUserID(context.Background(), "user-1")
+	foundOne, err := repository.FindOne(context.Background())
 	if err != nil {
-		t.Fatalf("FindByUserID() error = %v", err)
+		t.Fatalf("FindOne() error = %v", err)
 	}
-	if foundByUserID == nil || foundByUserID.SellerID != "seller-1" {
-		t.Fatalf("FindByUserID() = %#v", foundByUserID)
+	if foundOne == nil || foundOne.SellerID != "seller-1" {
+		t.Fatalf("FindOne() = %#v", foundOne)
 	}
 
 	foundBySellerID, err := repository.FindBySellerID(context.Background(), "seller-1")
 	if err != nil {
 		t.Fatalf("FindBySellerID() error = %v", err)
 	}
-	if foundBySellerID == nil || foundBySellerID.UserID != "user-1" {
+	if foundBySellerID == nil || foundBySellerID.SellerID != "seller-1" {
 		t.Fatalf("FindBySellerID() = %#v", foundBySellerID)
 	}
 

@@ -50,7 +50,6 @@ CREATE TABLE IF NOT EXISTS gugu.user_login_session (
 
 CREATE TABLE IF NOT EXISTS gugu.aliexpress_seller_token (
     id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL REFERENCES gugu.app_user(id),
     seller_id TEXT NOT NULL UNIQUE,
     havana_id TEXT NOT NULL DEFAULT '',
     app_user_id TEXT NOT NULL DEFAULT '',
@@ -110,7 +109,6 @@ CREATE INDEX IF NOT EXISTS idx_email_verification_user_id ON gugu.email_verifica
 CREATE INDEX IF NOT EXISTS idx_oauth_identity_user_id ON gugu.oauth_identity(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_login_session_user_id ON gugu.user_login_session(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_login_session_family_id ON gugu.user_login_session(token_family_id);
-CREATE INDEX IF NOT EXISTS idx_aliexpress_seller_token_user_id ON gugu.aliexpress_seller_token(user_id);
 CREATE INDEX IF NOT EXISTS idx_aliexpress_seller_token_access_token_expires_at ON gugu.aliexpress_seller_token(access_token_expires_at);
 CREATE INDEX IF NOT EXISTS idx_aliexpress_seller_token_refresh_token_expires_at ON gugu.aliexpress_seller_token(refresh_token_expires_at);
 CREATE INDEX IF NOT EXISTS idx_product_market_external_product_id ON gugu.product(market, external_product_id);

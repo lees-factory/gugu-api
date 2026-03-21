@@ -14,7 +14,6 @@ import (
 const findAliExpressSellerTokenBySellerID = `-- name: FindAliExpressSellerTokenBySellerID :one
 SELECT
     id,
-    user_id,
     seller_id,
     havana_id,
     app_user_id,
@@ -40,7 +39,6 @@ func (q *Queries) FindAliExpressSellerTokenBySellerID(ctx context.Context, selle
 	var i GuguAliexpressSellerToken
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
 		&i.SellerID,
 		&i.HavanaID,
 		&i.AppUserID,
@@ -61,10 +59,9 @@ func (q *Queries) FindAliExpressSellerTokenBySellerID(ctx context.Context, selle
 	return i, err
 }
 
-const findAliExpressSellerTokenByUserID = `-- name: FindAliExpressSellerTokenByUserID :one
+const findOneAliExpressSellerToken = `-- name: FindOneAliExpressSellerToken :one
 SELECT
     id,
-    user_id,
     seller_id,
     havana_id,
     app_user_id,
@@ -82,15 +79,14 @@ SELECT
     created_at,
     updated_at
 FROM gugu.aliexpress_seller_token
-WHERE user_id = $1
+LIMIT 1
 `
 
-func (q *Queries) FindAliExpressSellerTokenByUserID(ctx context.Context, userID string) (GuguAliexpressSellerToken, error) {
-	row := q.db.QueryRowContext(ctx, findAliExpressSellerTokenByUserID, userID)
+func (q *Queries) FindOneAliExpressSellerToken(ctx context.Context) (GuguAliexpressSellerToken, error) {
+	row := q.db.QueryRowContext(ctx, findOneAliExpressSellerToken)
 	var i GuguAliexpressSellerToken
 	err := row.Scan(
 		&i.ID,
-		&i.UserID,
 		&i.SellerID,
 		&i.HavanaID,
 		&i.AppUserID,
@@ -114,7 +110,6 @@ func (q *Queries) FindAliExpressSellerTokenByUserID(ctx context.Context, userID 
 const listAliExpressSellerTokensExpiringBefore = `-- name: ListAliExpressSellerTokensExpiringBefore :many
 SELECT
     id,
-    user_id,
     seller_id,
     havana_id,
     app_user_id,
@@ -147,7 +142,6 @@ func (q *Queries) ListAliExpressSellerTokensExpiringBefore(ctx context.Context, 
 		var i GuguAliexpressSellerToken
 		if err := rows.Scan(
 			&i.ID,
-			&i.UserID,
 			&i.SellerID,
 			&i.HavanaID,
 			&i.AppUserID,
@@ -181,7 +175,6 @@ func (q *Queries) ListAliExpressSellerTokensExpiringBefore(ctx context.Context, 
 const upsertAliExpressSellerToken = `-- name: UpsertAliExpressSellerToken :exec
 INSERT INTO gugu.aliexpress_seller_token (
     id,
-    user_id,
     seller_id,
     havana_id,
     app_user_id,
@@ -199,10 +192,9 @@ INSERT INTO gugu.aliexpress_seller_token (
     created_at,
     updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
 )
 ON CONFLICT (seller_id) DO UPDATE SET
-    user_id = EXCLUDED.user_id,
     havana_id = EXCLUDED.havana_id,
     app_user_id = EXCLUDED.app_user_id,
     user_nick = EXCLUDED.user_nick,
@@ -221,7 +213,6 @@ ON CONFLICT (seller_id) DO UPDATE SET
 
 type UpsertAliExpressSellerTokenParams struct {
 	ID                    string       `json:"id"`
-	UserID                string       `json:"user_id"`
 	SellerID              string       `json:"seller_id"`
 	HavanaID              string       `json:"havana_id"`
 	AppUserID             string       `json:"app_user_id"`
@@ -243,7 +234,6 @@ type UpsertAliExpressSellerTokenParams struct {
 func (q *Queries) UpsertAliExpressSellerToken(ctx context.Context, arg UpsertAliExpressSellerTokenParams) error {
 	_, err := q.db.ExecContext(ctx, upsertAliExpressSellerToken,
 		arg.ID,
-		arg.UserID,
 		arg.SellerID,
 		arg.HavanaID,
 		arg.AppUserID,

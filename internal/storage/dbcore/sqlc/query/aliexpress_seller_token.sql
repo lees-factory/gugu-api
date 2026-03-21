@@ -1,7 +1,6 @@
 -- name: UpsertAliExpressSellerToken :exec
 INSERT INTO gugu.aliexpress_seller_token (
     id,
-    user_id,
     seller_id,
     havana_id,
     app_user_id,
@@ -19,10 +18,9 @@ INSERT INTO gugu.aliexpress_seller_token (
     created_at,
     updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
 )
 ON CONFLICT (seller_id) DO UPDATE SET
-    user_id = EXCLUDED.user_id,
     havana_id = EXCLUDED.havana_id,
     app_user_id = EXCLUDED.app_user_id,
     user_nick = EXCLUDED.user_nick,
@@ -38,10 +36,9 @@ ON CONFLICT (seller_id) DO UPDATE SET
     authorized_at = EXCLUDED.authorized_at,
     updated_at = EXCLUDED.updated_at;
 
--- name: FindAliExpressSellerTokenByUserID :one
+-- name: FindOneAliExpressSellerToken :one
 SELECT
     id,
-    user_id,
     seller_id,
     havana_id,
     app_user_id,
@@ -59,12 +56,11 @@ SELECT
     created_at,
     updated_at
 FROM gugu.aliexpress_seller_token
-WHERE user_id = $1;
+LIMIT 1;
 
 -- name: FindAliExpressSellerTokenBySellerID :one
 SELECT
     id,
-    user_id,
     seller_id,
     havana_id,
     app_user_id,
@@ -87,7 +83,6 @@ WHERE seller_id = $1;
 -- name: ListAliExpressSellerTokensExpiringBefore :many
 SELECT
     id,
-    user_id,
     seller_id,
     havana_id,
     app_user_id,

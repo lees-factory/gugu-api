@@ -7,7 +7,6 @@ import (
 
 type SellerTokenRecord struct {
 	ID                    string
-	UserID                string
 	SellerID              string
 	HavanaID              string
 	AppUserID             string
@@ -28,7 +27,7 @@ type SellerTokenRecord struct {
 
 type TokenStore interface {
 	Upsert(ctx context.Context, token SellerTokenRecord) error
-	FindByUserID(ctx context.Context, userID string) (*SellerTokenRecord, error)
+	FindOne(ctx context.Context) (*SellerTokenRecord, error)
 	FindBySellerID(ctx context.Context, sellerID string) (*SellerTokenRecord, error)
 	ListExpiringBefore(ctx context.Context, expiresBefore time.Time) ([]SellerTokenRecord, error)
 }
