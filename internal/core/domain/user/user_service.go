@@ -10,33 +10,6 @@ import (
 	coreerror "github.com/ljj/gugu-api/internal/core/error"
 )
 
-type RegisterEmailInput struct {
-	Email       string
-	Password    string
-	DisplayName string
-}
-
-type RegisterEmailResult struct {
-	User                   User
-	VerificationCode       string
-	VerificationDispatched bool
-}
-
-type VerifyEmailInput struct {
-	Code string
-}
-
-type VerifyEmailResult struct {
-	User User
-}
-
-type FindOrCreateOAuthUserInput struct {
-	Email       string
-	DisplayName string
-	AuthSource  string
-	VerifiedAt  time.Time
-}
-
 type Service struct {
 	finder                    Finder
 	creator                   Creator
@@ -44,7 +17,6 @@ type Service struct {
 	verificationFinder        verification.Finder
 	verificationWriter        verification.Writer
 	verificationCodeGenerator CodeGenerator
-	passwordHasher            PasswordHasher
 	mailer                    VerificationMailer
 	clock                     Clock
 }
@@ -56,7 +28,6 @@ func NewService(
 	verificationFinder verification.Finder,
 	verificationWriter verification.Writer,
 	verificationCodeGenerator CodeGenerator,
-	passwordHasher PasswordHasher,
 	mailer VerificationMailer,
 	clock Clock,
 ) *Service {
@@ -67,53 +38,49 @@ func NewService(
 		verificationFinder:        verificationFinder,
 		verificationWriter:        verificationWriter,
 		verificationCodeGenerator: verificationCodeGenerator,
-		passwordHasher:            passwordHasher,
 		mailer:                    mailer,
 		clock:                     clock,
 	}
 }
 
-func (s *Service) FindByEmail(ctx context.Context, email string) (*User, error) {
-	foundUser, err := s.finder.FindByEmail(ctx, normalizeEmail(email))
+func (s *Service) Create(ctx context.Context, newUser NewUser) (*User, error) {
+	email := normalizeValue(newUser.Email)
+	found, err := s.finder.FindByEmail(ctx, email)
 	if err != nil {
 		return nil, fmt.Errorf("find user by email: %w", err)
 	}
-	return foundUser, nil
+	if found != nil {
+		return nil, coreerror.New(coreerror.EmailAlreadyExists)
+	}
+
+	newUser.Email = email
+	return s.creator.Create(ctx, newUser)
+}
+
+func (s *Service) FindByEmail(ctx context.Context, email string) (*User, error) {
+	return s.finder.FindByEmail(ctx, normalizeValue(email))
 }
 
 func (s *Service) FindByID(ctx context.Context, userID string) (*User, error) {
-	foundUser, err := s.finder.FindByID(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("find user by id: %w", err)
-	}
-	return foundUser, nil
+	return s.finder.FindByID(ctx, userID)
 }
 
-func (s *Service) RegisterEmail(ctx context.Context, input RegisterEmailInput) (*RegisterEmailResult, error) {
-	passwordHash, err := s.passwordHasher.Hash(input.Password)
+func (s *Service) FindOrCreate(ctx context.Context, newUser NewUser) (*User, error) {
+	email := normalizeValue(newUser.Email)
+	found, err := s.finder.FindByEmail(ctx, email)
 	if err != nil {
-		return nil, fmt.Errorf("hash password: %w", err)
+		return nil, fmt.Errorf("find user by email: %w", err)
+	}
+	if found != nil {
+		return found, nil
 	}
 
-	createdUser, err := s.createEmailUser(ctx, input, passwordHash)
-	if err != nil {
-		return nil, err
-	}
-
-	verificationResult, err := s.issueEmailVerification(ctx, createdUser.ID, createdUser.Email)
-	if err != nil {
-		return nil, err
-	}
-
-	return &RegisterEmailResult{
-		User:                   *createdUser,
-		VerificationCode:       verificationResult.code,
-		VerificationDispatched: verificationResult.dispatched,
-	}, nil
+	newUser.Email = email
+	return s.creator.Create(ctx, newUser)
 }
 
-func (s *Service) VerifyEmail(ctx context.Context, input VerifyEmailInput) (*VerifyEmailResult, error) {
-	foundVerification, err := s.verificationFinder.FindByCode(ctx, input.Code)
+func (s *Service) VerifyEmail(ctx context.Context, code string) (*User, error) {
+	foundVerification, err := s.verificationFinder.FindByCode(ctx, code)
 	if err != nil {
 		return nil, fmt.Errorf("find verification by code: %w", err)
 	}
@@ -122,7 +89,7 @@ func (s *Service) VerifyEmail(ctx context.Context, input VerifyEmailInput) (*Ver
 	}
 
 	now := s.clock.Now()
-	if err := s.verificationWriter.MarkUsed(ctx, input.Code, now); err != nil {
+	if err := s.verificationWriter.MarkUsed(ctx, code, now); err != nil {
 		return nil, fmt.Errorf("mark verification used: %w", err)
 	}
 
@@ -130,63 +97,14 @@ func (s *Service) VerifyEmail(ctx context.Context, input VerifyEmailInput) (*Ver
 		return nil, fmt.Errorf("mark email verified: %w", err)
 	}
 
-	verifiedUser, err := s.finder.FindByID(ctx, foundVerification.UserID)
-	if err != nil {
-		return nil, fmt.Errorf("find user by id: %w", err)
-	}
-	if verifiedUser == nil {
-		return nil, coreerror.New(coreerror.VerificationNotFound)
-	}
-
-	return &VerifyEmailResult{User: *verifiedUser}, nil
+	return s.finder.FindByID(ctx, foundVerification.UserID)
 }
 
-func (s *Service) FindOrCreateOAuthUser(ctx context.Context, input FindOrCreateOAuthUserInput) (*User, error) {
-	emailValue := normalizeEmail(input.Email)
-	foundUser, err := s.finder.FindByEmail(ctx, emailValue)
-	if err != nil {
-		return nil, fmt.Errorf("find user by email: %w", err)
-	}
-	if foundUser != nil {
-		return foundUser, nil
-	}
-
-	newUser, err := s.creator.Create(ctx, CreateInput{
-		Email:           emailValue,
-		DisplayName:     input.DisplayName,
-		AuthSource:      strings.TrimSpace(strings.ToLower(input.AuthSource)),
-		EmailVerified:   true,
-		EmailVerifiedAt: &input.VerifiedAt,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("create oauth user: %w", err)
-	}
-
-	return newUser, nil
-}
-
-func (s *Service) MarkEmailVerified(ctx context.Context, userID string, verifiedAt time.Time) (*User, error) {
-	if err := s.writer.MarkEmailVerified(ctx, userID, verifiedAt); err != nil {
-		return nil, fmt.Errorf("mark email verified: %w", err)
-	}
-
-	foundUser, err := s.finder.FindByID(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("find user by id: %w", err)
-	}
-	return foundUser, nil
-}
-
-type issueVerificationResult struct {
-	code       string
-	dispatched bool
-}
-
-func (s *Service) issueEmailVerification(ctx context.Context, userID string, email string) (*issueVerificationResult, error) {
+func (s *Service) SendVerification(ctx context.Context, userID string, email string) (string, error) {
 	now := s.clock.Now()
 	code, err := s.verificationCodeGenerator.New()
 	if err != nil {
-		return nil, fmt.Errorf("generate verification code: %w", err)
+		return "", fmt.Errorf("generate verification code: %w", err)
 	}
 
 	emailVerification := verification.EmailVerification{
@@ -197,42 +115,24 @@ func (s *Service) issueEmailVerification(ctx context.Context, userID string, ema
 		CreatedAt: now,
 	}
 	if err := s.verificationWriter.Create(ctx, emailVerification); err != nil {
-		return nil, fmt.Errorf("create verification: %w", err)
+		return "", fmt.Errorf("create verification: %w", err)
 	}
 
 	if err := s.mailer.SendVerification(ctx, email, code); err != nil {
-		return nil, fmt.Errorf("send verification email: %w", err)
+		return "", fmt.Errorf("send verification email: %w", err)
 	}
 
-	return &issueVerificationResult{
-		code:       code,
-		dispatched: true,
-	}, nil
+	return code, nil
 }
 
-func (s *Service) createEmailUser(ctx context.Context, input RegisterEmailInput, passwordHash string) (*User, error) {
-	emailValue := normalizeEmail(input.Email)
-	foundUser, err := s.finder.FindByEmail(ctx, emailValue)
-	if err != nil {
-		return nil, fmt.Errorf("find user by email: %w", err)
-	}
-	if foundUser != nil {
-		return nil, coreerror.New(coreerror.EmailAlreadyExists)
+func (s *Service) MarkEmailVerified(ctx context.Context, userID string, verifiedAt time.Time) (*User, error) {
+	if err := s.writer.MarkEmailVerified(ctx, userID, verifiedAt); err != nil {
+		return nil, fmt.Errorf("mark email verified: %w", err)
 	}
 
-	newUser, err := s.creator.Create(ctx, CreateInput{
-		Email:         emailValue,
-		DisplayName:   input.DisplayName,
-		PasswordHash:  passwordHash,
-		AuthSource:    "email",
-		EmailVerified: false,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("create email user: %w", err)
-	}
-	return newUser, nil
+	return s.finder.FindByID(ctx, userID)
 }
 
-func normalizeEmail(email string) string {
-	return strings.TrimSpace(strings.ToLower(email))
+func normalizeValue(value string) string {
+	return strings.TrimSpace(strings.ToLower(value))
 }

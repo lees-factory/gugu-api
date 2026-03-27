@@ -91,6 +91,18 @@ func (c *stubAliExpressClient) GetAffiliateProductSKUDetail(_ context.Context, _
 	return nil, nil
 }
 
+func (c *stubAliExpressClient) GetAffiliateCategories(_ context.Context) (*clientaliexpress.CategoryResult, error) {
+	return nil, nil
+}
+
+func (c *stubAliExpressClient) GetAffiliateProducts(_ context.Context, _ clientaliexpress.ProductQueryInput) (*clientaliexpress.ProductQueryResult, error) {
+	return nil, nil
+}
+
+func (c *stubAliExpressClient) GetAffiliateHotProducts(_ context.Context, _ clientaliexpress.ProductQueryInput) (*clientaliexpress.ProductQueryResult, error) {
+	return nil, nil
+}
+
 type stubTokenStore struct {
 	items      map[string]clientaliexpress.SellerTokenRecord
 	lastUpsert *clientaliexpress.SellerTokenRecord

@@ -4,20 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 )
 
-type CreateInput struct {
-	Email           string
-	DisplayName     string
-	PasswordHash    string
-	AuthSource      string
-	EmailVerified   bool
-	EmailVerifiedAt *time.Time
-}
-
 type Creator interface {
-	Create(ctx context.Context, input CreateInput) (*User, error)
+	Create(ctx context.Context, newUser NewUser) (*User, error)
 }
 
 type creator struct {
@@ -34,33 +24,33 @@ func NewCreator(writer Writer, idGenerator IDGenerator, clock Clock) Creator {
 	}
 }
 
-func (c *creator) Create(ctx context.Context, input CreateInput) (*User, error) {
+func (c *creator) Create(ctx context.Context, newUser NewUser) (*User, error) {
 	userID, err := c.idGenerator.New()
 	if err != nil {
 		return nil, fmt.Errorf("generate user id: %w", err)
 	}
 
 	now := c.clock.Now()
-	newUser := User{
+	u := User{
 		ID:            userID,
-		Email:         strings.TrimSpace(strings.ToLower(input.Email)),
-		DisplayName:   strings.TrimSpace(input.DisplayName),
-		PasswordHash:  input.PasswordHash,
-		AuthSource:    strings.TrimSpace(strings.ToLower(input.AuthSource)),
-		EmailVerified: input.EmailVerified,
+		Email:         strings.TrimSpace(strings.ToLower(newUser.Email)),
+		DisplayName:   strings.TrimSpace(newUser.DisplayName),
+		PasswordHash:  newUser.PasswordHash,
+		AuthSource:    strings.TrimSpace(strings.ToLower(newUser.AuthSource)),
+		EmailVerified: newUser.EmailVerified,
 		CreatedAt:     now,
 	}
-	if input.EmailVerified {
+	if newUser.EmailVerified {
 		verifiedAt := now
-		if input.EmailVerifiedAt != nil {
-			verifiedAt = *input.EmailVerifiedAt
+		if newUser.EmailVerifiedAt != nil {
+			verifiedAt = *newUser.EmailVerifiedAt
 		}
-		newUser.EmailVerifiedAt = &verifiedAt
+		u.EmailVerifiedAt = &verifiedAt
 	}
 
-	if err := c.writer.Create(ctx, newUser); err != nil {
+	if err := c.writer.Create(ctx, u); err != nil {
 		return nil, fmt.Errorf("create user: %w", err)
 	}
 
-	return &newUser, nil
+	return &u, nil
 }
