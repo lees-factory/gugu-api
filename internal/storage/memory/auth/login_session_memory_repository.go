@@ -5,25 +5,25 @@ import (
 	"sync"
 	"time"
 
-	domainauth "github.com/ljj/gugu-api/internal/core/domain/auth"
+	supportauth "github.com/ljj/gugu-api/internal/support/auth"
 )
 
 type LoginSessionMemoryRepository struct {
 	mu                 sync.RWMutex
-	sessions           map[string]domainauth.LoginSession
+	sessions           map[string]supportauth.LoginSession
 	sessionIDsByHash   map[string]string
 	sessionIDsByFamily map[string]map[string]struct{}
 }
 
 func NewLoginSessionRepository() *LoginSessionMemoryRepository {
 	return &LoginSessionMemoryRepository{
-		sessions:           make(map[string]domainauth.LoginSession),
+		sessions:           make(map[string]supportauth.LoginSession),
 		sessionIDsByHash:   make(map[string]string),
 		sessionIDsByFamily: make(map[string]map[string]struct{}),
 	}
 }
 
-func (r *LoginSessionMemoryRepository) Create(_ context.Context, session domainauth.LoginSession) error {
+func (r *LoginSessionMemoryRepository) Create(_ context.Context, session supportauth.LoginSession) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -36,7 +36,7 @@ func (r *LoginSessionMemoryRepository) Create(_ context.Context, session domaina
 	return nil
 }
 
-func (r *LoginSessionMemoryRepository) FindByRefreshTokenHash(_ context.Context, refreshTokenHash string) (*domainauth.LoginSession, error) {
+func (r *LoginSessionMemoryRepository) FindByRefreshTokenHash(_ context.Context, refreshTokenHash string) (*supportauth.LoginSession, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 

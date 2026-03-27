@@ -6,21 +6,21 @@ import (
 	"sync"
 	"time"
 
-	domainauth "github.com/ljj/gugu-api/internal/core/domain/auth"
+	supportauth "github.com/ljj/gugu-api/internal/support/auth"
 )
 
 type OAuthIdentityMemoryRepository struct {
 	mu         sync.RWMutex
-	identities map[string]domainauth.OAuthIdentity
+	identities map[string]supportauth.OAuthIdentity
 }
 
 func NewOAuthIdentityRepository() *OAuthIdentityMemoryRepository {
 	return &OAuthIdentityMemoryRepository{
-		identities: make(map[string]domainauth.OAuthIdentity),
+		identities: make(map[string]supportauth.OAuthIdentity),
 	}
 }
 
-func (r *OAuthIdentityMemoryRepository) FindByProviderSubject(_ context.Context, provider string, subject string) (*domainauth.OAuthIdentity, error) {
+func (r *OAuthIdentityMemoryRepository) FindByProviderSubject(_ context.Context, provider string, subject string) (*supportauth.OAuthIdentity, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -32,7 +32,7 @@ func (r *OAuthIdentityMemoryRepository) FindByProviderSubject(_ context.Context,
 	return &foundIdentity, nil
 }
 
-func (r *OAuthIdentityMemoryRepository) Create(_ context.Context, identity domainauth.OAuthIdentity) error {
+func (r *OAuthIdentityMemoryRepository) Create(_ context.Context, identity supportauth.OAuthIdentity) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

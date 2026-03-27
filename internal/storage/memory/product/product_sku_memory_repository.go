@@ -29,6 +29,35 @@ func (r *ProductSKUMemoryRepository) Create(_ context.Context, sku domainproduct
 	return nil
 }
 
+func (r *ProductSKUMemoryRepository) Upsert(_ context.Context, sku domainproduct.SKU) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for id, existing := range r.byID {
+		if existing.ProductID == sku.ProductID && existing.ExternalSKUID == sku.ExternalSKUID {
+			sku.ID = id
+			r.byID[id] = sku
+			return nil
+		}
+	}
+	r.byID[sku.ID] = sku
+	r.byProductID[sku.ProductID] = append(r.byProductID[sku.ProductID], sku.ID)
+	return nil
+}
+
+func (r *ProductSKUMemoryRepository) FindByProductIDAndExternalSKUID(_ context.Context, productID string, externalSKUID string) (*domainproduct.SKU, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for _, sku := range r.byID {
+		if sku.ProductID == productID && sku.ExternalSKUID == externalSKUID {
+			found := sku
+			return &found, nil
+		}
+	}
+	return nil, nil
+}
+
 func (r *ProductSKUMemoryRepository) FindByID(_ context.Context, skuID string) (*domainproduct.SKU, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

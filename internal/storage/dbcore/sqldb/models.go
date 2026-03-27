@@ -83,6 +83,13 @@ type GuguProductPriceHistory struct {
 	ChangeValue string    `json:"change_value"`
 }
 
+type GuguProductPriceSnapshot struct {
+	ProductID    string    `json:"product_id"`
+	SnapshotDate time.Time `json:"snapshot_date"`
+	Price        string    `json:"price"`
+	Currency     string    `json:"currency"`
+}
+
 type GuguSku struct {
 	ID            string    `json:"id"`
 	ProductID     string    `json:"product_id"`
@@ -98,6 +105,22 @@ type GuguSku struct {
 	SkuProperties string    `json:"sku_properties"`
 	CreatedAt     time.Time `json:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+type GuguSkuPriceHistory struct {
+	SkuID       string    `json:"sku_id"`
+	RecordedAt  time.Time `json:"recorded_at"`
+	Price       string    `json:"price"`
+	Currency    string    `json:"currency"`
+	ChangeValue string    `json:"change_value"`
+}
+
+type GuguSkuPriceSnapshot struct {
+	SkuID         string    `json:"sku_id"`
+	SnapshotDate  time.Time `json:"snapshot_date"`
+	Price         string    `json:"price"`
+	OriginalPrice string    `json:"original_price"`
+	Currency      string    `json:"currency"`
 }
 
 type GuguUserLoginSession struct {

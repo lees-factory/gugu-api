@@ -6,7 +6,7 @@ import (
 	"errors"
 	"time"
 
-	domainauth "github.com/ljj/gugu-api/internal/core/domain/auth"
+	supportauth "github.com/ljj/gugu-api/internal/support/auth"
 	"github.com/ljj/gugu-api/internal/storage/dbcore/sqldb"
 )
 
@@ -18,7 +18,7 @@ func NewLoginSessionSQLCRepository(db *sql.DB) *LoginSessionSQLCRepository {
 	return &LoginSessionSQLCRepository{queries: sqldb.New(db)}
 }
 
-func (r *LoginSessionSQLCRepository) Create(ctx context.Context, session domainauth.LoginSession) error {
+func (r *LoginSessionSQLCRepository) Create(ctx context.Context, session supportauth.LoginSession) error {
 	return r.queries.CreateUserLoginSession(ctx, sqldb.CreateUserLoginSessionParams{
 		ID:               session.ID,
 		UserID:           session.UserID,
@@ -37,7 +37,7 @@ func (r *LoginSessionSQLCRepository) Create(ctx context.Context, session domaina
 	})
 }
 
-func (r *LoginSessionSQLCRepository) FindByRefreshTokenHash(ctx context.Context, refreshTokenHash string) (*domainauth.LoginSession, error) {
+func (r *LoginSessionSQLCRepository) FindByRefreshTokenHash(ctx context.Context, refreshTokenHash string) (*supportauth.LoginSession, error) {
 	row, err := r.queries.FindUserLoginSessionByRefreshTokenHash(ctx, refreshTokenHash)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -89,8 +89,8 @@ func (r *LoginSessionSQLCRepository) UpdateLastSeen(ctx context.Context, session
 	return mapAffectedRows(affected, err)
 }
 
-func toDomainLoginSession(row sqldb.GuguUserLoginSession) *domainauth.LoginSession {
-	session := &domainauth.LoginSession{
+func toDomainLoginSession(row sqldb.GuguUserLoginSession) *supportauth.LoginSession {
+	session := &supportauth.LoginSession{
 		ID:               row.ID,
 		UserID:           row.UserID,
 		RefreshTokenHash: row.RefreshTokenHash,

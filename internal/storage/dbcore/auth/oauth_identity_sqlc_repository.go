@@ -6,7 +6,7 @@ import (
 	"errors"
 	"time"
 
-	domainauth "github.com/ljj/gugu-api/internal/core/domain/auth"
+	supportauth "github.com/ljj/gugu-api/internal/support/auth"
 	"github.com/ljj/gugu-api/internal/storage/dbcore/sqldb"
 )
 
@@ -18,7 +18,7 @@ func NewOAuthIdentitySQLCRepository(db *sql.DB) *OAuthIdentitySQLCRepository {
 	return &OAuthIdentitySQLCRepository{queries: sqldb.New(db)}
 }
 
-func (r *OAuthIdentitySQLCRepository) FindByProviderSubject(ctx context.Context, provider string, subject string) (*domainauth.OAuthIdentity, error) {
+func (r *OAuthIdentitySQLCRepository) FindByProviderSubject(ctx context.Context, provider string, subject string) (*supportauth.OAuthIdentity, error) {
 	row, err := r.queries.FindOAuthIdentity(ctx, sqldb.FindOAuthIdentityParams{
 		Provider: provider,
 		Subject:  subject,
@@ -30,7 +30,7 @@ func (r *OAuthIdentitySQLCRepository) FindByProviderSubject(ctx context.Context,
 		return nil, err
 	}
 
-	return &domainauth.OAuthIdentity{
+	return &supportauth.OAuthIdentity{
 		ID:          row.ID,
 		UserID:      row.UserID,
 		Provider:    row.Provider,
@@ -41,7 +41,7 @@ func (r *OAuthIdentitySQLCRepository) FindByProviderSubject(ctx context.Context,
 	}, nil
 }
 
-func (r *OAuthIdentitySQLCRepository) Create(ctx context.Context, identity domainauth.OAuthIdentity) error {
+func (r *OAuthIdentitySQLCRepository) Create(ctx context.Context, identity supportauth.OAuthIdentity) error {
 	return r.queries.CreateOAuthIdentity(ctx, sqldb.CreateOAuthIdentityParams{
 		ID:          identity.ID,
 		UserID:      identity.UserID,

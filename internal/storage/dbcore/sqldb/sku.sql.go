@@ -110,6 +110,53 @@ func (q *Queries) FindProductSKUByID(ctx context.Context, id string) (GuguSku, e
 	return i, err
 }
 
+const findProductSKUByProductIDAndExternalSKUID = `-- name: FindProductSKUByProductIDAndExternalSKUID :one
+SELECT
+    id,
+    product_id,
+    external_sku_id,
+    origin_sku_id,
+    sku_name,
+    color,
+    size,
+    price,
+    original_price,
+    currency,
+    image_url,
+    sku_properties,
+    created_at,
+    updated_at
+FROM gugu.sku
+WHERE product_id = $1 AND external_sku_id = $2
+`
+
+type FindProductSKUByProductIDAndExternalSKUIDParams struct {
+	ProductID     string `json:"product_id"`
+	ExternalSkuID string `json:"external_sku_id"`
+}
+
+func (q *Queries) FindProductSKUByProductIDAndExternalSKUID(ctx context.Context, arg FindProductSKUByProductIDAndExternalSKUIDParams) (GuguSku, error) {
+	row := q.db.QueryRowContext(ctx, findProductSKUByProductIDAndExternalSKUID, arg.ProductID, arg.ExternalSkuID)
+	var i GuguSku
+	err := row.Scan(
+		&i.ID,
+		&i.ProductID,
+		&i.ExternalSkuID,
+		&i.OriginSkuID,
+		&i.SkuName,
+		&i.Color,
+		&i.Size,
+		&i.Price,
+		&i.OriginalPrice,
+		&i.Currency,
+		&i.ImageUrl,
+		&i.SkuProperties,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const findProductSKUsByProductID = `-- name: FindProductSKUsByProductID :many
 SELECT
     id,
@@ -167,4 +214,73 @@ func (q *Queries) FindProductSKUsByProductID(ctx context.Context, productID stri
 		return nil, err
 	}
 	return items, nil
+}
+
+const upsertProductSKU = `-- name: UpsertProductSKU :exec
+INSERT INTO gugu.sku (
+    id,
+    product_id,
+    external_sku_id,
+    origin_sku_id,
+    sku_name,
+    color,
+    size,
+    price,
+    original_price,
+    currency,
+    image_url,
+    sku_properties,
+    created_at,
+    updated_at
+) VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+)
+ON CONFLICT (product_id, external_sku_id) DO UPDATE SET
+    origin_sku_id = EXCLUDED.origin_sku_id,
+    sku_name = EXCLUDED.sku_name,
+    color = EXCLUDED.color,
+    size = EXCLUDED.size,
+    price = EXCLUDED.price,
+    original_price = EXCLUDED.original_price,
+    currency = EXCLUDED.currency,
+    image_url = EXCLUDED.image_url,
+    sku_properties = EXCLUDED.sku_properties,
+    updated_at = EXCLUDED.updated_at
+`
+
+type UpsertProductSKUParams struct {
+	ID            string    `json:"id"`
+	ProductID     string    `json:"product_id"`
+	ExternalSkuID string    `json:"external_sku_id"`
+	OriginSkuID   string    `json:"origin_sku_id"`
+	SkuName       string    `json:"sku_name"`
+	Color         string    `json:"color"`
+	Size          string    `json:"size"`
+	Price         string    `json:"price"`
+	OriginalPrice string    `json:"original_price"`
+	Currency      string    `json:"currency"`
+	ImageUrl      string    `json:"image_url"`
+	SkuProperties string    `json:"sku_properties"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+}
+
+func (q *Queries) UpsertProductSKU(ctx context.Context, arg UpsertProductSKUParams) error {
+	_, err := q.db.ExecContext(ctx, upsertProductSKU,
+		arg.ID,
+		arg.ProductID,
+		arg.ExternalSkuID,
+		arg.OriginSkuID,
+		arg.SkuName,
+		arg.Color,
+		arg.Size,
+		arg.Price,
+		arg.OriginalPrice,
+		arg.Currency,
+		arg.ImageUrl,
+		arg.SkuProperties,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	return err
 }

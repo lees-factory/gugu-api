@@ -138,3 +138,34 @@ CREATE TABLE IF NOT EXISTS gugu.sku (
 );
 
 CREATE INDEX IF NOT EXISTS idx_product_sku_product_id ON gugu.sku(product_id);
+
+CREATE TABLE IF NOT EXISTS gugu.sku_price_history (
+    sku_id TEXT NOT NULL REFERENCES gugu.sku(id),
+    recorded_at TIMESTAMPTZ NOT NULL,
+    price TEXT NOT NULL DEFAULT '',
+    currency TEXT NOT NULL DEFAULT '',
+    change_value TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (sku_id, recorded_at)
+);
+
+CREATE INDEX IF NOT EXISTS idx_sku_price_history_sku_id_recorded_at ON gugu.sku_price_history(sku_id, recorded_at DESC);
+
+CREATE TABLE IF NOT EXISTS gugu.product_price_snapshot (
+    product_id TEXT NOT NULL REFERENCES gugu.product(id),
+    snapshot_date DATE NOT NULL,
+    price TEXT NOT NULL DEFAULT '',
+    currency TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (product_id, snapshot_date)
+);
+
+CREATE TABLE IF NOT EXISTS gugu.sku_price_snapshot (
+    sku_id TEXT NOT NULL REFERENCES gugu.sku(id),
+    snapshot_date DATE NOT NULL,
+    price TEXT NOT NULL DEFAULT '',
+    original_price TEXT NOT NULL DEFAULT '',
+    currency TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (sku_id, snapshot_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_product_price_snapshot_product_id ON gugu.product_price_snapshot(product_id, snapshot_date DESC);
+CREATE INDEX IF NOT EXISTS idx_sku_price_snapshot_sku_id ON gugu.sku_price_snapshot(sku_id, snapshot_date DESC);

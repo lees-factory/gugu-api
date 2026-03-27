@@ -36,6 +36,40 @@ func (r *ProductSKUSQLCRepository) Create(ctx context.Context, sku domainproduct
 	})
 }
 
+func (r *ProductSKUSQLCRepository) Upsert(ctx context.Context, sku domainproduct.SKU) error {
+	return r.queries.UpsertProductSKU(ctx, sqldb.UpsertProductSKUParams{
+		ID:            sku.ID,
+		ProductID:     sku.ProductID,
+		ExternalSkuID: sku.ExternalSKUID,
+		OriginSkuID:   sku.OriginSKUID,
+		SkuName:       sku.SKUName,
+		Color:         sku.Color,
+		Size:          sku.Size,
+		Price:         sku.Price,
+		OriginalPrice: sku.OriginalPrice,
+		Currency:      sku.Currency,
+		ImageUrl:      sku.ImageURL,
+		SkuProperties: sku.SKUProperties,
+		CreatedAt:     sku.CreatedAt,
+		UpdatedAt:     sku.UpdatedAt,
+	})
+}
+
+func (r *ProductSKUSQLCRepository) FindByProductIDAndExternalSKUID(ctx context.Context, productID string, externalSKUID string) (*domainproduct.SKU, error) {
+	row, err := r.queries.FindProductSKUByProductIDAndExternalSKUID(ctx, sqldb.FindProductSKUByProductIDAndExternalSKUIDParams{
+		ProductID:     productID,
+		ExternalSkuID: externalSKUID,
+	})
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	item := toDomainProductSKU(row)
+	return &item, nil
+}
+
 func (r *ProductSKUSQLCRepository) FindByID(ctx context.Context, skuID string) (*domainproduct.SKU, error) {
 	row, err := r.queries.FindProductSKUByID(ctx, skuID)
 	if err != nil {
