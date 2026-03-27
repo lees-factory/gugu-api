@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	domainauth "github.com/ljj/gugu-api/internal/core/domain/auth"
+	supportauth "github.com/ljj/gugu-api/internal/support/auth"
 )
 
 const (
@@ -46,7 +46,7 @@ func NewJWTTokenIssuer(secret string, issuer string) JWTTokenIssuer {
 	}
 }
 
-func (i JWTTokenIssuer) IssueAccessToken(userID string, now time.Time) (domainauth.IssuedAccessToken, error) {
+func (i JWTTokenIssuer) IssueAccessToken(userID string, now time.Time) (supportauth.IssuedAccessToken, error) {
 	accessExpiresAt := now.Add(i.accessTokenDuration)
 
 	accessToken, err := i.sign(jwtClaims{
@@ -57,10 +57,10 @@ func (i JWTTokenIssuer) IssueAccessToken(userID string, now time.Time) (domainau
 		Exp:  accessExpiresAt.Unix(),
 	})
 	if err != nil {
-		return domainauth.IssuedAccessToken{}, fmt.Errorf("sign access token: %w", err)
+		return supportauth.IssuedAccessToken{}, fmt.Errorf("sign access token: %w", err)
 	}
 
-	return domainauth.IssuedAccessToken{
+	return supportauth.IssuedAccessToken{
 		Token:     accessToken,
 		ExpiresAt: accessExpiresAt,
 	}, nil
@@ -88,6 +88,43 @@ func (i JWTTokenIssuer) sign(claims jwtClaims) (string, error) {
 
 	signature := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 	return signingInput + "." + signature, nil
+}
+
+func (i JWTTokenIssuer) VerifyAccessToken(tokenString string) (string, error) {
+	parts := strings.Split(tokenString, ".")
+	if len(parts) != 3 {
+		return "", fmt.Errorf("invalid token format")
+	}
+
+	signingInput := parts[0] + "." + parts[1]
+	mac := hmac.New(sha256.New, i.secret)
+	if _, err := mac.Write([]byte(signingInput)); err != nil {
+		return "", fmt.Errorf("compute signature: %w", err)
+	}
+	expectedSig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	if !hmac.Equal([]byte(parts[2]), []byte(expectedSig)) {
+		return "", fmt.Errorf("invalid token signature")
+	}
+
+	claimsJSON, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return "", fmt.Errorf("decode claims: %w", err)
+	}
+
+	var claims jwtClaims
+	if err := json.Unmarshal(claimsJSON, &claims); err != nil {
+		return "", fmt.Errorf("unmarshal claims: %w", err)
+	}
+
+	if claims.Type != accessTokenType {
+		return "", fmt.Errorf("invalid token type: %s", claims.Type)
+	}
+
+	if time.Now().Unix() > claims.Exp {
+		return "", fmt.Errorf("token expired")
+	}
+
+	return claims.Sub, nil
 }
 
 func encodeJWTPart(value any) (string, error) {
