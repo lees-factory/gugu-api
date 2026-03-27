@@ -1,7 +1,0 @@
-package request
-
-type RegisterEmail struct {
-	Email       string `json:"email"`
-	Password    string `json:"password"`
-	DisplayName string `json:"display_name"`
-}
