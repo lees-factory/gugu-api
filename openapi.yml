@@ -462,6 +462,34 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /v1/integrations/aliexpress/categories:
+    get:
+      tags:
+        - 외부 연동
+      summary: AliExpress Affiliate 카테고리 목록 조회
+      description: |
+        AliExpress Affiliate API를 호출하여 전체 카테고리 목록을 조회한다. 개발자 확인용.
+        카테고리 ID는 상품 목록 조회(`/products`)의 `category_ids` 파라미터에 사용할 수 있다.
+      operationId: getAliExpressCategories
+      responses:
+        '200':
+          description: 조회에 성공했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AliExpressCategoryResponse'
+        '400':
+          description: AliExpress API 에러가 발생했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 내부 오류가 발생했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /v1/integrations/aliexpress/products:
     get:
       tags:
@@ -1309,6 +1337,36 @@ components:
           $ref: '#/components/schemas/ResultType'
         data:
           $ref: '#/components/schemas/AliExpressConnectionStatusData'
+    AliExpressCategoryResponse:
+      type: object
+      description: AliExpress Affiliate 카테고리 목록 응답
+      required:
+        - result
+        - data
+      properties:
+        result:
+          $ref: '#/components/schemas/ResultType'
+        data:
+          type: object
+          properties:
+            TotalResultCount:
+              type: integer
+              description: 전체 카테고리 수
+            Categories:
+              type: array
+              description: 카테고리 목록
+              items:
+                type: object
+                properties:
+                  category_id:
+                    type: integer
+                    description: 카테고리 ID
+                  category_name:
+                    type: string
+                    description: 카테고리명
+                  parent_category_id:
+                    type: integer
+                    description: 부모 카테고리 ID (0이면 최상위)
     AliExpressProductQueryResponse:
       type: object
       description: AliExpress Affiliate 상품 목록 조회 응답

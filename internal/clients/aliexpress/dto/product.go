@@ -10,6 +10,17 @@ type ProductLookupInput struct {
 	AccessToken    string
 }
 
+type CategoryResult struct {
+	TotalResultCount int64               `json:"total_result_count"`
+	Categories       []AffiliateCategory `json:"categories"`
+}
+
+type AffiliateCategory struct {
+	CategoryID       int64  `json:"category_id"`
+	CategoryName     string `json:"category_name"`
+	ParentCategoryID int64  `json:"parent_category_id"`
+}
+
 type ProductQueryInput struct {
 	CategoryIDs    string
 	Keywords       string

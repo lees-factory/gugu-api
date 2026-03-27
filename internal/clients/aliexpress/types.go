@@ -25,6 +25,25 @@ type remoteErrorEnvelope struct {
 	RequestID string `json:"request_id"`
 }
 
+type categoryEnvelope struct {
+	RespResult categoryResult `json:"resp_result"`
+}
+
+type categoryResult struct {
+	RespCode int64               `json:"resp_code"`
+	RespMsg  string              `json:"resp_msg"`
+	Result   categoryResultBlock `json:"result"`
+}
+
+type categoryResultBlock struct {
+	TotalResultCount int64               `json:"total_result_count"`
+	Categories       categoryListWrapper `json:"categories"`
+}
+
+type categoryListWrapper struct {
+	Category []AffiliateCategory `json:"category"`
+}
+
 type productQueryEnvelope struct {
 	RespResult productQueryResult `json:"resp_result"`
 }

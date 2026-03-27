@@ -1,8 +1,8 @@
 package response
 
 import (
-	apierror "github.com/ljj/gugu-api/internal/core/api/support/error"
 	coreerror "github.com/ljj/gugu-api/internal/core/error"
+	apierror "github.com/ljj/gugu-api/internal/core/support/error"
 )
 
 type ErrorMessage struct {

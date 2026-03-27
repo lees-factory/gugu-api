@@ -11,6 +11,8 @@ type RefreshTokenInput = alidto.RefreshTokenInput
 type TokenSet = alidto.TokenSet
 
 type ProductLookupInput = alidto.ProductLookupInput
+type CategoryResult = alidto.CategoryResult
+type AffiliateCategory = alidto.AffiliateCategory
 type ProductQueryInput = alidto.ProductQueryInput
 type ProductQueryResult = alidto.ProductQueryResult
 type ProductDetailInput = alidto.ProductDetailInput
@@ -30,7 +32,9 @@ type AuthClient interface {
 }
 
 type ProductClient interface {
+	GetAffiliateCategories(ctx context.Context) (*CategoryResult, error)
 	GetAffiliateProducts(ctx context.Context, input ProductQueryInput) (*ProductQueryResult, error)
+	GetAffiliateHotProducts(ctx context.Context, input ProductQueryInput) (*ProductQueryResult, error)
 	GetAffiliateProductDetail(ctx context.Context, input ProductDetailInput) (*ProductDetailResult, error)
 	GetAffiliateProductSKUDetail(ctx context.Context, input ProductSKUDetailInput) (*ProductSKUDetailResult, error)
 	GetProductSnapshot(ctx context.Context, input ProductLookupInput) (*ProductSnapshot, error)

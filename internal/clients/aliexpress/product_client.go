@@ -8,6 +8,26 @@ import (
 	"strings"
 )
 
+func (c *HTTPClient) GetAffiliateCategories(ctx context.Context) (*CategoryResult, error) {
+	response, err := c.executeFormRequest(ctx, signedRequest{
+		apiName:     "aliexpress.affiliate.category.get",
+		form:        map[string]string{},
+		topProtocol: true,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var payload categoryEnvelope
+	if err := json.Unmarshal(response, &payload); err != nil {
+		return nil, fmt.Errorf("decode category response: %w", err)
+	}
+	return &CategoryResult{
+		TotalResultCount: payload.RespResult.Result.TotalResultCount,
+		Categories:       payload.RespResult.Result.Categories.Category,
+	}, nil
+}
+
 func (c *HTTPClient) GetAffiliateProducts(ctx context.Context, input ProductQueryInput) (*ProductQueryResult, error) {
 	form := map[string]string{
 		"target_currency": defaultString(input.TargetCurrency, "USD"),
@@ -54,6 +74,62 @@ func (c *HTTPClient) GetAffiliateProducts(ctx context.Context, input ProductQuer
 	var payload productQueryEnvelope
 	if err := json.Unmarshal(response, &payload); err != nil {
 		return nil, fmt.Errorf("decode product query response: %w", err)
+	}
+	return &ProductQueryResult{
+		CurrentPageNo:      payload.RespResult.Result.CurrentPageNo,
+		CurrentRecordCount: payload.RespResult.Result.CurrentRecordCount,
+		TotalPageNo:        payload.RespResult.Result.TotalPageNo,
+		TotalRecordCount:   payload.RespResult.Result.TotalRecordCount,
+		Products:           payload.RespResult.Result.Products.Product,
+	}, nil
+}
+
+func (c *HTTPClient) GetAffiliateHotProducts(ctx context.Context, input ProductQueryInput) (*ProductQueryResult, error) {
+	form := map[string]string{
+		"target_currency": defaultString(input.TargetCurrency, "USD"),
+		"target_language": defaultString(input.TargetLanguage, "EN"),
+		"access_token":    strings.TrimSpace(input.AccessToken),
+	}
+	if v := strings.TrimSpace(input.CategoryIDs); v != "" {
+		form["category_ids"] = v
+	}
+	if v := strings.TrimSpace(input.Keywords); v != "" {
+		form["keywords"] = v
+	}
+	if v := strings.TrimSpace(input.MaxSalePrice); v != "" {
+		form["max_sale_price"] = v
+	}
+	if v := strings.TrimSpace(input.MinSalePrice); v != "" {
+		form["min_sale_price"] = v
+	}
+	if v := strings.TrimSpace(input.PageNo); v != "" {
+		form["page_no"] = v
+	}
+	if v := strings.TrimSpace(input.PageSize); v != "" {
+		form["page_size"] = v
+	}
+	if v := strings.TrimSpace(input.Sort); v != "" {
+		form["sort"] = v
+	}
+	if v := strings.TrimSpace(input.TrackingID); v != "" {
+		form["tracking_id"] = v
+	}
+	if v := strings.TrimSpace(input.ShipToCountry); v != "" {
+		form["ship_to_country"] = v
+	}
+
+	response, err := c.executeFormRequest(ctx, signedRequest{
+		apiName:     "aliexpress.affiliate.hotproduct.query",
+		form:        form,
+		topProtocol: true,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var payload productQueryEnvelope
+	if err := json.Unmarshal(response, &payload); err != nil {
+		return nil, fmt.Errorf("decode hot product query response: %w", err)
 	}
 	return &ProductQueryResult{
 		CurrentPageNo:      payload.RespResult.Result.CurrentPageNo,
