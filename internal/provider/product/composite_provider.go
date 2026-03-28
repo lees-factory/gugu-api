@@ -54,8 +54,10 @@ func (p *CompositeProvider) Provide(ctx context.Context, market enum.Market, ext
 
 	wg.Wait()
 
-	// 양쪽 성공: 상품 정보는 metadata, SKU는 skuProvider
+	// 양쪽 성공: 메타 정보는 metadata, 가격 + SKU는 skuProvider
 	if metadataErr == nil && metadataResult != nil && skuErr == nil && skuResult != nil {
+		metadataResult.CurrentPrice = skuResult.CurrentPrice
+		metadataResult.Currency = skuResult.Currency
 		metadataResult.SKUs = skuResult.SKUs
 		return metadataResult, nil
 	}
