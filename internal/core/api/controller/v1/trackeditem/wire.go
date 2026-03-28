@@ -59,7 +59,7 @@ func Wire(cfg config.Config, db *sql.DB, aliExpressTokenStore clientaliexpress.T
 		BaseURL: cfg.CrawlerBaseURL,
 	})
 
-	tokenProvider := provideraliexpress.NewTokenProvider(aliExpressTokenStore)
+	tokenProvider := provideraliexpress.NewTokenProvider(aliExpressTokenStore, aliExpressClient)
 	provider := productprovider.NewCompositeProvider(
 		provideraliexpress.NewProvider(aliExpressClient, tokenProvider, "KRW", "KO", "KR"),
 		providercrawler.NewProvider(crawlerClient),
