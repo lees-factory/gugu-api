@@ -3,6 +3,8 @@ package aliexpress
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"strconv"
 	"strings"
 
 	clientaliexpress "github.com/ljj/gugu-api/internal/clients/aliexpress"
@@ -14,6 +16,7 @@ const collectionSource = "AFFILIATE_API"
 
 type ProductDetailClient interface {
 	GetAffiliateProductDetail(ctx context.Context, input clientaliexpress.ProductDetailInput) (*clientaliexpress.ProductDetailResult, error)
+	GetAffiliateProductSKUDetail(ctx context.Context, input clientaliexpress.ProductSKUDetailInput) (*clientaliexpress.ProductSKUDetailResult, error)
 }
 
 type TokenProvider interface {
@@ -66,15 +69,58 @@ func (p *Provider) Provide(ctx context.Context, market enum.Market, externalProd
 
 	detailProduct := detailResult.Products[0]
 
-	return &domainproduct.NewProduct{
+	price := firstNonEmpty(detailProduct.TargetSalePrice, detailProduct.SalePrice, detailProduct.TargetAppSalePrice, detailProduct.AppSalePrice)
+	currency := firstNonEmpty(detailProduct.TargetSalePriceCurrency, detailProduct.SalePriceCurrency, detailProduct.TargetAppSalePriceCurrency, detailProduct.AppSalePriceCurrency)
+
+	product := &domainproduct.NewProduct{
 		Market:            enum.MarketAliExpress,
 		ExternalProductID: externalProductID,
 		OriginalURL:       firstNonEmpty(originalURL, detailProduct.ProductDetailURL),
 		Title:             detailProduct.ProductTitle,
 		MainImageURL:      detailProduct.ProductMainImageURL,
+		CurrentPrice:      price,
+		Currency:          currency,
 		ProductURL:        detailProduct.ProductDetailURL,
 		CollectionSource:  collectionSource,
-	}, nil
+	}
+
+	skus := p.fetchSKUs(ctx, externalProductID, accessToken)
+	if len(skus) > 0 {
+		product.SKUs = skus
+	}
+
+	return product, nil
+}
+
+func (p *Provider) fetchSKUs(ctx context.Context, externalProductID string, accessToken string) []domainproduct.NewSKU {
+	skuResult, err := p.client.GetAffiliateProductSKUDetail(ctx, clientaliexpress.ProductSKUDetailInput{
+		ProductID:      externalProductID,
+		ShipToCountry:  defaultValue(p.shipToCountry, "US"),
+		TargetCurrency: defaultValue(p.targetCurrency, "USD"),
+		TargetLanguage: defaultValue(p.targetLanguage, "EN"),
+		AccessToken:    accessToken,
+	})
+	if err != nil {
+		slog.Warn("failed to fetch aliexpress sku detail", "product_id", externalProductID, "error", err)
+		return nil
+	}
+	if skuResult == nil || len(skuResult.SKUInfos) == 0 {
+		return nil
+	}
+
+	skus := make([]domainproduct.NewSKU, 0, len(skuResult.SKUInfos))
+	for _, info := range skuResult.SKUInfos {
+		skus = append(skus, domainproduct.NewSKU{
+			ExternalSKUID: strconv.FormatInt(info.SKUID, 10),
+			Color:         info.Color,
+			Size:          info.Size,
+			Price:         firstNonEmpty(info.SalePriceWithTax, info.PriceWithTax),
+			Currency:      info.Currency,
+			ImageURL:      info.SKUImageLink,
+			SKUProperties: info.SKUProperties,
+		})
+	}
+	return skus
 }
 
 func (p *Provider) resolveAccessToken(ctx context.Context) (string, error) {
