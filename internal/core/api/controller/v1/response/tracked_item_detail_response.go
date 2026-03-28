@@ -6,6 +6,7 @@ import (
 
 type TrackedItemDetail struct {
 	TrackedItemID     string       `json:"tracked_item_id"`
+	ProductID         string       `json:"product_id"`
 	SKUID             string       `json:"sku_id,omitempty"`
 	Market            string       `json:"market"`
 	ExternalProductID string       `json:"external_product_id"`
@@ -21,6 +22,7 @@ type TrackedItemDetail struct {
 func NewTrackedItemDetail(detail *domaintrackeditem.TrackedItemDetail) TrackedItemDetail {
 	return TrackedItemDetail{
 		TrackedItemID:     detail.TrackedItem.ID,
+		ProductID:         detail.Product.ID,
 		SKUID:             detail.TrackedItem.SKUID,
 		Market:            string(detail.Product.Market),
 		ExternalProductID: detail.Product.ExternalProductID,

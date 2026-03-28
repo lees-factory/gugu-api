@@ -1581,6 +1581,7 @@ components:
       description: 유저 저장 상품 상세 데이터
       required:
         - tracked_item_id
+        - product_id
         - market
         - external_product_id
         - original_url
@@ -1594,6 +1595,9 @@ components:
         tracked_item_id:
           type: string
           description: 유저 저장 상품 ID
+        product_id:
+          type: string
+          description: 내부 상품 ID
         sku_id:
           type: string
           description: 선택된 SKU ID
