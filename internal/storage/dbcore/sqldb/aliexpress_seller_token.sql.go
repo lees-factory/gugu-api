@@ -11,9 +11,61 @@ import (
 	"time"
 )
 
+const findAliExpressSellerTokenByAppType = `-- name: FindAliExpressSellerTokenByAppType :one
+SELECT
+    id,
+    app_type,
+    seller_id,
+    havana_id,
+    app_user_id,
+    user_nick,
+    account,
+    account_platform,
+    locale,
+    sp,
+    access_token,
+    refresh_token,
+    access_token_expires_at,
+    refresh_token_expires_at,
+    last_refreshed_at,
+    authorized_at,
+    created_at,
+    updated_at
+FROM gugu.aliexpress_seller_token
+WHERE app_type = $1
+LIMIT 1
+`
+
+func (q *Queries) FindAliExpressSellerTokenByAppType(ctx context.Context, appType string) (GuguAliexpressSellerToken, error) {
+	row := q.db.QueryRowContext(ctx, findAliExpressSellerTokenByAppType, appType)
+	var i GuguAliexpressSellerToken
+	err := row.Scan(
+		&i.ID,
+		&i.AppType,
+		&i.SellerID,
+		&i.HavanaID,
+		&i.AppUserID,
+		&i.UserNick,
+		&i.Account,
+		&i.AccountPlatform,
+		&i.Locale,
+		&i.Sp,
+		&i.AccessToken,
+		&i.RefreshToken,
+		&i.AccessTokenExpiresAt,
+		&i.RefreshTokenExpiresAt,
+		&i.LastRefreshedAt,
+		&i.AuthorizedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const findAliExpressSellerTokenBySellerID = `-- name: FindAliExpressSellerTokenBySellerID :one
 SELECT
     id,
+    app_type,
     seller_id,
     havana_id,
     app_user_id,
@@ -39,6 +91,7 @@ func (q *Queries) FindAliExpressSellerTokenBySellerID(ctx context.Context, selle
 	var i GuguAliexpressSellerToken
 	err := row.Scan(
 		&i.ID,
+		&i.AppType,
 		&i.SellerID,
 		&i.HavanaID,
 		&i.AppUserID,
@@ -62,6 +115,7 @@ func (q *Queries) FindAliExpressSellerTokenBySellerID(ctx context.Context, selle
 const findOneAliExpressSellerToken = `-- name: FindOneAliExpressSellerToken :one
 SELECT
     id,
+    app_type,
     seller_id,
     havana_id,
     app_user_id,
@@ -87,6 +141,7 @@ func (q *Queries) FindOneAliExpressSellerToken(ctx context.Context) (GuguAliexpr
 	var i GuguAliexpressSellerToken
 	err := row.Scan(
 		&i.ID,
+		&i.AppType,
 		&i.SellerID,
 		&i.HavanaID,
 		&i.AppUserID,
@@ -110,6 +165,7 @@ func (q *Queries) FindOneAliExpressSellerToken(ctx context.Context) (GuguAliexpr
 const listAliExpressSellerTokensExpiringBefore = `-- name: ListAliExpressSellerTokensExpiringBefore :many
 SELECT
     id,
+    app_type,
     seller_id,
     havana_id,
     app_user_id,
@@ -142,6 +198,7 @@ func (q *Queries) ListAliExpressSellerTokensExpiringBefore(ctx context.Context, 
 		var i GuguAliexpressSellerToken
 		if err := rows.Scan(
 			&i.ID,
+			&i.AppType,
 			&i.SellerID,
 			&i.HavanaID,
 			&i.AppUserID,
@@ -175,6 +232,7 @@ func (q *Queries) ListAliExpressSellerTokensExpiringBefore(ctx context.Context, 
 const upsertAliExpressSellerToken = `-- name: UpsertAliExpressSellerToken :exec
 INSERT INTO gugu.aliexpress_seller_token (
     id,
+    app_type,
     seller_id,
     havana_id,
     app_user_id,
@@ -192,9 +250,9 @@ INSERT INTO gugu.aliexpress_seller_token (
     created_at,
     updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18
 )
-ON CONFLICT (seller_id) DO UPDATE SET
+ON CONFLICT (app_type, seller_id) DO UPDATE SET
     havana_id = EXCLUDED.havana_id,
     app_user_id = EXCLUDED.app_user_id,
     user_nick = EXCLUDED.user_nick,
@@ -213,6 +271,7 @@ ON CONFLICT (seller_id) DO UPDATE SET
 
 type UpsertAliExpressSellerTokenParams struct {
 	ID                    string       `json:"id"`
+	AppType               string       `json:"app_type"`
 	SellerID              string       `json:"seller_id"`
 	HavanaID              string       `json:"havana_id"`
 	AppUserID             string       `json:"app_user_id"`
@@ -234,6 +293,7 @@ type UpsertAliExpressSellerTokenParams struct {
 func (q *Queries) UpsertAliExpressSellerToken(ctx context.Context, arg UpsertAliExpressSellerTokenParams) error {
 	_, err := q.db.ExecContext(ctx, upsertAliExpressSellerToken,
 		arg.ID,
+		arg.AppType,
 		arg.SellerID,
 		arg.HavanaID,
 		arg.AppUserID,

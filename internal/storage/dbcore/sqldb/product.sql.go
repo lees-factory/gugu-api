@@ -23,12 +23,13 @@ INSERT INTO gugu.product (
     current_price,
     currency,
     product_url,
+    promotion_link,
     collection_source,
     last_collected_at,
     created_at,
     updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
 )
 `
 
@@ -42,6 +43,7 @@ type CreateProductParams struct {
 	CurrentPrice      string    `json:"current_price"`
 	Currency          string    `json:"currency"`
 	ProductUrl        string    `json:"product_url"`
+	PromotionLink     string    `json:"promotion_link"`
 	CollectionSource  string    `json:"collection_source"`
 	LastCollectedAt   time.Time `json:"last_collected_at"`
 	CreatedAt         time.Time `json:"created_at"`
@@ -59,6 +61,7 @@ func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) er
 		arg.CurrentPrice,
 		arg.Currency,
 		arg.ProductUrl,
+		arg.PromotionLink,
 		arg.CollectionSource,
 		arg.LastCollectedAt,
 		arg.CreatedAt,
@@ -78,6 +81,7 @@ SELECT
     current_price,
     currency,
     product_url,
+    promotion_link,
     collection_source,
     last_collected_at,
     created_at,
@@ -99,6 +103,7 @@ func (q *Queries) FindProductByID(ctx context.Context, id string) (GuguProduct, 
 		&i.CurrentPrice,
 		&i.Currency,
 		&i.ProductUrl,
+		&i.PromotionLink,
 		&i.CollectionSource,
 		&i.LastCollectedAt,
 		&i.CreatedAt,
@@ -118,6 +123,7 @@ SELECT
     current_price,
     currency,
     product_url,
+    promotion_link,
     collection_source,
     last_collected_at,
     created_at,
@@ -144,6 +150,7 @@ func (q *Queries) FindProductByMarketAndExternalProductID(ctx context.Context, a
 		&i.CurrentPrice,
 		&i.Currency,
 		&i.ProductUrl,
+		&i.PromotionLink,
 		&i.CollectionSource,
 		&i.LastCollectedAt,
 		&i.CreatedAt,
@@ -163,6 +170,7 @@ SELECT
     current_price,
     currency,
     product_url,
+    promotion_link,
     collection_source,
     last_collected_at,
     created_at,
@@ -190,6 +198,7 @@ func (q *Queries) FindProductsByIDs(ctx context.Context, dollar_1 []string) ([]G
 			&i.CurrentPrice,
 			&i.Currency,
 			&i.ProductUrl,
+			&i.PromotionLink,
 			&i.CollectionSource,
 			&i.LastCollectedAt,
 			&i.CreatedAt,
@@ -219,6 +228,7 @@ SELECT
     current_price,
     currency,
     product_url,
+    promotion_link,
     collection_source,
     last_collected_at,
     created_at,
@@ -247,6 +257,7 @@ func (q *Queries) ListProductsByMarket(ctx context.Context, market string) ([]Gu
 			&i.CurrentPrice,
 			&i.Currency,
 			&i.ProductUrl,
+			&i.PromotionLink,
 			&i.CollectionSource,
 			&i.LastCollectedAt,
 			&i.CreatedAt,
@@ -274,9 +285,10 @@ SET
     current_price = $5,
     currency = $6,
     product_url = $7,
-    collection_source = $8,
-    last_collected_at = $9,
-    updated_at = $10
+    promotion_link = $8,
+    collection_source = $9,
+    last_collected_at = $10,
+    updated_at = $11
 WHERE id = $1
 `
 
@@ -288,6 +300,7 @@ type UpdateProductParams struct {
 	CurrentPrice     string    `json:"current_price"`
 	Currency         string    `json:"currency"`
 	ProductUrl       string    `json:"product_url"`
+	PromotionLink    string    `json:"promotion_link"`
 	CollectionSource string    `json:"collection_source"`
 	LastCollectedAt  time.Time `json:"last_collected_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
@@ -302,6 +315,7 @@ func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) (i
 		arg.CurrentPrice,
 		arg.Currency,
 		arg.ProductUrl,
+		arg.PromotionLink,
 		arg.CollectionSource,
 		arg.LastCollectedAt,
 		arg.UpdatedAt,

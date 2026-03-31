@@ -11,6 +11,7 @@ import (
 
 type GuguAliexpressSellerToken struct {
 	ID                    string       `json:"id"`
+	AppType               string       `json:"app_type"`
 	SellerID              string       `json:"seller_id"`
 	HavanaID              string       `json:"havana_id"`
 	AppUserID             string       `json:"app_user_id"`
@@ -69,6 +70,7 @@ type GuguProduct struct {
 	CurrentPrice      string    `json:"current_price"`
 	Currency          string    `json:"currency"`
 	ProductUrl        string    `json:"product_url"`
+	PromotionLink     string    `json:"promotion_link"`
 	CollectionSource  string    `json:"collection_source"`
 	LastCollectedAt   time.Time `json:"last_collected_at"`
 	CreatedAt         time.Time `json:"created_at"`

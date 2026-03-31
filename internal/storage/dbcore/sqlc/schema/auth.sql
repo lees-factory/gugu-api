@@ -50,7 +50,8 @@ CREATE TABLE IF NOT EXISTS gugu.user_login_session (
 
 CREATE TABLE IF NOT EXISTS gugu.aliexpress_seller_token (
     id TEXT PRIMARY KEY,
-    seller_id TEXT NOT NULL UNIQUE,
+    app_type TEXT NOT NULL DEFAULT 'AFFILIATE',
+    seller_id TEXT NOT NULL,
     havana_id TEXT NOT NULL DEFAULT '',
     app_user_id TEXT NOT NULL DEFAULT '',
     user_nick TEXT NOT NULL DEFAULT '',
@@ -65,7 +66,8 @@ CREATE TABLE IF NOT EXISTS gugu.aliexpress_seller_token (
     last_refreshed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     authorized_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (app_type, seller_id)
 );
 
 CREATE TABLE IF NOT EXISTS gugu.product (
@@ -78,6 +80,7 @@ CREATE TABLE IF NOT EXISTS gugu.product (
     current_price TEXT NOT NULL DEFAULT '',
     currency TEXT NOT NULL DEFAULT '',
     product_url TEXT NOT NULL DEFAULT '',
+    promotion_link TEXT NOT NULL DEFAULT '',
     collection_source TEXT NOT NULL DEFAULT '',
     last_collected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

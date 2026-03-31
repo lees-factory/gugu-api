@@ -21,6 +21,7 @@ func NewSQLCRepository(db *sql.DB) *SellerTokenSQLCRepository {
 func (r *SellerTokenSQLCRepository) Upsert(ctx context.Context, token clientaliexpress.SellerTokenRecord) error {
 	return r.queries.UpsertAliExpressSellerToken(ctx, sqldb.UpsertAliExpressSellerTokenParams{
 		ID:                    token.ID,
+		AppType:               token.AppType,
 		SellerID:              token.SellerID,
 		HavanaID:              token.HavanaID,
 		AppUserID:             token.AppUserID,
@@ -42,6 +43,18 @@ func (r *SellerTokenSQLCRepository) Upsert(ctx context.Context, token clientalie
 
 func (r *SellerTokenSQLCRepository) FindOne(ctx context.Context) (*clientaliexpress.SellerTokenRecord, error) {
 	row, err := r.queries.FindOneAliExpressSellerToken(ctx)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	record := toSellerTokenRecord(row)
+	return &record, nil
+}
+
+func (r *SellerTokenSQLCRepository) FindByAppType(ctx context.Context, appType string) (*clientaliexpress.SellerTokenRecord, error) {
+	row, err := r.queries.FindAliExpressSellerTokenByAppType(ctx, appType)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -81,6 +94,7 @@ func (r *SellerTokenSQLCRepository) ListExpiringBefore(ctx context.Context, expi
 func toSellerTokenRecord(row sqldb.GuguAliexpressSellerToken) clientaliexpress.SellerTokenRecord {
 	token := clientaliexpress.SellerTokenRecord{
 		ID:                   row.ID,
+		AppType:              row.AppType,
 		SellerID:             row.SellerID,
 		HavanaID:             row.HavanaID,
 		AppUserID:            row.AppUserID,
