@@ -7,12 +7,12 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/ljj/gugu-api/internal/core/api/admin"
 	apiadvice "github.com/ljj/gugu-api/internal/core/api/controller/advice"
 	apiauth "github.com/ljj/gugu-api/internal/core/api/controller/v1/auth"
 	apiintegration "github.com/ljj/gugu-api/internal/core/api/controller/v1/integration"
 	apiproduct "github.com/ljj/gugu-api/internal/core/api/controller/v1/product"
 	apitrackeditem "github.com/ljj/gugu-api/internal/core/api/controller/v1/trackeditem"
-	"github.com/ljj/gugu-api/internal/core/api/admin"
 	"github.com/ljj/gugu-api/internal/core/support/auth"
 	apiresponse "github.com/ljj/gugu-api/internal/core/support/response"
 	"github.com/ljj/gugu-api/internal/support/config"
@@ -32,6 +32,7 @@ func NewServer(cfg config.Config, db *sql.DB) (*Server, error) {
 	router.Use(CORSMiddleware(cfg.CORSAllowedOrigins))
 
 	registerHealthRoute(router)
+	registerOpenAPIRoute(router)
 
 	authControllers, err := apiauth.Wire(cfg, db)
 	if err != nil {
@@ -73,4 +74,12 @@ func registerHealthRoute(router chi.Router) {
 	router.Get("/health", apiadvice.Wrap(func(_ *stdhttp.Request) (int, any, error) {
 		return stdhttp.StatusOK, apiresponse.SuccessWithData(map[string]string{"status": "ok"}), nil
 	}))
+}
+
+func registerOpenAPIRoute(router chi.Router) {
+	router.Get("/openapi.yml", func(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+		w.Header().Set("Content-Type", "text/yaml; charset=utf-8")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		stdhttp.ServeFile(w, r, "openapi.yml")
+	})
 }

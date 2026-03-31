@@ -4,7 +4,10 @@ info:
   version: 1.0.0
   description: gugu API의 상태 확인 및 인증 관련 엔드포인트 명세
 servers:
+  - url: https://price-eye.duckdns.org
+    description: Production
   - url: http://localhost:8080
+    description: Local
 tags:
   - name: 상태 확인
     description: 서버 상태 확인 API
