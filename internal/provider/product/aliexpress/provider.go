@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"strconv"
 	"strings"
 
 	clientaliexpress "github.com/ljj/gugu-api/internal/clients/aliexpress"
@@ -12,11 +11,17 @@ import (
 	"github.com/ljj/gugu-api/internal/core/enum"
 )
 
-const collectionSource = "AFFILIATE_API"
+const (
+	collectionSourceAffiliate = "AFFILIATE_API"
+	collectionSourceDS        = "DS_API"
+)
 
-type ProductDetailClient interface {
+type AffiliateClient interface {
 	GetAffiliateProductDetail(ctx context.Context, input clientaliexpress.ProductDetailInput) (*clientaliexpress.ProductDetailResult, error)
-	GetAffiliateProductSKUDetail(ctx context.Context, input clientaliexpress.ProductSKUDetailInput) (*clientaliexpress.ProductSKUDetailResult, error)
+}
+
+type DSClient interface {
+	GetDSProduct(ctx context.Context, input clientaliexpress.DSProductInput) (*clientaliexpress.DSProductResult, error)
 }
 
 type TokenProvider interface {
@@ -24,20 +29,32 @@ type TokenProvider interface {
 }
 
 type Provider struct {
-	client         ProductDetailClient
-	tokenProvider  TokenProvider
-	targetCurrency string
-	targetLanguage string
-	shipToCountry  string
+	affiliateClient       AffiliateClient
+	dsClient              DSClient
+	affiliateTokenProvider TokenProvider
+	dsTokenProvider        TokenProvider
+	targetCurrency         string
+	targetLanguage         string
+	shipToCountry          string
 }
 
-func NewProvider(client ProductDetailClient, tokenProvider TokenProvider, targetCurrency string, targetLanguage string, shipToCountry string) *Provider {
+func NewProvider(
+	affiliateClient AffiliateClient,
+	dsClient DSClient,
+	affiliateTokenProvider TokenProvider,
+	dsTokenProvider TokenProvider,
+	targetCurrency string,
+	targetLanguage string,
+	shipToCountry string,
+) *Provider {
 	return &Provider{
-		client:         client,
-		tokenProvider:  tokenProvider,
-		targetCurrency: strings.TrimSpace(targetCurrency),
-		targetLanguage: strings.TrimSpace(targetLanguage),
-		shipToCountry:  strings.TrimSpace(shipToCountry),
+		affiliateClient:        affiliateClient,
+		dsClient:               dsClient,
+		affiliateTokenProvider: affiliateTokenProvider,
+		dsTokenProvider:        dsTokenProvider,
+		targetCurrency:         strings.TrimSpace(targetCurrency),
+		targetLanguage:         strings.TrimSpace(targetLanguage),
+		shipToCountry:          strings.TrimSpace(shipToCountry),
 	}
 }
 
@@ -45,91 +62,200 @@ func (p *Provider) Provide(ctx context.Context, market enum.Market, externalProd
 	if market != enum.MarketAliExpress {
 		return nil, nil
 	}
-	if p.client == nil {
-		return nil, fmt.Errorf("aliexpress client is required")
+
+	// 1. Affiliate API로 상품 조회
+	affiliateProduct, promotionLink := p.fetchAffiliate(ctx, externalProductID)
+
+	// 2. DS API로 SKU 전체 조회 (항상)
+	dsResult := p.fetchDS(ctx, externalProductID)
+
+	// 3. 조합
+	if affiliateProduct != nil {
+		// Case 1: Affiliate 상품 + DS SKU
+		return p.buildFromAffiliate(affiliateProduct, dsResult, promotionLink, externalProductID, originalURL), nil
 	}
 
-	accessToken, err := p.resolveAccessToken(ctx)
+	if dsResult != nil {
+		// Case 2: Affiliate 없음 → DS fallback
+		slog.Info("affiliate product not found, using DS fallback", "product_id", externalProductID)
+		return p.buildFromDS(dsResult, externalProductID, originalURL), nil
+	}
+
+	// Case 3: 둘 다 없음
+	return nil, nil
+}
+
+func (p *Provider) fetchAffiliate(ctx context.Context, externalProductID string) (*clientaliexpress.AffiliateProduct, string) {
+	if p.affiliateClient == nil {
+		return nil, ""
+	}
+
+	accessToken, err := p.resolveToken(ctx, p.affiliateTokenProvider)
 	if err != nil {
-		return nil, err
+		slog.Warn("failed to get affiliate access token", "error", err)
+		return nil, ""
 	}
 
-	detailResult, err := p.client.GetAffiliateProductDetail(ctx, clientaliexpress.ProductDetailInput{
+	result, err := p.affiliateClient.GetAffiliateProductDetail(ctx, clientaliexpress.ProductDetailInput{
 		ProductIDs:     []string{externalProductID},
 		TargetCurrency: defaultValue(p.targetCurrency, "USD"),
 		TargetLanguage: defaultValue(p.targetLanguage, "EN"),
 		AccessToken:    accessToken,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("get aliexpress affiliate product detail: %w", err)
+		slog.Warn("failed to fetch affiliate product detail", "product_id", externalProductID, "error", err)
+		return nil, ""
 	}
-	if detailResult == nil || len(detailResult.Products) == 0 {
-		return nil, nil
+	if result == nil || len(result.Products) == 0 {
+		return nil, ""
 	}
 
-	detailProduct := detailResult.Products[0]
+	product := result.Products[0]
+	return &product, product.PromotionLink
+}
 
-	price := firstNonEmpty(detailProduct.TargetSalePrice, detailProduct.SalePrice, detailProduct.TargetAppSalePrice, detailProduct.AppSalePrice)
-	currency := firstNonEmpty(detailProduct.TargetSalePriceCurrency, detailProduct.SalePriceCurrency, detailProduct.TargetAppSalePriceCurrency, detailProduct.AppSalePriceCurrency)
+func (p *Provider) fetchDS(ctx context.Context, externalProductID string) *clientaliexpress.DSProductResult {
+	if p.dsClient == nil {
+		return nil
+	}
+
+	accessToken, err := p.resolveToken(ctx, p.dsTokenProvider)
+	if err != nil {
+		slog.Warn("failed to get ds access token", "error", err)
+		return nil
+	}
+
+	result, err := p.dsClient.GetDSProduct(ctx, clientaliexpress.DSProductInput{
+		ProductID:      externalProductID,
+		ShipToCountry:  defaultValue(p.shipToCountry, "US"),
+		TargetCurrency: defaultValue(p.targetCurrency, "USD"),
+		TargetLanguage: strings.ToLower(defaultValue(p.targetLanguage, "en")),
+		AccessToken:    accessToken,
+	})
+	if err != nil {
+		slog.Warn("failed to fetch ds product", "product_id", externalProductID, "error", err)
+		return nil
+	}
+
+	return result
+}
+
+func (p *Provider) buildFromAffiliate(ap *clientaliexpress.AffiliateProduct, ds *clientaliexpress.DSProductResult, promotionLink string, externalProductID string, originalURL string) *domainproduct.NewProduct {
+	price := firstNonEmpty(ap.TargetSalePrice, ap.SalePrice, ap.TargetAppSalePrice, ap.AppSalePrice)
+	currency := firstNonEmpty(ap.TargetSalePriceCurrency, ap.SalePriceCurrency, ap.TargetAppSalePriceCurrency, ap.AppSalePriceCurrency)
 
 	product := &domainproduct.NewProduct{
 		Market:            enum.MarketAliExpress,
 		ExternalProductID: externalProductID,
-		OriginalURL:       firstNonEmpty(originalURL, detailProduct.ProductDetailURL),
-		Title:             detailProduct.ProductTitle,
-		MainImageURL:      detailProduct.ProductMainImageURL,
+		OriginalURL:       firstNonEmpty(originalURL, ap.ProductDetailURL),
+		Title:             ap.ProductTitle,
+		MainImageURL:      ap.ProductMainImageURL,
 		CurrentPrice:      price,
 		Currency:          currency,
-		ProductURL:        detailProduct.ProductDetailURL,
-		CollectionSource:  collectionSource,
+		ProductURL:        ap.ProductDetailURL,
+		PromotionLink:     promotionLink,
+		CollectionSource:  collectionSourceAffiliate,
 	}
 
-	skus := p.fetchSKUs(ctx, externalProductID, accessToken)
-	if len(skus) > 0 {
-		product.SKUs = skus
+	// SKU는 DS API에서 가져옴 (전체 SKU)
+	if ds != nil {
+		product.SKUs = p.mapDSSKUs(ds)
 	}
 
-	return product, nil
+	return product
 }
 
-func (p *Provider) fetchSKUs(ctx context.Context, externalProductID string, accessToken string) []domainproduct.NewSKU {
-	skuResult, err := p.client.GetAffiliateProductSKUDetail(ctx, clientaliexpress.ProductSKUDetailInput{
-		ProductID:      externalProductID,
-		ShipToCountry:  defaultValue(p.shipToCountry, "US"),
-		TargetCurrency: defaultValue(p.targetCurrency, "USD"),
-		TargetLanguage: defaultValue(p.targetLanguage, "EN"),
-		AccessToken:    accessToken,
-	})
-	if err != nil {
-		slog.Warn("failed to fetch aliexpress sku detail", "product_id", externalProductID, "error", err)
-		return nil
+func (p *Provider) buildFromDS(ds *clientaliexpress.DSProductResult, externalProductID string, originalURL string) *domainproduct.NewProduct {
+	baseInfo := ds.BaseInfo
+
+	var price, currency string
+	if len(ds.SKUs) > 0 {
+		price = firstNonEmpty(ds.SKUs[0].OfferSalePrice, ds.SKUs[0].SKUPrice)
+		currency = ds.SKUs[0].CurrencyCode
 	}
-	if skuResult == nil || len(skuResult.SKUInfos) == 0 {
+	if currency == "" {
+		currency = baseInfo.CurrencyCode
+	}
+
+	var imageURL string
+	if ds.Multimedia.ImageURLs != "" {
+		parts := strings.SplitN(ds.Multimedia.ImageURLs, ";", 2)
+		imageURL = strings.TrimSpace(parts[0])
+	}
+
+	product := &domainproduct.NewProduct{
+		Market:            enum.MarketAliExpress,
+		ExternalProductID: externalProductID,
+		OriginalURL:       originalURL,
+		Title:             baseInfo.Subject,
+		MainImageURL:      imageURL,
+		CurrentPrice:      price,
+		Currency:          currency,
+		ProductURL:        originalURL,
+		CollectionSource:  collectionSourceDS,
+		SKUs:              p.mapDSSKUs(ds),
+	}
+
+	return product
+}
+
+func (p *Provider) mapDSSKUs(ds *clientaliexpress.DSProductResult) []domainproduct.NewSKU {
+	if ds == nil || len(ds.SKUs) == 0 {
 		return nil
 	}
 
-	skus := make([]domainproduct.NewSKU, 0, len(skuResult.SKUInfos))
-	for _, info := range skuResult.SKUInfos {
+	skus := make([]domainproduct.NewSKU, 0, len(ds.SKUs))
+	for _, sku := range ds.SKUs {
+		color, size, propStr := extractSKUProperties(sku.Properties)
+
 		skus = append(skus, domainproduct.NewSKU{
-			ExternalSKUID: strconv.FormatInt(info.SKUID, 10),
-			Color:         info.Color,
-			Size:          info.Size,
-			Price:         firstNonEmpty(info.SalePriceWithTax, info.PriceWithTax),
-			Currency:      info.Currency,
-			ImageURL:      info.SKUImageLink,
-			SKUProperties: info.SKUProperties,
+			ExternalSKUID: sku.SKUID,
+			OriginSKUID:   sku.ID,
+			Color:         color,
+			Size:          size,
+			Price:         firstNonEmpty(sku.OfferSalePrice, sku.SKUPrice),
+			OriginalPrice: sku.SKUPrice,
+			Currency:      sku.CurrencyCode,
+			ImageURL:      extractSKUImage(sku.Properties),
+			SKUProperties: propStr,
 		})
 	}
 	return skus
 }
 
-func (p *Provider) resolveAccessToken(ctx context.Context) (string, error) {
-	if p.tokenProvider == nil {
+func extractSKUProperties(props []clientaliexpress.DSSKUPropertyDTO) (color, size, propJSON string) {
+	var parts []string
+	for _, prop := range props {
+		name := strings.ToLower(prop.SKUPropertyName)
+		value := firstNonEmpty(prop.PropertyValueDefinitionName, prop.SKUPropertyValue)
+
+		switch {
+		case strings.Contains(name, "color") || strings.Contains(name, "colour"):
+			color = value
+		case strings.Contains(name, "size"):
+			size = value
+		}
+		parts = append(parts, prop.SKUPropertyName+":"+value)
+	}
+	return color, size, strings.Join(parts, ";")
+}
+
+func extractSKUImage(props []clientaliexpress.DSSKUPropertyDTO) string {
+	for _, prop := range props {
+		if prop.SKUImage != "" {
+			return prop.SKUImage
+		}
+	}
+	return ""
+}
+
+func (p *Provider) resolveToken(ctx context.Context, tp TokenProvider) (string, error) {
+	if tp == nil {
 		return "", nil
 	}
-	token, err := p.tokenProvider.GetAccessToken(ctx)
+	token, err := tp.GetAccessToken(ctx)
 	if err != nil {
-		return "", fmt.Errorf("get aliexpress access token: %w", err)
+		return "", fmt.Errorf("get access token: %w", err)
 	}
 	return token, nil
 }

@@ -14,16 +14,17 @@ type TokenRefresher interface {
 }
 
 type tokenStoreProvider struct {
+	appType    string
 	tokenStore clientaliexpress.TokenStore
 	refresher  TokenRefresher
 }
 
-func NewTokenProvider(tokenStore clientaliexpress.TokenStore, refresher TokenRefresher) TokenProvider {
-	return &tokenStoreProvider{tokenStore: tokenStore, refresher: refresher}
+func NewTokenProvider(appType string, tokenStore clientaliexpress.TokenStore, refresher TokenRefresher) TokenProvider {
+	return &tokenStoreProvider{appType: appType, tokenStore: tokenStore, refresher: refresher}
 }
 
 func (p *tokenStoreProvider) GetAccessToken(ctx context.Context) (string, error) {
-	record, err := p.tokenStore.FindOne(ctx)
+	record, err := p.tokenStore.FindByAppType(ctx, p.appType)
 	if err != nil {
 		return "", fmt.Errorf("find aliexpress token: %w", err)
 	}
@@ -43,7 +44,7 @@ func (p *tokenStoreProvider) GetAccessToken(ctx context.Context) (string, error)
 }
 
 func (p *tokenStoreProvider) refresh(ctx context.Context, record *clientaliexpress.SellerTokenRecord) (string, error) {
-	slog.Info("aliexpress access token expired, refreshing automatically")
+	slog.Info("aliexpress access token expired, refreshing automatically", "app_type", p.appType)
 
 	tokenSet, err := p.refresher.RefreshAccessToken(ctx, clientaliexpress.RefreshTokenInput{
 		RefreshToken: record.RefreshToken,
@@ -67,6 +68,6 @@ func (p *tokenStoreProvider) refresh(ctx context.Context, record *clientaliexpre
 		return "", fmt.Errorf("upsert refreshed token: %w", err)
 	}
 
-	slog.Info("aliexpress access token refreshed successfully")
+	slog.Info("aliexpress access token refreshed successfully", "app_type", p.appType)
 	return record.AccessToken, nil
 }

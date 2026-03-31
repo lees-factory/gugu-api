@@ -17,11 +17,11 @@ type PriceResult struct {
 }
 
 type BatchFetcher struct {
-	client        ProductDetailClient
+	client        AffiliateClient
 	tokenProvider TokenProvider
 }
 
-func NewBatchFetcher(client ProductDetailClient, tokenProvider TokenProvider) *BatchFetcher {
+func NewBatchFetcher(client AffiliateClient, tokenProvider TokenProvider) *BatchFetcher {
 	return &BatchFetcher{client: client, tokenProvider: tokenProvider}
 }
 
