@@ -11,6 +11,7 @@ type NewProduct struct {
 	CurrentPrice      string
 	Currency          string
 	ProductURL        string
+	PromotionLink     string
 	CollectionSource  string
 	SKUs              []NewSKU
 }

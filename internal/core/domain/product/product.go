@@ -16,6 +16,7 @@ type Product struct {
 	CurrentPrice      string
 	Currency          string
 	ProductURL        string
+	PromotionLink     string
 	CollectionSource  string
 	LastCollectedAt   time.Time
 	CreatedAt         time.Time

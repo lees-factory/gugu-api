@@ -11,7 +11,7 @@ import (
 func TestAliExpressConnectionServiceExchangeCode(t *testing.T) {
 	now := time.Date(2026, 3, 15, 12, 0, 0, 0, time.UTC)
 	store := &stubTokenStore{}
-	service := NewAliExpressConnectionService(&stubAliExpressClient{
+	service := NewAliExpressConnectionService("AFFILIATE", &stubAliExpressClient{
 		tokenSet: &clientaliexpress.TokenSet{
 			AccessToken:           "access-token",
 			RefreshToken:          "refresh-token",
@@ -48,7 +48,7 @@ func TestAliExpressConnectionServiceExchangeCode(t *testing.T) {
 }
 
 func TestAliExpressConnectionServiceGetConnectionStatusWithoutRecord(t *testing.T) {
-	service := NewAliExpressConnectionService(&stubAliExpressClient{}, &stubTokenStore{}, stubIDGenerator{id: "record-1"})
+	service := NewAliExpressConnectionService("AFFILIATE", &stubAliExpressClient{}, &stubTokenStore{}, stubIDGenerator{id: "record-1"})
 
 	result, err := service.GetConnectionStatus(context.Background())
 	if err != nil {
@@ -103,6 +103,10 @@ func (c *stubAliExpressClient) GetAffiliateHotProducts(_ context.Context, _ clie
 	return nil, nil
 }
 
+func (c *stubAliExpressClient) GetDSProduct(_ context.Context, _ clientaliexpress.DSProductInput) (*clientaliexpress.DSProductResult, error) {
+	return nil, nil
+}
+
 type stubTokenStore struct {
 	items      map[string]clientaliexpress.SellerTokenRecord
 	lastUpsert *clientaliexpress.SellerTokenRecord
@@ -129,6 +133,16 @@ func (s *stubTokenStore) FindBySellerID(_ context.Context, sellerID string) (*cl
 	if item, ok := s.items[sellerID]; ok {
 		found := item
 		return &found, nil
+	}
+	return nil, nil
+}
+
+func (s *stubTokenStore) FindByAppType(_ context.Context, appType string) (*clientaliexpress.SellerTokenRecord, error) {
+	for _, item := range s.items {
+		if item.AppType == appType {
+			found := item
+			return &found, nil
+		}
 	}
 	return nil, nil
 }

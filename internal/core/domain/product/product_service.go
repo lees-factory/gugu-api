@@ -179,6 +179,7 @@ func (s *Service) Create(ctx context.Context, input NewProduct) (*Product, error
 		CurrentPrice:      strings.TrimSpace(input.CurrentPrice),
 		Currency:          strings.TrimSpace(input.Currency),
 		ProductURL:        strings.TrimSpace(input.ProductURL),
+		PromotionLink:     strings.TrimSpace(input.PromotionLink),
 		CollectionSource:  strings.TrimSpace(input.CollectionSource),
 		LastCollectedAt:   now,
 		CreatedAt:         now,

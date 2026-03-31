@@ -13,6 +13,7 @@ type IDGenerator interface {
 }
 
 type AliExpressConnectionService struct {
+	appType     string
 	client      clientaliexpress.Client
 	tokenStore  clientaliexpress.TokenStore
 	idGenerator IDGenerator
@@ -39,8 +40,9 @@ type AliExpressConnectionStatus struct {
 	LastRefreshedAt         time.Time
 }
 
-func NewAliExpressConnectionService(client clientaliexpress.Client, tokenStore clientaliexpress.TokenStore, idGenerator IDGenerator) *AliExpressConnectionService {
+func NewAliExpressConnectionService(appType string, client clientaliexpress.Client, tokenStore clientaliexpress.TokenStore, idGenerator IDGenerator) *AliExpressConnectionService {
 	return &AliExpressConnectionService{
+		appType:     appType,
 		client:      client,
 		tokenStore:  tokenStore,
 		idGenerator: idGenerator,
@@ -73,6 +75,7 @@ func (s *AliExpressConnectionService) ExchangeCode(ctx context.Context, input Ex
 
 	record := clientaliexpress.SellerTokenRecord{
 		ID:                   recordID,
+		AppType:              s.appType,
 		SellerID:             tokenSet.SellerID,
 		HavanaID:             tokenSet.HavanaID,
 		AppUserID:            tokenSet.UserID,
@@ -111,7 +114,7 @@ func (s *AliExpressConnectionService) ExchangeCode(ctx context.Context, input Ex
 }
 
 func (s *AliExpressConnectionService) RefreshToken(ctx context.Context) (*AliExpressConnectionStatus, error) {
-	record, err := s.tokenStore.FindOne(ctx)
+	record, err := s.tokenStore.FindByAppType(ctx, s.appType)
 	if err != nil {
 		return nil, fmt.Errorf("find token: %w", err)
 	}
@@ -145,7 +148,7 @@ func (s *AliExpressConnectionService) RefreshToken(ctx context.Context) (*AliExp
 }
 
 func (s *AliExpressConnectionService) GetConnectionStatus(ctx context.Context) (*AliExpressConnectionStatus, error) {
-	record, err := s.tokenStore.FindOne(ctx)
+	record, err := s.tokenStore.FindByAppType(ctx, s.appType)
 	if err != nil {
 		return nil, err
 	}
@@ -168,7 +171,7 @@ func (s *AliExpressConnectionService) resolveRecordID(ctx context.Context, selle
 		return existingRecord.ID, nil
 	}
 
-	existingRecord, err = s.tokenStore.FindOne(ctx)
+	existingRecord, err = s.tokenStore.FindByAppType(ctx, s.appType)
 	if err != nil {
 		return "", err
 	}
