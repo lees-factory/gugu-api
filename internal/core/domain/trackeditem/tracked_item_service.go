@@ -99,6 +99,9 @@ func (s *Service) resolveProduct(ctx context.Context, market enum.Market, extern
 	if err != nil {
 		return nil, fmt.Errorf("provide product: %w", err)
 	}
+	if newProduct == nil {
+		return nil, coreerror.New(coreerror.ProductNotFound)
+	}
 
 	return s.productService.Create(ctx, *newProduct)
 }

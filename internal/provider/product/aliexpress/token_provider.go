@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	clientaliexpress "github.com/ljj/gugu-api/internal/clients/aliexpress"
@@ -14,6 +15,7 @@ type TokenRefresher interface {
 }
 
 type tokenStoreProvider struct {
+	mu         sync.Mutex
 	appType    string
 	tokenStore clientaliexpress.TokenStore
 	refresher  TokenRefresher
@@ -33,7 +35,7 @@ func (p *tokenStoreProvider) GetAccessToken(ctx context.Context) (string, error)
 	}
 
 	if time.Now().After(record.AccessTokenExpiresAt) {
-		refreshed, err := p.refresh(ctx, record)
+		refreshed, err := p.refreshOnce(ctx, record)
 		if err != nil {
 			return "", fmt.Errorf("auto refresh aliexpress token: %w", err)
 		}
@@ -43,8 +45,20 @@ func (p *tokenStoreProvider) GetAccessToken(ctx context.Context) (string, error)
 	return record.AccessToken, nil
 }
 
-func (p *tokenStoreProvider) refresh(ctx context.Context, record *clientaliexpress.SellerTokenRecord) (string, error) {
-	slog.Info("aliexpress access token expired, refreshing automatically", "app_type", p.appType)
+func (p *tokenStoreProvider) refreshOnce(ctx context.Context, record *clientaliexpress.SellerTokenRecord) (string, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// lock 잡은 후 다시 확인 — 다른 goroutine이 이미 refresh 했을 수 있음
+	fresh, err := p.tokenStore.FindByAppType(ctx, p.appType)
+	if err != nil {
+		return "", err
+	}
+	if fresh != nil && time.Now().Before(fresh.AccessTokenExpiresAt) {
+		return fresh.AccessToken, nil
+	}
+
+	slog.Info("aliexpress access token expired, refreshing", "app_type", p.appType)
 
 	tokenSet, err := p.refresher.RefreshAccessToken(ctx, clientaliexpress.RefreshTokenInput{
 		RefreshToken: record.RefreshToken,

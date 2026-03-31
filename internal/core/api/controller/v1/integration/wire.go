@@ -16,24 +16,38 @@ func Wire(cfg config.Config, db *sql.DB) (*AliExpressController, clientaliexpres
 	tokenStore := buildAliExpressTokenStore(db)
 	recordIDGenerator := id.NewRandomHexGenerator(16)
 
-	aliExpressClient, err := clientaliexpress.NewHTTPClient(clientaliexpress.Config{
+	services := make(map[string]*domainintegration.AliExpressConnectionService)
+
+	affiliateClient, err := clientaliexpress.NewHTTPClient(clientaliexpress.Config{
 		BaseURL:     cfg.AliExpressBaseURL,
 		AppKey:      cfg.AliExpressAppKey,
 		AppSecret:   cfg.AliExpressAppSecret,
 		CallbackURL: cfg.AliExpressCallbackURL,
 	})
 	if err != nil {
-		return nil, nil, fmt.Errorf("build aliexpress client: %w", err)
+		return nil, nil, fmt.Errorf("build aliexpress affiliate client: %w", err)
 	}
-
-	connectionService := domainintegration.NewAliExpressConnectionService(
-		"AFFILIATE",
-		aliExpressClient,
-		tokenStore,
-		recordIDGenerator,
+	services["AFFILIATE"] = domainintegration.NewAliExpressConnectionService(
+		"AFFILIATE", affiliateClient, tokenStore, recordIDGenerator,
 	)
 
-	return NewAliExpressController(connectionService, aliExpressClient, tokenStore), tokenStore, nil
+	if cfg.AliExpressDSAppKey != "" {
+		dsClient, err := clientaliexpress.NewHTTPClient(clientaliexpress.Config{
+			BaseURL:     cfg.AliExpressDSBaseURL,
+			AppKey:      cfg.AliExpressDSAppKey,
+			AppSecret:   cfg.AliExpressDSAppSecret,
+			CallbackURL: cfg.AliExpressDSCallbackURL,
+		})
+		if err != nil {
+			return nil, nil, fmt.Errorf("build aliexpress ds client: %w", err)
+		}
+		services["DROPSHIPPING"] = domainintegration.NewAliExpressConnectionService(
+			"DROPSHIPPING", dsClient, tokenStore, recordIDGenerator,
+		)
+	}
+
+	controller := NewAliExpressController(services, affiliateClient, tokenStore)
+	return controller, tokenStore, nil
 }
 
 func buildAliExpressTokenStore(db *sql.DB) clientaliexpress.TokenStore {

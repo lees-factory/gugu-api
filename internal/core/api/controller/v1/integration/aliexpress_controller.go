@@ -16,18 +16,44 @@ import (
 	apiresponse "github.com/ljj/gugu-api/internal/core/support/response"
 )
 
+const defaultAppType = "AFFILIATE"
+
 type AliExpressController struct {
-	service       *domainintegration.AliExpressConnectionService
+	services      map[string]*domainintegration.AliExpressConnectionService
 	productClient clientaliexpress.ProductClient
 	tokenStore    clientaliexpress.TokenStore
 }
 
-func NewAliExpressController(service *domainintegration.AliExpressConnectionService, productClient clientaliexpress.ProductClient, tokenStore clientaliexpress.TokenStore) *AliExpressController {
-	return &AliExpressController{service: service, productClient: productClient, tokenStore: tokenStore}
+func NewAliExpressController(
+	services map[string]*domainintegration.AliExpressConnectionService,
+	productClient clientaliexpress.ProductClient,
+	tokenStore clientaliexpress.TokenStore,
+) *AliExpressController {
+	return &AliExpressController{services: services, productClient: productClient, tokenStore: tokenStore}
+}
+
+func (c *AliExpressController) resolveService(r *stdhttp.Request) (*domainintegration.AliExpressConnectionService, error) {
+	return c.resolveServiceByAppType(resolveAppType(r))
+}
+
+func (c *AliExpressController) resolveServiceByAppType(appType string) (*domainintegration.AliExpressConnectionService, error) {
+	appType = strings.ToUpper(strings.TrimSpace(appType))
+	if appType == "" {
+		appType = defaultAppType
+	}
+	svc, ok := c.services[appType]
+	if !ok {
+		return nil, &apierror.APIError{
+			Status:  stdhttp.StatusBadRequest,
+			Code:    "E400",
+			Message: "unsupported app_type: " + appType,
+		}
+	}
+	return svc, nil
 }
 
 func (c *AliExpressController) resolveAccessToken(ctx context.Context) string {
-	record, err := c.tokenStore.FindOne(ctx)
+	record, err := c.tokenStore.FindByAppType(ctx, defaultAppType)
 	if err != nil || record == nil {
 		return ""
 	}
@@ -48,7 +74,15 @@ func (c *AliExpressController) RegisterRoutes(r chi.Router) {
 }
 
 func (c *AliExpressController) BuildAuthorizationURL(r *stdhttp.Request) (int, any, error) {
-	result, err := c.service.BuildAuthorizationURL(r.Context())
+	var req request.AliExpressAuthorizeURL
+	_ = apiadvice.DecodeJSON(r, &req) // optional body
+
+	svc, err := c.resolveServiceByAppType(req.AppType)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	result, err := svc.BuildAuthorizationURL(r.Context())
 	if err != nil {
 		return 0, nil, err
 	}
@@ -62,7 +96,12 @@ func (c *AliExpressController) ExchangeCode(r *stdhttp.Request) (int, any, error
 		return 0, nil, err
 	}
 
-	result, err := c.service.ExchangeCode(r.Context(), domainintegration.ExchangeAliExpressCodeInput{
+	svc, err := c.resolveServiceByAppType(req.AppType)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	result, err := svc.ExchangeCode(r.Context(), domainintegration.ExchangeAliExpressCodeInput{
 		Code: req.Code,
 	})
 	if err != nil {
@@ -72,23 +111,32 @@ func (c *AliExpressController) ExchangeCode(r *stdhttp.Request) (int, any, error
 	return stdhttp.StatusOK, apiresponse.SuccessWithData(response.NewAliExpressConnectionStatus(*result)), nil
 }
 
-func mapAliExpressError(err error) error {
-	var remoteErr *clientaliexpress.RemoteError
-	if errors.As(err, &remoteErr) {
-		return &apierror.APIError{
-			Status:  stdhttp.StatusBadRequest,
-			Code:    "E402",
-			Message: remoteErr.Message,
-			Data: map[string]string{
-				"provider":    "aliexpress",
-				"remote_code": remoteErr.Code,
-				"request_id":  remoteErr.RequestID,
-			},
-			Cause: err,
-		}
+func (c *AliExpressController) RefreshToken(r *stdhttp.Request) (int, any, error) {
+	svc, err := c.resolveService(r)
+	if err != nil {
+		return 0, nil, err
 	}
 
-	return err
+	result, err := svc.RefreshToken(r.Context())
+	if err != nil {
+		return 0, nil, mapAliExpressError(err)
+	}
+
+	return stdhttp.StatusOK, apiresponse.SuccessWithData(response.NewAliExpressConnectionStatus(*result)), nil
+}
+
+func (c *AliExpressController) GetConnectionStatus(r *stdhttp.Request) (int, any, error) {
+	svc, err := c.resolveService(r)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	result, err := svc.GetConnectionStatus(r.Context())
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return stdhttp.StatusOK, apiresponse.SuccessWithData(response.NewAliExpressConnectionStatus(*result)), nil
 }
 
 func (c *AliExpressController) GetCategories(r *stdhttp.Request) (int, any, error) {
@@ -169,20 +217,29 @@ func (c *AliExpressController) GetProductSKUDetail(r *stdhttp.Request) (int, any
 	return stdhttp.StatusOK, apiresponse.SuccessWithData(result), nil
 }
 
-func (c *AliExpressController) RefreshToken(r *stdhttp.Request) (int, any, error) {
-	result, err := c.service.RefreshToken(r.Context())
-	if err != nil {
-		return 0, nil, mapAliExpressError(err)
+func mapAliExpressError(err error) error {
+	var remoteErr *clientaliexpress.RemoteError
+	if errors.As(err, &remoteErr) {
+		return &apierror.APIError{
+			Status:  stdhttp.StatusBadRequest,
+			Code:    "E402",
+			Message: remoteErr.Message,
+			Data: map[string]string{
+				"provider":    "aliexpress",
+				"remote_code": remoteErr.Code,
+				"request_id":  remoteErr.RequestID,
+			},
+			Cause: err,
+		}
 	}
 
-	return stdhttp.StatusOK, apiresponse.SuccessWithData(response.NewAliExpressConnectionStatus(*result)), nil
+	return err
 }
 
-func (c *AliExpressController) GetConnectionStatus(r *stdhttp.Request) (int, any, error) {
-	result, err := c.service.GetConnectionStatus(r.Context())
-	if err != nil {
-		return 0, nil, err
+func resolveAppType(r *stdhttp.Request) string {
+	// POST: body에서, GET: query param에서
+	if v := strings.TrimSpace(r.URL.Query().Get("app_type")); v != "" {
+		return strings.ToUpper(v)
 	}
-
-	return stdhttp.StatusOK, apiresponse.SuccessWithData(response.NewAliExpressConnectionStatus(*result)), nil
+	return defaultAppType
 }
