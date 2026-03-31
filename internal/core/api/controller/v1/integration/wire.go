@@ -27,6 +27,7 @@ func Wire(cfg config.Config, db *sql.DB) (*AliExpressController, clientaliexpres
 	}
 
 	connectionService := domainintegration.NewAliExpressConnectionService(
+		"AFFILIATE",
 		aliExpressClient,
 		tokenStore,
 		recordIDGenerator,

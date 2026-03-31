@@ -80,7 +80,7 @@ func wirePriceUpdater(cfg config.Config, db *sql.DB, tokenStore clientaliexpress
 		CallbackURL: cfg.AliExpressCallbackURL,
 	})
 
-	tokenProvider := provideraliexpress.NewTokenProvider(tokenStore, aliExpressClient)
+	tokenProvider := provideraliexpress.NewTokenProvider("AFFILIATE", tokenStore, aliExpressClient)
 	fetcher := provideraliexpress.NewBatchFetcher(aliExpressClient, tokenProvider)
 
 	var priceHistoryWriter domainpricehistory.Writer
@@ -113,6 +113,6 @@ func wireHotProductLoader(cfg config.Config, tokenStore clientaliexpress.TokenSt
 		AppSecret:   cfg.AliExpressAppSecret,
 		CallbackURL: cfg.AliExpressCallbackURL,
 	})
-	tokenProvider := provideraliexpress.NewTokenProvider(tokenStore, aliExpressClient)
+	tokenProvider := provideraliexpress.NewTokenProvider("AFFILIATE", tokenStore, aliExpressClient)
 	return batch.NewHotProductLoader(aliExpressClient, tokenProvider, productService)
 }

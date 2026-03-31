@@ -17,6 +17,7 @@ type ProductDetail struct {
 	CurrentPrice      string             `json:"current_price"`
 	Currency          string             `json:"currency"`
 	ProductURL        string             `json:"product_url"`
+	PromotionLink     string             `json:"promotion_link,omitempty"`
 	IsTrackedByUser   bool               `json:"is_tracked_by_user"`
 	TrackedItemID     string             `json:"tracked_item_id,omitempty"`
 	PriceHistories    []PriceHistoryItem `json:"price_histories"`
@@ -52,6 +53,7 @@ func NewProductDetail(product domainproduct.Product, histories []domainpricehist
 		CurrentPrice:      product.CurrentPrice,
 		Currency:          product.Currency,
 		ProductURL:        product.ProductURL,
+		PromotionLink:     product.PromotionLink,
 		IsTrackedByUser:   isTrackedByUser,
 		TrackedItemID:     trackedItemID,
 		PriceHistories:    items,

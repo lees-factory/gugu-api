@@ -5,14 +5,11 @@ import (
 	"fmt"
 
 	clientaliexpress "github.com/ljj/gugu-api/internal/clients/aliexpress"
-	clientcrawler "github.com/ljj/gugu-api/internal/clients/crawler"
 	domainpricehistory "github.com/ljj/gugu-api/internal/core/domain/pricehistory"
 	domainproduct "github.com/ljj/gugu-api/internal/core/domain/product"
 	domainsph "github.com/ljj/gugu-api/internal/core/domain/skupricehistory"
 	domaintrackeditem "github.com/ljj/gugu-api/internal/core/domain/trackeditem"
-	productprovider "github.com/ljj/gugu-api/internal/provider/product"
 	provideraliexpress "github.com/ljj/gugu-api/internal/provider/product/aliexpress"
-	providercrawler "github.com/ljj/gugu-api/internal/provider/product/crawler"
 	dbcorepricehistory "github.com/ljj/gugu-api/internal/storage/dbcore/pricehistory"
 	dbcoreproduct "github.com/ljj/gugu-api/internal/storage/dbcore/product"
 	dbcoreskuph "github.com/ljj/gugu-api/internal/storage/dbcore/skupricehistory"
@@ -55,14 +52,26 @@ func Wire(cfg config.Config, db *sql.DB, aliExpressTokenStore clientaliexpress.T
 		domainsph.NewWriter(skuPriceHistRepo),
 	)
 
-	crawlerClient := clientcrawler.NewHTTPClient(clientcrawler.Config{
-		BaseURL: cfg.CrawlerBaseURL,
-	})
+	affiliateTokenProvider := provideraliexpress.NewTokenProvider("AFFILIATE", aliExpressTokenStore, aliExpressClient)
 
-	tokenProvider := provideraliexpress.NewTokenProvider(aliExpressTokenStore, aliExpressClient)
-	provider := productprovider.NewCompositeProvider(
-		provideraliexpress.NewProvider(aliExpressClient, tokenProvider, "KRW", "KO", "KR"),
-		providercrawler.NewProvider(crawlerClient),
+	var dsClient *clientaliexpress.HTTPClient
+	var dsTokenProvider provideraliexpress.TokenProvider
+	if cfg.AliExpressDSAppKey != "" {
+		dsClient, _ = clientaliexpress.NewHTTPClient(clientaliexpress.Config{
+			BaseURL:     cfg.AliExpressDSBaseURL,
+			AppKey:      cfg.AliExpressDSAppKey,
+			AppSecret:   cfg.AliExpressDSAppSecret,
+			CallbackURL: cfg.AliExpressDSCallbackURL,
+		})
+		dsTokenProvider = provideraliexpress.NewTokenProvider("DROPSHIPPING", aliExpressTokenStore, dsClient)
+	}
+
+	provider := provideraliexpress.NewProvider(
+		aliExpressClient,
+		dsClient,
+		affiliateTokenProvider,
+		dsTokenProvider,
+		"KRW", "KO", "KR",
 	)
 
 	trackedItemService := domaintrackeditem.NewService(
