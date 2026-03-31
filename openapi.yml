@@ -1576,6 +1576,10 @@ components:
         product_url:
           type: string
           description: 외부 상품 상세 URL
+        promotion_link:
+          type: string
+          nullable: true
+          description: Affiliate 프로모션 링크. 빈 값이면 product_url 사용.
     TrackedItemDetailData:
       type: object
       description: 유저 저장 상품 상세 데이터
@@ -1628,6 +1632,10 @@ components:
         product_url:
           type: string
           description: 외부 상품 상세 URL
+        promotion_link:
+          type: string
+          nullable: true
+          description: Affiliate 프로모션 링크. 빈 값이면 product_url 사용.
         skus:
           type: array
           items:
@@ -1747,6 +1755,10 @@ components:
         product_url:
           type: string
           description: 외부 상품 상세 URL
+        promotion_link:
+          type: string
+          nullable: true
+          description: Affiliate 프로모션 링크. 없으면 빈 문자열. 프론트에서 빈 값이면 product_url 사용.
         is_tracked_by_user:
           type: boolean
           description: 요청 유저가 현재 저장 중인지 여부
