@@ -15,7 +15,7 @@ func TestProvide_AffiliateExists_WithDSSKU(t *testing.T) {
 			result: &clientaliexpress.ProductDetailResult{
 				Products: []clientaliexpress.AffiliateProduct{
 					{
-						ProductID:              1001,
+						ProductID:               1001,
 						ProductTitle:            "Test Product",
 						ProductMainImageURL:     "https://img.ae/1.jpg",
 						ProductDetailURL:        "https://ae.com/item/1001",
@@ -36,8 +36,8 @@ func TestProvide_AffiliateExists_WithDSSKU(t *testing.T) {
 						OfferSalePrice: "9900",
 						CurrencyCode:   "KRW",
 						Properties: []clientaliexpress.DSSKUPropertyDTO{
-							{SKUPropertyName: "Color", SKUPropertyValue: "Red", SKUImage: "https://img.ae/red.jpg"},
-							{SKUPropertyName: "Size", SKUPropertyValue: "M"},
+							{SKUPropertyID: 14, SKUPropertyName: "Color", SKUPropertyValue: "Red", SKUImage: "https://img.ae/red.jpg"},
+							{SKUPropertyID: 5, SKUPropertyName: "Size", SKUPropertyValue: "M"},
 						},
 					},
 					{
@@ -47,8 +47,8 @@ func TestProvide_AffiliateExists_WithDSSKU(t *testing.T) {
 						OfferSalePrice: "9900",
 						CurrencyCode:   "KRW",
 						Properties: []clientaliexpress.DSSKUPropertyDTO{
-							{SKUPropertyName: "Color", SKUPropertyValue: "Blue", SKUImage: "https://img.ae/blue.jpg"},
-							{SKUPropertyName: "Size", SKUPropertyValue: "L"},
+							{SKUPropertyID: 14, SKUPropertyName: "Color", SKUPropertyValue: "Blue", SKUImage: "https://img.ae/blue.jpg"},
+							{SKUPropertyID: 5, SKUPropertyName: "Size", SKUPropertyValue: "L"},
 						},
 					},
 				},
@@ -108,8 +108,8 @@ func TestProvide_AffiliateNotFound_DSFallback(t *testing.T) {
 		&stubDSClient{
 			result: &clientaliexpress.DSProductResult{
 				BaseInfo: clientaliexpress.DSItemBaseInfo{
-					ProductID:   2001,
-					Subject:     "DS Only Product",
+					ProductID:    2001,
+					Subject:      "DS Only Product",
 					CurrencyCode: "KRW",
 				},
 				Multimedia: clientaliexpress.DSMultimediaInfo{
@@ -122,7 +122,7 @@ func TestProvide_AffiliateNotFound_DSFallback(t *testing.T) {
 						OfferSalePrice: "12000",
 						CurrencyCode:   "KRW",
 						Properties: []clientaliexpress.DSSKUPropertyDTO{
-							{SKUPropertyName: "Color", SKUPropertyValue: "Black"},
+							{SKUPropertyID: 14, SKUPropertyName: "Color", SKUPropertyValue: "Black"},
 						},
 					},
 				},
@@ -170,7 +170,7 @@ func TestProvide_DSError_AffiliateAlone(t *testing.T) {
 			result: &clientaliexpress.ProductDetailResult{
 				Products: []clientaliexpress.AffiliateProduct{
 					{
-						ProductID:              3001,
+						ProductID:               3001,
 						ProductTitle:            "Affiliate Only",
 						ProductDetailURL:        "https://ae.com/item/3001",
 						TargetSalePrice:         "5000",
@@ -237,9 +237,9 @@ func TestProvide_UnsupportedMarket_ReturnsNil(t *testing.T) {
 
 func TestExtractSKUProperties(t *testing.T) {
 	props := []clientaliexpress.DSSKUPropertyDTO{
-		{SKUPropertyName: "Color", SKUPropertyValue: "Red", PropertyValueDefinitionName: "Wine Red", SKUImage: "https://img/red.jpg"},
-		{SKUPropertyName: "Ships From", SKUPropertyValue: "China"},
-		{SKUPropertyName: "Size", SKUPropertyValue: "XL"},
+		{SKUPropertyID: 14, SKUPropertyName: "Color", SKUPropertyValue: "Red", PropertyValueDefinitionName: "Wine Red", SKUImage: "https://img/red.jpg"},
+		{SKUPropertyID: 200, SKUPropertyName: "Ships From", SKUPropertyValue: "China"},
+		{SKUPropertyID: 5, SKUPropertyName: "Size", SKUPropertyValue: "XL"},
 	}
 
 	color, size, propStr := extractSKUProperties(props)

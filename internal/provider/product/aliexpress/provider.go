@@ -29,8 +29,8 @@ type TokenProvider interface {
 }
 
 type Provider struct {
-	affiliateClient       AffiliateClient
-	dsClient              DSClient
+	affiliateClient        AffiliateClient
+	dsClient               DSClient
 	affiliateTokenProvider TokenProvider
 	dsTokenProvider        TokenProvider
 	targetCurrency         string
@@ -223,16 +223,20 @@ func (p *Provider) mapDSSKUs(ds *clientaliexpress.DSProductResult) []domainprodu
 	return skus
 }
 
+const (
+	aePropertyIDColor = 14
+	aePropertyIDSize  = 5
+)
+
 func extractSKUProperties(props []clientaliexpress.DSSKUPropertyDTO) (color, size, propJSON string) {
 	var parts []string
 	for _, prop := range props {
-		name := strings.ToLower(prop.SKUPropertyName)
 		value := firstNonEmpty(prop.PropertyValueDefinitionName, prop.SKUPropertyValue)
 
-		switch {
-		case strings.Contains(name, "color") || strings.Contains(name, "colour"):
+		switch prop.SKUPropertyID {
+		case aePropertyIDColor:
 			color = value
-		case strings.Contains(name, "size"):
+		case aePropertyIDSize:
 			size = value
 		}
 		parts = append(parts, prop.SKUPropertyName+":"+value)
