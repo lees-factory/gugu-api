@@ -21,15 +21,17 @@ const defaultAppType = "AFFILIATE"
 type AliExpressController struct {
 	services      map[string]*domainintegration.AliExpressConnectionService
 	productClient clientaliexpress.ProductClient
+	dsClient      clientaliexpress.DSProductClient
 	tokenStore    clientaliexpress.TokenStore
 }
 
 func NewAliExpressController(
 	services map[string]*domainintegration.AliExpressConnectionService,
 	productClient clientaliexpress.ProductClient,
+	dsClient clientaliexpress.DSProductClient,
 	tokenStore clientaliexpress.TokenStore,
 ) *AliExpressController {
-	return &AliExpressController{services: services, productClient: productClient, tokenStore: tokenStore}
+	return &AliExpressController{services: services, productClient: productClient, dsClient: dsClient, tokenStore: tokenStore}
 }
 
 func (c *AliExpressController) resolveService(r *stdhttp.Request) (*domainintegration.AliExpressConnectionService, error) {
@@ -52,8 +54,11 @@ func (c *AliExpressController) resolveServiceByAppType(appType string) (*domaini
 	return svc, nil
 }
 
-func (c *AliExpressController) resolveAccessToken(ctx context.Context) string {
-	record, err := c.tokenStore.FindByAppType(ctx, defaultAppType)
+func (c *AliExpressController) resolveAccessToken(ctx context.Context, appType string) string {
+	if appType == "" {
+		appType = defaultAppType
+	}
+	record, err := c.tokenStore.FindByAppType(ctx, appType)
 	if err != nil || record == nil {
 		return ""
 	}
@@ -70,6 +75,7 @@ func (c *AliExpressController) RegisterRoutes(r chi.Router) {
 		r.Get("/products", apiadvice.Wrap(c.GetProducts))
 		r.Get("/product-detail", apiadvice.Wrap(c.GetProductDetail))
 		r.Get("/product-sku-detail", apiadvice.Wrap(c.GetProductSKUDetail))
+		r.Get("/ds-product", apiadvice.Wrap(c.GetDSProduct))
 	})
 }
 
@@ -163,7 +169,7 @@ func (c *AliExpressController) GetProducts(r *stdhttp.Request) (int, any, error)
 		TargetLanguage: "KO",
 		ShipToCountry:  strings.TrimSpace(q.Get("ship_to_country")),
 		TrackingID:     strings.TrimSpace(q.Get("tracking_id")),
-		AccessToken:    c.resolveAccessToken(r.Context()),
+		AccessToken:    c.resolveAccessToken(r.Context(), "AFFILIATE"),
 	})
 	if err != nil {
 		return 0, nil, mapAliExpressError(err)
@@ -182,7 +188,7 @@ func (c *AliExpressController) GetProductDetail(r *stdhttp.Request) (int, any, e
 		ProductIDs:     []string{productID},
 		TargetCurrency: "KRW",
 		TargetLanguage: "KO",
-		AccessToken:    c.resolveAccessToken(r.Context()),
+		AccessToken:    c.resolveAccessToken(r.Context(), "AFFILIATE"),
 	})
 	if err != nil {
 		return 0, nil, mapAliExpressError(err)
@@ -208,13 +214,54 @@ func (c *AliExpressController) GetProductSKUDetail(r *stdhttp.Request) (int, any
 		TargetCurrency: "KRW",
 		TargetLanguage: "KO",
 		SKUIDs:         skuIDs,
-		AccessToken:    c.resolveAccessToken(r.Context()),
+		AccessToken:    c.resolveAccessToken(r.Context(), "AFFILIATE"),
 	})
 	if err != nil {
 		return 0, nil, mapAliExpressError(err)
 	}
 
 	return stdhttp.StatusOK, apiresponse.SuccessWithData(result), nil
+}
+
+func (c *AliExpressController) GetDSProduct(r *stdhttp.Request) (int, any, error) {
+	productID := strings.TrimSpace(r.URL.Query().Get("product_id"))
+	if productID == "" {
+		return 0, nil, apierror.InvalidRequestError()
+	}
+
+	shipToCountry := strings.TrimSpace(r.URL.Query().Get("ship_to_country"))
+	if shipToCountry == "" {
+		shipToCountry = "KR"
+	}
+
+	if c.dsClient == nil {
+		return 0, nil, &apierror.APIError{
+			Status:  stdhttp.StatusBadRequest,
+			Code:    "E400",
+			Message: "dropshipping client is not configured",
+		}
+	}
+
+	result, err := c.dsClient.GetDSProduct(r.Context(), clientaliexpress.DSProductInput{
+		ProductID:      productID,
+		ShipToCountry:  shipToCountry,
+		TargetCurrency: strings.TrimSpace(firstQueryOrDefault(r, "target_currency", "KRW")),
+		TargetLanguage: strings.TrimSpace(firstQueryOrDefault(r, "target_language", "ko")),
+		AccessToken:    c.resolveAccessToken(r.Context(), "DROPSHIPPING"),
+	})
+	if err != nil {
+		return 0, nil, mapAliExpressError(err)
+	}
+
+	return stdhttp.StatusOK, apiresponse.SuccessWithData(result), nil
+}
+
+func firstQueryOrDefault(r *stdhttp.Request, key, fallback string) string {
+	v := strings.TrimSpace(r.URL.Query().Get(key))
+	if v == "" {
+		return fallback
+	}
+	return v
 }
 
 func mapAliExpressError(err error) error {

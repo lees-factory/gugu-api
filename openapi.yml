@@ -655,6 +655,64 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /v1/integrations/aliexpress/ds-product:
+    get:
+      tags:
+        - 외부 연동
+      summary: AliExpress Dropshipping 상품 조회
+      description: |
+        AliExpress Dropshipping API를 호출하여 상품 정보와 전체 SKU를 조회한다. 개발자 확인용.
+        Affiliate API에 없는 상품도 조회 가능하다.
+        내부 TokenStore에 저장된 DROPSHIPPING access_token을 자동으로 사용한다.
+      operationId: getAliExpressDSProduct
+      parameters:
+        - in: query
+          name: product_id
+          required: true
+          schema:
+            type: string
+          description: AliExpress 외부 상품 ID
+          example: '1005008965454164'
+        - in: query
+          name: ship_to_country
+          schema:
+            type: string
+            default: KR
+          description: 배송 대상 국가 (2자리 코드)
+          example: KR
+        - in: query
+          name: target_currency
+          schema:
+            type: string
+            default: KRW
+          description: 표시 통화
+          example: KRW
+        - in: query
+          name: target_language
+          schema:
+            type: string
+            default: ko
+          description: 표시 언어
+          example: ko
+      responses:
+        '200':
+          description: 조회에 성공했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AliExpressDSProductResponse'
+        '400':
+          description: 요청 형식이 잘못되었거나 AliExpress API 에러가 발생했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 내부 오류가 발생했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /v1/tracked-items/:
     get:
       tags:
@@ -1531,6 +1589,117 @@ components:
                     type: string
                   discount_rate:
                     type: string
+    AliExpressDSProductResponse:
+      type: object
+      description: AliExpress Dropshipping 상품 조회 응답
+      required:
+        - result
+        - data
+      properties:
+        result:
+          $ref: '#/components/schemas/ResultType'
+        data:
+          type: object
+          properties:
+            ae_item_base_info_dto:
+              type: object
+              description: 기본 상품 정보
+              properties:
+                product_id:
+                  type: integer
+                subject:
+                  type: string
+                  description: 상품 제목
+                product_status_type:
+                  type: string
+                category_id:
+                  type: integer
+                currency_code:
+                  type: string
+                avg_evaluation_rating:
+                  type: string
+                evaluation_count:
+                  type: string
+                sales_count:
+                  type: string
+            ae_item_sku_info_dtos:
+              type: array
+              description: 전체 SKU 목록
+              items:
+                type: object
+                properties:
+                  sku_id:
+                    type: string
+                  id:
+                    type: string
+                    description: SKU 속성 고유 키
+                  sku_attr:
+                    type: string
+                  sku_price:
+                    type: string
+                    description: 원가
+                  offer_sale_price:
+                    type: string
+                    description: 할인가
+                  channel_discount_price:
+                    type: string
+                    description: DS 채널 전용 가격
+                  sku_available_stock:
+                    type: integer
+                    description: 재고 수량
+                  currency_code:
+                    type: string
+                  barcode:
+                    type: string
+                  ean_code:
+                    type: string
+                  ae_sku_property_dtos:
+                    type: array
+                    description: SKU 속성 (색상, 사이즈 등)
+                    items:
+                      type: object
+                      properties:
+                        sku_property_id:
+                          type: integer
+                          description: 속성 ID (14=Color, 5=Size)
+                        sku_property_name:
+                          type: string
+                        property_value_id:
+                          type: integer
+                        sku_property_value:
+                          type: string
+                        property_value_definition_name:
+                          type: string
+                        sku_image:
+                          type: string
+            ae_multimedia_info_dto:
+              type: object
+              properties:
+                image_urls:
+                  type: string
+                  description: 대표 이미지 URL 목록 (세미콜론 구분)
+            ae_store_info:
+              type: object
+              properties:
+                store_id:
+                  type: integer
+                store_name:
+                  type: string
+                store_country_code:
+                  type: string
+            logistics_info_dto:
+              type: object
+              properties:
+                ship_to_country:
+                  type: string
+                delivery_time:
+                  type: integer
+            has_whole_sale:
+              type: boolean
+            rsp_code:
+              type: integer
+            rsp_msg:
+              type: string
     TrackedItemData:
       type: object
       description: 유저 저장 상품 카드 데이터

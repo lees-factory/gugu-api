@@ -31,8 +31,9 @@ func Wire(cfg config.Config, db *sql.DB) (*AliExpressController, clientaliexpres
 		"AFFILIATE", affiliateClient, tokenStore, recordIDGenerator,
 	)
 
+	var dsClient *clientaliexpress.HTTPClient
 	if cfg.AliExpressDSAppKey != "" {
-		dsClient, err := clientaliexpress.NewHTTPClient(clientaliexpress.Config{
+		dsClient, err = clientaliexpress.NewHTTPClient(clientaliexpress.Config{
 			BaseURL:     cfg.AliExpressDSBaseURL,
 			AppKey:      cfg.AliExpressDSAppKey,
 			AppSecret:   cfg.AliExpressDSAppSecret,
@@ -46,7 +47,7 @@ func Wire(cfg config.Config, db *sql.DB) (*AliExpressController, clientaliexpres
 		)
 	}
 
-	controller := NewAliExpressController(services, affiliateClient, tokenStore)
+	controller := NewAliExpressController(services, affiliateClient, dsClient, tokenStore)
 	return controller, tokenStore, nil
 }
 
