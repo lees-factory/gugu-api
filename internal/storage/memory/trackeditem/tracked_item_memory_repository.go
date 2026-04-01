@@ -2,7 +2,9 @@ package trackeditem
 
 import (
 	"context"
+	"sort"
 	"sync"
+	"time"
 
 	domaintrackeditem "github.com/ljj/gugu-api/internal/core/domain/trackeditem"
 )
@@ -56,6 +58,42 @@ func (r *TrackedItemMemoryRepository) ListByUserID(_ context.Context, userID str
 		}
 	}
 	return items, nil
+}
+
+func (r *TrackedItemMemoryRepository) ListByUserIDWithCursor(_ context.Context, userID string, cursorCreatedAt time.Time, cursorID string, limit int) ([]domaintrackeditem.TrackedItem, error) {
+	all, _ := r.ListByUserID(nil, userID)
+	sorted := sortDescending(all)
+
+	result := make([]domaintrackeditem.TrackedItem, 0, limit)
+	for _, item := range sorted {
+		if item.CreatedAt.Before(cursorCreatedAt) || (item.CreatedAt.Equal(cursorCreatedAt) && item.ID < cursorID) {
+			result = append(result, item)
+			if len(result) >= limit {
+				break
+			}
+		}
+	}
+	return result, nil
+}
+
+func (r *TrackedItemMemoryRepository) ListByUserIDFirstPage(_ context.Context, userID string, limit int) ([]domaintrackeditem.TrackedItem, error) {
+	all, _ := r.ListByUserID(nil, userID)
+	sorted := sortDescending(all)
+
+	if len(sorted) > limit {
+		sorted = sorted[:limit]
+	}
+	return sorted, nil
+}
+
+func sortDescending(items []domaintrackeditem.TrackedItem) []domaintrackeditem.TrackedItem {
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].CreatedAt.Equal(items[j].CreatedAt) {
+			return items[i].ID > items[j].ID
+		}
+		return items[i].CreatedAt.After(items[j].CreatedAt)
+	})
+	return items
 }
 
 func (r *TrackedItemMemoryRepository) Create(_ context.Context, trackedItem domaintrackeditem.TrackedItem) error {

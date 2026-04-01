@@ -8,6 +8,7 @@ import (
 	domainproduct "github.com/ljj/gugu-api/internal/core/domain/product"
 	"github.com/ljj/gugu-api/internal/core/enum"
 	coreerror "github.com/ljj/gugu-api/internal/core/error"
+	"github.com/ljj/gugu-api/internal/core/support/page"
 )
 
 type AddInput struct {
@@ -200,6 +201,78 @@ func (s *Service) ListWithProducts(ctx context.Context, userID string) ([]Tracke
 	}
 
 	return result, nil
+}
+
+func (s *Service) ListWithProductsCursor(ctx context.Context, userID string, cursor page.CursorRequest) (*page.CursorPage[TrackedItemWithProduct], error) {
+	userID = strings.TrimSpace(userID)
+	fetchSize := cursor.EffectiveSize() + 1
+
+	var trackedItems []TrackedItem
+	var err error
+
+	if cursor.Cursor == "" {
+		trackedItems, err = s.finder.ListByUserIDFirstPage(ctx, userID, fetchSize)
+	} else {
+		cursorCreatedAt, cursorID, decodeErr := page.DecodeCursor(cursor.Cursor)
+		if decodeErr != nil {
+			return nil, fmt.Errorf("invalid cursor: %w", decodeErr)
+		}
+		trackedItems, err = s.finder.ListByUserIDWithCursor(ctx, userID, cursorCreatedAt, cursorID, fetchSize)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("list tracked items: %w", err)
+	}
+
+	hasMore := len(trackedItems) > cursor.EffectiveSize()
+	if hasMore {
+		trackedItems = trackedItems[:cursor.EffectiveSize()]
+	}
+
+	if len(trackedItems) == 0 {
+		return &page.CursorPage[TrackedItemWithProduct]{
+			Items:   []TrackedItemWithProduct{},
+			HasMore: false,
+		}, nil
+	}
+
+	productIDs := make([]string, len(trackedItems))
+	for i, tracked := range trackedItems {
+		productIDs[i] = tracked.ProductID
+	}
+
+	products, err := s.productService.FindByIDs(ctx, productIDs)
+	if err != nil {
+		return nil, fmt.Errorf("find products by ids: %w", err)
+	}
+
+	productMap := make(map[string]domainproduct.Product, len(products))
+	for _, p := range products {
+		productMap[p.ID] = p
+	}
+
+	items := make([]TrackedItemWithProduct, 0, len(trackedItems))
+	for _, tracked := range trackedItems {
+		product, ok := productMap[tracked.ProductID]
+		if !ok {
+			continue
+		}
+		items = append(items, TrackedItemWithProduct{
+			TrackedItem: tracked,
+			Product:     product,
+		})
+	}
+
+	var nextCursor string
+	if hasMore && len(items) > 0 {
+		last := items[len(items)-1].TrackedItem
+		nextCursor = page.EncodeCursor(last.CreatedAt, last.ID)
+	}
+
+	return &page.CursorPage[TrackedItemWithProduct]{
+		Items:      items,
+		NextCursor: nextCursor,
+		HasMore:    hasMore,
+	}, nil
 }
 
 type TrackedItemDetail struct {

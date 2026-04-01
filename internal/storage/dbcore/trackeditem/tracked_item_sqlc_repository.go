@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	domaintrackeditem "github.com/ljj/gugu-api/internal/core/domain/trackeditem"
 	"github.com/ljj/gugu-api/internal/storage/dbcore/sqldb"
@@ -63,6 +64,40 @@ func (r *TrackedItemSQLCRepository) FindByIDAndUserID(ctx context.Context, track
 
 func (r *TrackedItemSQLCRepository) ListByUserID(ctx context.Context, userID string) ([]domaintrackeditem.TrackedItem, error) {
 	rows, err := r.queries.ListTrackedItemsByUserID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]domaintrackeditem.TrackedItem, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, toDomainTrackedItem(row))
+	}
+	return items, nil
+}
+
+func (r *TrackedItemSQLCRepository) ListByUserIDWithCursor(ctx context.Context, userID string, cursorCreatedAt time.Time, cursorID string, limit int) ([]domaintrackeditem.TrackedItem, error) {
+	rows, err := r.queries.ListTrackedItemsByUserIDWithCursor(ctx, sqldb.ListTrackedItemsByUserIDWithCursorParams{
+		UserID:    userID,
+		CreatedAt: cursorCreatedAt,
+		ID:        cursorID,
+		Limit:     int32(limit),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]domaintrackeditem.TrackedItem, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, toDomainTrackedItem(row))
+	}
+	return items, nil
+}
+
+func (r *TrackedItemSQLCRepository) ListByUserIDFirstPage(ctx context.Context, userID string, limit int) ([]domaintrackeditem.TrackedItem, error) {
+	rows, err := r.queries.ListTrackedItemsByUserIDFirstPage(ctx, sqldb.ListTrackedItemsByUserIDFirstPageParams{
+		UserID: userID,
+		Limit:  int32(limit),
+	})
 	if err != nil {
 		return nil, err
 	}

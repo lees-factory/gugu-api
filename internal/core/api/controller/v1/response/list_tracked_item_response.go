@@ -3,6 +3,7 @@ package response
 import (
 	domainproduct "github.com/ljj/gugu-api/internal/core/domain/product"
 	domaintrackeditem "github.com/ljj/gugu-api/internal/core/domain/trackeditem"
+	"github.com/ljj/gugu-api/internal/core/support/page"
 )
 
 type ListTrackedItem struct {
@@ -41,4 +42,22 @@ func NewListTrackedItems(items []domaintrackeditem.TrackedItemWithProduct) []Lis
 		result = append(result, NewListTrackedItem(item.TrackedItem, item.Product))
 	}
 	return result
+}
+
+type ListTrackedItemsPage struct {
+	Items      []ListTrackedItem `json:"items"`
+	NextCursor string            `json:"next_cursor,omitempty"`
+	HasMore    bool              `json:"has_more"`
+}
+
+func NewListTrackedItemsPage(p *page.CursorPage[domaintrackeditem.TrackedItemWithProduct]) ListTrackedItemsPage {
+	items := make([]ListTrackedItem, 0, len(p.Items))
+	for _, item := range p.Items {
+		items = append(items, NewListTrackedItem(item.TrackedItem, item.Product))
+	}
+	return ListTrackedItemsPage{
+		Items:      items,
+		NextCursor: p.NextCursor,
+		HasMore:    p.HasMore,
+	}
 }

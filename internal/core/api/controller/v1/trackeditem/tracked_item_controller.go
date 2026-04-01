@@ -71,13 +71,13 @@ func (c *Controller) GetDetail(r *stdhttp.Request) (int, any, error) {
 func (c *Controller) List(r *stdhttp.Request) (int, any, error) {
 	req := request.ParseListTrackedItems(r)
 
-	items, err := c.trackedItemService.ListWithProducts(r.Context(), req.User.ID)
+	result, err := c.trackedItemService.ListWithProductsCursor(r.Context(), req.User.ID, req.Cursor)
 	if err != nil {
 		return 0, nil, err
 	}
 
 	return stdhttp.StatusOK, apiresponse.SuccessWithData(
-		response.NewListTrackedItems(items),
+		response.NewListTrackedItemsPage(result),
 	), nil
 }
 

@@ -184,6 +184,121 @@ func (q *Queries) ListTrackedItemsByUserID(ctx context.Context, userID string) (
 	return items, nil
 }
 
+const listTrackedItemsByUserIDFirstPage = `-- name: ListTrackedItemsByUserIDFirstPage :many
+SELECT
+    id,
+    user_id,
+    product_id,
+    sku_id,
+    original_url,
+    currency,
+    deleted_at,
+    created_at
+FROM gugu.user_tracked_item
+WHERE user_id = $1 AND deleted_at IS NULL
+ORDER BY created_at DESC, id DESC
+LIMIT $2
+`
+
+type ListTrackedItemsByUserIDFirstPageParams struct {
+	UserID string `json:"user_id"`
+	Limit  int32  `json:"limit"`
+}
+
+func (q *Queries) ListTrackedItemsByUserIDFirstPage(ctx context.Context, arg ListTrackedItemsByUserIDFirstPageParams) ([]GuguUserTrackedItem, error) {
+	rows, err := q.db.QueryContext(ctx, listTrackedItemsByUserIDFirstPage, arg.UserID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GuguUserTrackedItem
+	for rows.Next() {
+		var i GuguUserTrackedItem
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.ProductID,
+			&i.SkuID,
+			&i.OriginalUrl,
+			&i.Currency,
+			&i.DeletedAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listTrackedItemsByUserIDWithCursor = `-- name: ListTrackedItemsByUserIDWithCursor :many
+SELECT
+    id,
+    user_id,
+    product_id,
+    sku_id,
+    original_url,
+    currency,
+    deleted_at,
+    created_at
+FROM gugu.user_tracked_item
+WHERE user_id = $1
+  AND deleted_at IS NULL
+  AND (created_at < $2 OR (created_at = $2 AND id < $3))
+ORDER BY created_at DESC, id DESC
+LIMIT $4
+`
+
+type ListTrackedItemsByUserIDWithCursorParams struct {
+	UserID    string    `json:"user_id"`
+	CreatedAt time.Time `json:"created_at"`
+	ID        string    `json:"id"`
+	Limit     int32     `json:"limit"`
+}
+
+func (q *Queries) ListTrackedItemsByUserIDWithCursor(ctx context.Context, arg ListTrackedItemsByUserIDWithCursorParams) ([]GuguUserTrackedItem, error) {
+	rows, err := q.db.QueryContext(ctx, listTrackedItemsByUserIDWithCursor,
+		arg.UserID,
+		arg.CreatedAt,
+		arg.ID,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GuguUserTrackedItem
+	for rows.Next() {
+		var i GuguUserTrackedItem
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.ProductID,
+			&i.SkuID,
+			&i.OriginalUrl,
+			&i.Currency,
+			&i.DeletedAt,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateTrackedItemSKU = `-- name: UpdateTrackedItemSKU :execrows
 UPDATE gugu.user_tracked_item
 SET sku_id = $3

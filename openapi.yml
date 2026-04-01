@@ -729,6 +729,21 @@ paths:
           schema:
             type: string
           description: 조회 대상 내부 사용자 ID
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            type: string
+          description: 다음 페이지 커서. 첫 요청 시 생략하고, 이후 응답의 next_cursor 값을 전달한다.
+        - in: query
+          name: size
+          required: false
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+          description: 한 번에 조회할 항목 수 (기본값 20, 최대 100)
       responses:
         '200':
           description: 조회에 성공했다.
@@ -2019,7 +2034,7 @@ components:
           $ref: '#/components/schemas/AddTrackedItemData'
     ListTrackedItemsResponse:
       type: object
-      description: 유저 저장 상품 목록 응답
+      description: 유저 저장 상품 목록 응답 (커서 기반 페이지네이션)
       required:
         - result
         - data
@@ -2027,9 +2042,24 @@ components:
         result:
           $ref: '#/components/schemas/ResultType'
         data:
+          $ref: '#/components/schemas/ListTrackedItemsPageData'
+    ListTrackedItemsPageData:
+      type: object
+      description: 커서 기반 페이지네이션 목록 데이터
+      required:
+        - items
+        - has_more
+      properties:
+        items:
           type: array
           items:
             $ref: '#/components/schemas/TrackedItemData'
+        next_cursor:
+          type: string
+          description: 다음 페이지를 조회하기 위한 커서 값. has_more가 false이면 생략된다.
+        has_more:
+          type: boolean
+          description: 다음 페이지 존재 여부
     ProductPriceHistoryData:
       type: object
       description: 상품 가격 이력 데이터
