@@ -7,10 +7,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"github.com/ljj/gugu-api/internal/core/api/admin"
 	apiadvice "github.com/ljj/gugu-api/internal/core/api/controller/advice"
 	apiauth "github.com/ljj/gugu-api/internal/core/api/controller/v1/auth"
+	apidiscover "github.com/ljj/gugu-api/internal/core/api/controller/v1/discover"
 	apiintegration "github.com/ljj/gugu-api/internal/core/api/controller/v1/integration"
+	apipricealert "github.com/ljj/gugu-api/internal/core/api/controller/v1/pricealert"
 	apiproduct "github.com/ljj/gugu-api/internal/core/api/controller/v1/product"
 	apitrackeditem "github.com/ljj/gugu-api/internal/core/api/controller/v1/trackeditem"
 	"github.com/ljj/gugu-api/internal/core/support/auth"
@@ -52,16 +53,20 @@ func NewServer(cfg config.Config, db *sql.DB) (*Server, error) {
 		return nil, fmt.Errorf("wire tracked item: %w", err)
 	}
 
+	priceAlertController := apipricealert.Wire(db)
+
 	jwtIssuer := security.NewJWTTokenIssuer(cfg.JWTSecret, cfg.JWTIssuer)
 	router.Group(func(r chi.Router) {
 		r.Use(auth.UserArgumentResolver(jwtIssuer))
 		trackedItemController.RegisterRoutes(r)
+		priceAlertController.RegisterRoutes(r)
 	})
 
 	productController := apiproduct.Wire(db, productService, trackedItemService)
 	productController.RegisterRoutes(router)
 
-	admin.RegisterBatchRoutes(router, cfg, db, aliExpressTokenStore, productService)
+	discoverController := apidiscover.NewController(productService)
+	discoverController.RegisterRoutes(router)
 
 	return &Server{router: router}, nil
 }
