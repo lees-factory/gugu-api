@@ -51,6 +51,38 @@ FROM gugu.user_tracked_item
 WHERE user_id = $1 AND deleted_at IS NULL
 ORDER BY created_at DESC;
 
+-- name: ListTrackedItemsByUserIDWithCursor :many
+SELECT
+    id,
+    user_id,
+    product_id,
+    sku_id,
+    original_url,
+    currency,
+    deleted_at,
+    created_at
+FROM gugu.user_tracked_item
+WHERE user_id = $1
+  AND deleted_at IS NULL
+  AND (created_at < $2 OR (created_at = $2 AND id < $3))
+ORDER BY created_at DESC, id DESC
+LIMIT $4;
+
+-- name: ListTrackedItemsByUserIDFirstPage :many
+SELECT
+    id,
+    user_id,
+    product_id,
+    sku_id,
+    original_url,
+    currency,
+    deleted_at,
+    created_at
+FROM gugu.user_tracked_item
+WHERE user_id = $1 AND deleted_at IS NULL
+ORDER BY created_at DESC, id DESC
+LIMIT $2;
+
 -- name: DeleteTrackedItemByIDAndUserID :execrows
 UPDATE gugu.user_tracked_item
 SET deleted_at = NOW()
