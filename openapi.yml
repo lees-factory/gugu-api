@@ -904,6 +904,51 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /v1/tracked-items/{trackedItemID}/sku-price-histories:
+    get:
+      tags:
+        - 유저 저장 상품
+      summary: SKU 가격 변동 내역 조회
+      description: 유저 저장 상품에서 특정 SKU의 가격 변동 내역을 조회한다.
+      operationId: getSKUPriceHistories
+      parameters:
+        - in: path
+          name: trackedItemID
+          required: true
+          schema:
+            type: string
+          description: 유저 저장 상품 ID
+        - in: query
+          name: sku_id
+          required: true
+          schema:
+            type: string
+          description: 조회할 SKU ID
+        - in: query
+          name: currency
+          required: false
+          schema:
+            type: string
+          description: 통화 코드. 생략 시 유저 저장 상품의 기본 통화 사용
+      responses:
+        '200':
+          description: 조회에 성공했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SKUPriceHistoryResponse'
+        '400':
+          description: sku_id가 누락되었거나 요청이 잘못되었다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 유저 저장 상품을 찾을 수 없다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /v1/products/{productID}/alert:
     post:
       tags:
@@ -2060,6 +2105,45 @@ components:
         has_more:
           type: boolean
           description: 다음 페이지 존재 여부
+    SKUPriceHistoryResponse:
+      type: object
+      description: SKU 가격 변동 내역 응답
+      required:
+        - result
+        - data
+      properties:
+        result:
+          $ref: '#/components/schemas/ResultType'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SKUPriceHistoryItem'
+    SKUPriceHistoryItem:
+      type: object
+      description: SKU 가격 변동 내역 항목
+      required:
+        - sku_id
+        - price
+        - currency
+        - recorded_at
+        - change_value
+      properties:
+        sku_id:
+          type: string
+          description: SKU ID
+        price:
+          type: string
+          description: 기록 시점 가격
+        currency:
+          type: string
+          description: 가격 통화
+        recorded_at:
+          type: string
+          format: date-time
+          description: 기록 시각
+        change_value:
+          type: string
+          description: 이전 기록 대비 변동값
     ProductPriceHistoryData:
       type: object
       description: 상품 가격 이력 데이터
