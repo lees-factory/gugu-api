@@ -27,4 +27,5 @@ var (
 	TrackedItemExists   = ErrorType{KindClient, G3001, "tracked item already exists", LevelInfo}
 	ProductNotFound     = ErrorType{KindClient, G3002, "product not found", LevelInfo}
 	TrackedItemNotFound = ErrorType{KindClient, G3003, "tracked item not found", LevelInfo}
+	SKUIDRequired       = ErrorType{KindClient, G3004, "sku_id is required", LevelInfo}
 )

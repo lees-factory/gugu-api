@@ -20,4 +20,5 @@ const (
 	G3001 = "G3001" // tracked item already exists
 	G3002 = "G3002" // product not found
 	G3003 = "G3003" // tracked item not found
+	G3004 = "G3004" // sku id required
 )

@@ -83,7 +83,9 @@ func Wire(cfg config.Config, db *sql.DB, aliExpressTokenStore clientaliexpress.T
 		provider,
 	)
 
-	controller := NewController(trackedItemService)
+	skuPriceHistoryService := domainsph.NewService(domainsph.NewFinder(skuPriceHistRepo))
+
+	controller := NewController(trackedItemService, skuPriceHistoryService)
 	return controller, trackedItemService, productService, nil
 }
 
