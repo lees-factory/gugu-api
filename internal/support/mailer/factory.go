@@ -8,6 +8,7 @@ import (
 
 type Sender interface {
 	SendVerification(ctx context.Context, email string, code string) error
+	SendPriceAlert(ctx context.Context, email string, productTitle string, oldPrice string, newPrice string, currency string) error
 }
 
 type Config struct {
@@ -56,5 +57,10 @@ func (s *LogSender) SendVerification(_ context.Context, email string, code strin
 	}
 
 	log.Printf("send verification email provider=log to=%s code=%s html=%q", email, code, html)
+	return nil
+}
+
+func (s *LogSender) SendPriceAlert(_ context.Context, email string, productTitle string, oldPrice string, newPrice string, currency string) error {
+	log.Printf("send price alert provider=log to=%s product=%q old=%s new=%s currency=%s", email, productTitle, oldPrice, newPrice, currency)
 	return nil
 }
