@@ -157,6 +157,7 @@ type GuguUserTrackedItem struct {
 	ProductID   string         `json:"product_id"`
 	SkuID       sql.NullString `json:"sku_id"`
 	OriginalUrl string         `json:"original_url"`
+	Currency    string         `json:"currency"`
 	DeletedAt   sql.NullTime   `json:"deleted_at"`
 	CreatedAt   time.Time      `json:"created_at"`
 }

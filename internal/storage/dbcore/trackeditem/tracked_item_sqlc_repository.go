@@ -81,6 +81,7 @@ func (r *TrackedItemSQLCRepository) Create(ctx context.Context, trackedItem doma
 		ProductID:   trackedItem.ProductID,
 		SkuID:       toNullString(trackedItem.SKUID),
 		OriginalUrl: trackedItem.OriginalURL,
+		Currency:    trackedItem.Currency,
 		CreatedAt:   trackedItem.CreatedAt,
 	})
 }
@@ -121,6 +122,7 @@ func toDomainTrackedItem(row sqldb.GuguUserTrackedItem) domaintrackeditem.Tracke
 		ProductID:   row.ProductID,
 		SKUID:       fromNullString(row.SkuID),
 		OriginalURL: row.OriginalUrl,
+		Currency:    row.Currency,
 		CreatedAt:   row.CreatedAt,
 	}
 }

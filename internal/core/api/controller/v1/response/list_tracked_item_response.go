@@ -30,7 +30,7 @@ func NewListTrackedItem(tracked domaintrackeditem.TrackedItem, product domainpro
 		Title:             product.Title,
 		MainImageURL:      product.MainImageURL,
 		CurrentPrice:      product.CurrentPrice,
-		Currency:          product.Currency,
+		Currency:          tracked.Currency,
 		ProductURL:        product.ProductURL,
 	}
 }

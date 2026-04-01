@@ -10,6 +10,6 @@ func NewService(finder Finder) *Service {
 	return &Service{finder: finder}
 }
 
-func (s *Service) ListBySKUID(ctx context.Context, skuID string) ([]SKUPriceHistory, error) {
-	return s.finder.ListBySKUID(ctx, skuID)
+func (s *Service) ListBySKUID(ctx context.Context, skuID string, currency string) ([]SKUPriceHistory, error) {
+	return s.finder.ListBySKUID(ctx, skuID, currency)
 }

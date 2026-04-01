@@ -2,31 +2,43 @@ package request
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/ljj/gugu-api/internal/core/support/auth"
 )
 
-type AddTrackedItem struct {
-	User              auth.RequestUser
-	ProviderCommerce  string
-	ExternalProductID string
-	OriginalURL       string
+const maxAddTrackedItems = 5
+
+type AddTrackedItemEntry struct {
+	ProviderCommerce  string `json:"provider_commerce"`
+	ExternalProductID string `json:"external_product_id"`
+	OriginalURL       string `json:"original_url"`
+	Currency          string `json:"currency"`
 }
 
-func ParseAddTrackedItem(r *http.Request) (AddTrackedItem, error) {
+type AddTrackedItems struct {
+	User  auth.RequestUser
+	Items []AddTrackedItemEntry
+}
+
+func ParseAddTrackedItems(r *http.Request) (AddTrackedItems, error) {
 	var body struct {
-		ProviderCommerce  string `json:"provider_commerce"`
-		ExternalProductID string `json:"external_product_id"`
-		OriginalURL       string `json:"original_url"`
+		Items []AddTrackedItemEntry `json:"items"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		return AddTrackedItem{}, err
+		return AddTrackedItems{}, err
 	}
-	return AddTrackedItem{
-		User:              auth.RequestUserFrom(r.Context()),
-		ProviderCommerce:  body.ProviderCommerce,
-		ExternalProductID: body.ExternalProductID,
-		OriginalURL:       body.OriginalURL,
+
+	if len(body.Items) == 0 {
+		return AddTrackedItems{}, fmt.Errorf("items must not be empty")
+	}
+	if len(body.Items) > maxAddTrackedItems {
+		return AddTrackedItems{}, fmt.Errorf("items must not exceed %d", maxAddTrackedItems)
+	}
+
+	return AddTrackedItems{
+		User:  auth.RequestUserFrom(r.Context()),
+		Items: body.Items,
 	}, nil
 }

@@ -6,7 +6,7 @@ import (
 )
 
 type ProductSnapshotFinder interface {
-	ListByProductIDAndDateRange(ctx context.Context, productID string, from time.Time, to time.Time) ([]ProductPriceSnapshot, error)
+	ListByProductIDAndDateRange(ctx context.Context, productID string, currency string, from time.Time, to time.Time) ([]ProductPriceSnapshot, error)
 }
 
 type productSnapshotFinder struct {
@@ -17,6 +17,6 @@ func NewProductSnapshotFinder(repository ProductSnapshotRepository) ProductSnaps
 	return &productSnapshotFinder{repository: repository}
 }
 
-func (f *productSnapshotFinder) ListByProductIDAndDateRange(ctx context.Context, productID string, from time.Time, to time.Time) ([]ProductPriceSnapshot, error) {
-	return f.repository.ListByProductIDAndDateRange(ctx, productID, from, to)
+func (f *productSnapshotFinder) ListByProductIDAndDateRange(ctx context.Context, productID string, currency string, from time.Time, to time.Time) ([]ProductPriceSnapshot, error) {
+	return f.repository.ListByProductIDAndDateRange(ctx, productID, currency, from, to)
 }

@@ -17,10 +17,10 @@ func NewService(productFinder ProductSnapshotFinder, skuFinder SKUSnapshotFinder
 	}
 }
 
-func (s *Service) ListProductSnapshotsByDateRange(ctx context.Context, productID string, from time.Time, to time.Time) ([]ProductPriceSnapshot, error) {
-	return s.productFinder.ListByProductIDAndDateRange(ctx, productID, from, to)
+func (s *Service) ListProductSnapshotsByDateRange(ctx context.Context, productID string, currency string, from time.Time, to time.Time) ([]ProductPriceSnapshot, error) {
+	return s.productFinder.ListByProductIDAndDateRange(ctx, productID, currency, from, to)
 }
 
-func (s *Service) ListSKUSnapshotsByDateRange(ctx context.Context, skuID string, from time.Time, to time.Time) ([]SKUPriceSnapshot, error) {
-	return s.skuFinder.ListBySKUIDAndDateRange(ctx, skuID, from, to)
+func (s *Service) ListSKUSnapshotsByDateRange(ctx context.Context, skuID string, currency string, from time.Time, to time.Time) ([]SKUPriceSnapshot, error) {
+	return s.skuFinder.ListBySKUIDAndDateRange(ctx, skuID, currency, from, to)
 }

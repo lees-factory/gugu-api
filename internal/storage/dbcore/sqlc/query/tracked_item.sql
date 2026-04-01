@@ -5,9 +5,10 @@ INSERT INTO gugu.user_tracked_item (
     product_id,
     sku_id,
     original_url,
+    currency,
     created_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6
+    $1, $2, $3, $4, $5, $6, $7
 );
 
 -- name: FindTrackedItemByUserIDAndProductID :one
@@ -17,6 +18,7 @@ SELECT
     product_id,
     sku_id,
     original_url,
+    currency,
     deleted_at,
     created_at
 FROM gugu.user_tracked_item
@@ -29,6 +31,7 @@ SELECT
     product_id,
     sku_id,
     original_url,
+    currency,
     deleted_at,
     created_at
 FROM gugu.user_tracked_item
@@ -41,6 +44,7 @@ SELECT
     product_id,
     sku_id,
     original_url,
+    currency,
     deleted_at,
     created_at
 FROM gugu.user_tracked_item

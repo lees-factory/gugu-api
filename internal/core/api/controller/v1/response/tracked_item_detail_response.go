@@ -30,7 +30,7 @@ func NewTrackedItemDetail(detail *domaintrackeditem.TrackedItemDetail) TrackedIt
 		Title:             detail.Product.Title,
 		MainImageURL:      detail.Product.MainImageURL,
 		CurrentPrice:      detail.Product.CurrentPrice,
-		Currency:          detail.Product.Currency,
+		Currency:          detail.TrackedItem.Currency,
 		ProductURL:        detail.Product.ProductURL,
 		SKUs:              NewProductSKUs(detail.SKUs),
 	}

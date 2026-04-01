@@ -8,35 +8,45 @@ import (
 	"time"
 
 	domainpricehistory "github.com/ljj/gugu-api/internal/core/domain/pricehistory"
+	domainps "github.com/ljj/gugu-api/internal/core/domain/pricesnapshot"
 	domainproduct "github.com/ljj/gugu-api/internal/core/domain/product"
 	"github.com/ljj/gugu-api/internal/core/enum"
 	provideraliexpress "github.com/ljj/gugu-api/internal/provider/product/aliexpress"
 )
 
+var supportedCurrencies = []string{"KRW", "USD"}
+
 type PriceChangeNotifier interface {
 	NotifyPriceChange(ctx context.Context, productID string, productTitle string, oldPrice string, newPrice string, currency string)
 }
 
+type PriceFetcher interface {
+	FetchPrices(ctx context.Context, externalProductIDs []string, currency string) ([]provideraliexpress.PriceResult, error)
+}
+
 type PriceUpdater struct {
-	productService     *domainproduct.Service
-	priceHistoryWriter domainpricehistory.Writer
-	aliExpressFetcher  *provideraliexpress.BatchFetcher
-	notifier           PriceChangeNotifier
-	clock              func() time.Time
+	productService        *domainproduct.Service
+	priceHistoryWriter    domainpricehistory.Writer
+	productSnapshotWriter domainps.ProductSnapshotWriter
+	fetcher               PriceFetcher
+	notifier              PriceChangeNotifier
+	clock                 func() time.Time
 }
 
 func NewPriceUpdater(
 	productService *domainproduct.Service,
 	priceHistoryWriter domainpricehistory.Writer,
-	aliExpressFetcher *provideraliexpress.BatchFetcher,
+	productSnapshotWriter domainps.ProductSnapshotWriter,
+	fetcher PriceFetcher,
 	notifier PriceChangeNotifier,
 ) *PriceUpdater {
 	return &PriceUpdater{
-		productService:     productService,
-		priceHistoryWriter: priceHistoryWriter,
-		aliExpressFetcher:  aliExpressFetcher,
-		notifier:           notifier,
-		clock:              func() time.Time { return time.Now() },
+		productService:        productService,
+		priceHistoryWriter:    priceHistoryWriter,
+		productSnapshotWriter: productSnapshotWriter,
+		fetcher:               fetcher,
+		notifier:              notifier,
+		clock:                 func() time.Time { return time.Now() },
 	}
 }
 
@@ -56,6 +66,10 @@ func (u *PriceUpdater) updateMarket(ctx context.Context, market enum.Market) err
 		return nil
 	}
 
+	return u.updateProducts(ctx, market, products)
+}
+
+func (u *PriceUpdater) updateProducts(ctx context.Context, market enum.Market, products []domainproduct.Product) error {
 	productMap := make(map[string]domainproduct.Product, len(products))
 	externalIDs := make([]string, len(products))
 	for i, p := range products {
@@ -63,58 +77,79 @@ func (u *PriceUpdater) updateMarket(ctx context.Context, market enum.Market) err
 		externalIDs[i] = p.ExternalProductID
 	}
 
-	var prices []provideraliexpress.PriceResult
-	switch market {
-	case enum.MarketAliExpress:
-		prices, err = u.aliExpressFetcher.FetchPrices(ctx, externalIDs)
-		if err != nil {
-			return fmt.Errorf("fetch aliexpress prices: %w", err)
-		}
-	default:
-		log.Printf("batch price update not supported for market: %s", market)
-		return nil
-	}
-
 	now := u.clock()
-	updated := 0
-	for _, pr := range prices {
-		product, ok := productMap[pr.ExternalProductID]
-		if !ok {
-			continue
-		}
-		if pr.Price == "" {
-			continue
-		}
-		if product.CurrentPrice == pr.Price && product.Currency == pr.Currency {
+	today := truncateToDate(now)
+
+	for _, currency := range supportedCurrencies {
+		prices, err := u.fetcher.FetchPrices(ctx, externalIDs, currency)
+		if err != nil {
+			log.Printf("failed to fetch prices for market=%s currency=%s: %v", market, currency, err)
 			continue
 		}
 
-		changeValue := calculateChange(product.CurrentPrice, pr.Price)
+		updated := 0
+		for _, pr := range prices {
+			product, ok := productMap[pr.ExternalProductID]
+			if !ok {
+				continue
+			}
+			if pr.Price == "" {
+				continue
+			}
 
-		if err := u.productService.UpdatePrice(ctx, product.ID, pr.Price, pr.Currency); err != nil {
-			log.Printf("failed to update price for product %s: %v", product.ID, err)
-			continue
+			if currency == product.Currency {
+				if product.CurrentPrice != pr.Price {
+					changeValue := calculateChange(product.CurrentPrice, pr.Price)
+
+					if u.productService != nil {
+						if err := u.productService.UpdatePrice(ctx, product.ID, pr.Price, pr.Currency); err != nil {
+							log.Printf("failed to update price for product %s: %v", product.ID, err)
+							continue
+						}
+					}
+
+					if err := u.priceHistoryWriter.Create(ctx, domainpricehistory.PriceHistory{
+						ProductID:   product.ID,
+						Price:       pr.Price,
+						Currency:    pr.Currency,
+						RecordedAt:  now,
+						ChangeValue: changeValue,
+					}); err != nil {
+						log.Printf("failed to record price history for product %s currency %s: %v", product.ID, currency, err)
+					}
+
+					if u.notifier != nil {
+						u.notifier.NotifyPriceChange(ctx, product.ID, product.Title, product.CurrentPrice, pr.Price, pr.Currency)
+					}
+
+					updated++
+				}
+			} else {
+				if err := u.priceHistoryWriter.Create(ctx, domainpricehistory.PriceHistory{
+					ProductID:   product.ID,
+					Price:       pr.Price,
+					Currency:    currency,
+					RecordedAt:  now,
+					ChangeValue: "0",
+				}); err != nil {
+					log.Printf("failed to record price history for product %s currency %s: %v", product.ID, currency, err)
+				}
+				updated++
+			}
+
+			if err := u.productSnapshotWriter.Upsert(ctx, domainps.ProductPriceSnapshot{
+				ProductID:    product.ID,
+				SnapshotDate: today,
+				Price:        pr.Price,
+				Currency:     currency,
+			}); err != nil {
+				log.Printf("failed to upsert product snapshot for product %s currency %s: %v", product.ID, currency, err)
+			}
 		}
 
-		if err := u.priceHistoryWriter.Create(ctx, domainpricehistory.PriceHistory{
-			ProductID:   product.ID,
-			Price:       pr.Price,
-			Currency:    pr.Currency,
-			RecordedAt:  now,
-			ChangeValue: changeValue,
-		}); err != nil {
-			log.Printf("failed to record price history for product %s: %v", product.ID, err)
-			continue
-		}
-
-		if u.notifier != nil {
-			u.notifier.NotifyPriceChange(ctx, product.ID, product.Title, product.CurrentPrice, pr.Price, pr.Currency)
-		}
-
-		updated++
+		log.Printf("batch price update: market=%s currency=%s total=%d fetched=%d updated=%d", market, currency, len(products), len(prices), updated)
 	}
 
-	log.Printf("batch price update: market=%s total=%d fetched=%d updated=%d", market, len(products), len(prices), updated)
 	return nil
 }
 

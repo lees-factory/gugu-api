@@ -3,7 +3,7 @@ package pricehistory
 import "context"
 
 type Finder interface {
-	ListByProductID(ctx context.Context, productID string) ([]PriceHistory, error)
+	ListByProductID(ctx context.Context, productID string, currency string) ([]PriceHistory, error)
 }
 
 type finder struct {
@@ -14,6 +14,6 @@ func NewFinder(repository Repository) Finder {
 	return &finder{repository: repository}
 }
 
-func (f *finder) ListByProductID(ctx context.Context, productID string) ([]PriceHistory, error) {
-	return f.repository.ListByProductID(ctx, productID)
+func (f *finder) ListByProductID(ctx context.Context, productID string, currency string) ([]PriceHistory, error) {
+	return f.repository.ListByProductID(ctx, productID, currency)
 }

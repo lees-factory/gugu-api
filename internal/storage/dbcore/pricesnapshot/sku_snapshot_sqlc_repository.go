@@ -27,9 +27,10 @@ func (r *SKUSnapshotSQLCRepository) Upsert(ctx context.Context, snapshot domainp
 	})
 }
 
-func (r *SKUSnapshotSQLCRepository) ListBySKUIDAndDateRange(ctx context.Context, skuID string, from time.Time, to time.Time) ([]domainps.SKUPriceSnapshot, error) {
+func (r *SKUSnapshotSQLCRepository) ListBySKUIDAndDateRange(ctx context.Context, skuID string, currency string, from time.Time, to time.Time) ([]domainps.SKUPriceSnapshot, error) {
 	rows, err := r.queries.ListSKUPriceSnapshotsByDateRange(ctx, sqldb.ListSKUPriceSnapshotsByDateRangeParams{
 		SkuID:          skuID,
+		Currency:       currency,
 		SnapshotDate:   from,
 		SnapshotDate_2: to,
 	})

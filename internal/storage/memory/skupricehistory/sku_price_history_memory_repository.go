@@ -26,12 +26,15 @@ func (r *MemoryRepository) Create(_ context.Context, history domainsph.SKUPriceH
 	return nil
 }
 
-func (r *MemoryRepository) ListBySKUID(_ context.Context, skuID string) ([]domainsph.SKUPriceHistory, error) {
+func (r *MemoryRepository) ListBySKUID(_ context.Context, skuID string, currency string) ([]domainsph.SKUPriceHistory, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	items := r.bySKUID[skuID]
-	copied := make([]domainsph.SKUPriceHistory, len(items))
-	copy(copied, items)
-	return copied, nil
+	var result []domainsph.SKUPriceHistory
+	for _, item := range r.bySKUID[skuID] {
+		if item.Currency == currency {
+			result = append(result, item)
+		}
+	}
+	return result, nil
 }

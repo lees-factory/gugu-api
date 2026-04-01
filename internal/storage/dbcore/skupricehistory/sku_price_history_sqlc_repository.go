@@ -26,8 +26,11 @@ func (r *SQLCRepository) Create(ctx context.Context, history domainsph.SKUPriceH
 	})
 }
 
-func (r *SQLCRepository) ListBySKUID(ctx context.Context, skuID string) ([]domainsph.SKUPriceHistory, error) {
-	rows, err := r.queries.ListSKUPriceHistoriesBySKUID(ctx, skuID)
+func (r *SQLCRepository) ListBySKUID(ctx context.Context, skuID string, currency string) ([]domainsph.SKUPriceHistory, error) {
+	rows, err := r.queries.ListSKUPriceHistoriesBySKUID(ctx, sqldb.ListSKUPriceHistoriesBySKUIDParams{
+		SkuID:    skuID,
+		Currency: currency,
+	})
 	if err != nil {
 		return nil, err
 	}

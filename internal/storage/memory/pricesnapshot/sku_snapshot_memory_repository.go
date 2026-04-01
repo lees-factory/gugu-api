@@ -34,13 +34,13 @@ func (r *SKUSnapshotMemoryRepository) Upsert(_ context.Context, snapshot domainp
 	return nil
 }
 
-func (r *SKUSnapshotMemoryRepository) ListBySKUIDAndDateRange(_ context.Context, skuID string, from time.Time, to time.Time) ([]domainps.SKUPriceSnapshot, error) {
+func (r *SKUSnapshotMemoryRepository) ListBySKUIDAndDateRange(_ context.Context, skuID string, currency string, from time.Time, to time.Time) ([]domainps.SKUPriceSnapshot, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	var result []domainps.SKUPriceSnapshot
 	for _, item := range r.bySKUID[skuID] {
-		if !item.SnapshotDate.Before(from) && !item.SnapshotDate.After(to) {
+		if item.Currency == currency && !item.SnapshotDate.Before(from) && !item.SnapshotDate.After(to) {
 			result = append(result, item)
 		}
 	}

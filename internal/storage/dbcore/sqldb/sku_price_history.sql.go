@@ -49,9 +49,14 @@ SELECT
     recorded_at,
     change_value
 FROM gugu.sku_price_history
-WHERE sku_id = $1
+WHERE sku_id = $1 AND currency = $2
 ORDER BY recorded_at DESC
 `
+
+type ListSKUPriceHistoriesBySKUIDParams struct {
+	SkuID    string `json:"sku_id"`
+	Currency string `json:"currency"`
+}
 
 type ListSKUPriceHistoriesBySKUIDRow struct {
 	SkuID       string    `json:"sku_id"`
@@ -61,8 +66,8 @@ type ListSKUPriceHistoriesBySKUIDRow struct {
 	ChangeValue string    `json:"change_value"`
 }
 
-func (q *Queries) ListSKUPriceHistoriesBySKUID(ctx context.Context, skuID string) ([]ListSKUPriceHistoriesBySKUIDRow, error) {
-	rows, err := q.db.QueryContext(ctx, listSKUPriceHistoriesBySKUID, skuID)
+func (q *Queries) ListSKUPriceHistoriesBySKUID(ctx context.Context, arg ListSKUPriceHistoriesBySKUIDParams) ([]ListSKUPriceHistoriesBySKUIDRow, error) {
+	rows, err := q.db.QueryContext(ctx, listSKUPriceHistoriesBySKUID, arg.SkuID, arg.Currency)
 	if err != nil {
 		return nil, err
 	}

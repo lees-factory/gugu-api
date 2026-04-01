@@ -26,8 +26,11 @@ func (r *PriceHistorySQLCRepository) Create(ctx context.Context, history domainp
 	})
 }
 
-func (r *PriceHistorySQLCRepository) ListByProductID(ctx context.Context, productID string) ([]domainpricehistory.PriceHistory, error) {
-	rows, err := r.queries.ListPriceHistoriesByProductID(ctx, productID)
+func (r *PriceHistorySQLCRepository) ListByProductID(ctx context.Context, productID string, currency string) ([]domainpricehistory.PriceHistory, error) {
+	rows, err := r.queries.ListPriceHistoriesByProductID(ctx, sqldb.ListPriceHistoriesByProductIDParams{
+		ProductID: productID,
+		Currency:  currency,
+	})
 	if err != nil {
 		return nil, err
 	}

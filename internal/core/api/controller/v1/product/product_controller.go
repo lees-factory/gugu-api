@@ -53,16 +53,7 @@ func (c *Controller) GetDetail(r *stdhttp.Request) (int, any, error) {
 		return 0, nil, err
 	}
 
-	histories, err := c.priceHistoryService.ListByProductID(r.Context(), foundProduct.ID)
-	if err != nil {
-		return 0, nil, err
-	}
-
-	skus, err := c.productService.FindSKUsByProductID(r.Context(), foundProduct.ID)
-	if err != nil {
-		return 0, nil, err
-	}
-
+	currency := foundProduct.Currency
 	isTrackedByUser := false
 	trackedItemID := ""
 	if req.User.ID != "" {
@@ -73,19 +64,40 @@ func (c *Controller) GetDetail(r *stdhttp.Request) (int, any, error) {
 		if tracked != nil {
 			isTrackedByUser = true
 			trackedItemID = tracked.ID
+			if tracked.Currency != "" {
+				currency = tracked.Currency
+			}
 		}
+	}
+	if currency == "" {
+		currency = "KRW"
+	}
+
+	histories, err := c.priceHistoryService.ListByProductID(r.Context(), foundProduct.ID, currency)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	skus, err := c.productService.FindSKUsByProductID(r.Context(), foundProduct.ID)
+	if err != nil {
+		return 0, nil, err
 	}
 
 	return stdhttp.StatusOK, apiresponse.SuccessWithData(response.NewProductDetail(
-		*foundProduct, histories, skus, isTrackedByUser, trackedItemID,
+		*foundProduct, histories, skus, isTrackedByUser, trackedItemID, currency,
 	)), nil
 }
 
 func (c *Controller) GetPriceTrend(r *stdhttp.Request) (int, any, error) {
 	productID := chi.URLParam(r, "productID")
 	skuID := r.URL.Query().Get("sku_id")
+	currency := r.URL.Query().Get("currency")
 	fromStr := r.URL.Query().Get("from")
 	toStr := r.URL.Query().Get("to")
+
+	if currency == "" {
+		currency = "KRW"
+	}
 
 	from, err := time.Parse(time.DateOnly, fromStr)
 	if err != nil {
@@ -97,14 +109,14 @@ func (c *Controller) GetPriceTrend(r *stdhttp.Request) (int, any, error) {
 	}
 
 	if skuID != "" {
-		snapshots, err := c.snapshotService.ListSKUSnapshotsByDateRange(r.Context(), skuID, from, to)
+		snapshots, err := c.snapshotService.ListSKUSnapshotsByDateRange(r.Context(), skuID, currency, from, to)
 		if err != nil {
 			return 0, nil, err
 		}
 		return stdhttp.StatusOK, apiresponse.SuccessWithData(response.NewSKUPriceTrend(snapshots)), nil
 	}
 
-	snapshots, err := c.snapshotService.ListProductSnapshotsByDateRange(r.Context(), productID, from, to)
+	snapshots, err := c.snapshotService.ListProductSnapshotsByDateRange(r.Context(), productID, currency, from, to)
 	if err != nil {
 		return 0, nil, err
 	}

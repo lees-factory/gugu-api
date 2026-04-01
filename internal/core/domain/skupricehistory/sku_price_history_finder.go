@@ -3,7 +3,7 @@ package skupricehistory
 import "context"
 
 type Finder interface {
-	ListBySKUID(ctx context.Context, skuID string) ([]SKUPriceHistory, error)
+	ListBySKUID(ctx context.Context, skuID string, currency string) ([]SKUPriceHistory, error)
 }
 
 type finder struct {
@@ -14,6 +14,6 @@ func NewFinder(repository Repository) Finder {
 	return &finder{repository: repository}
 }
 
-func (f *finder) ListBySKUID(ctx context.Context, skuID string) ([]SKUPriceHistory, error) {
-	return f.repository.ListBySKUID(ctx, skuID)
+func (f *finder) ListBySKUID(ctx context.Context, skuID string, currency string) ([]SKUPriceHistory, error) {
+	return f.repository.ListBySKUID(ctx, skuID, currency)
 }

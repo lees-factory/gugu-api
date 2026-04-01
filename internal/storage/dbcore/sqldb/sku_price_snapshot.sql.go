@@ -19,19 +19,26 @@ SELECT
     currency
 FROM gugu.sku_price_snapshot
 WHERE sku_id = $1
-  AND snapshot_date >= $2
-  AND snapshot_date <= $3
+  AND currency = $2
+  AND snapshot_date >= $3
+  AND snapshot_date <= $4
 ORDER BY snapshot_date ASC
 `
 
 type ListSKUPriceSnapshotsByDateRangeParams struct {
 	SkuID          string    `json:"sku_id"`
+	Currency       string    `json:"currency"`
 	SnapshotDate   time.Time `json:"snapshot_date"`
 	SnapshotDate_2 time.Time `json:"snapshot_date_2"`
 }
 
 func (q *Queries) ListSKUPriceSnapshotsByDateRange(ctx context.Context, arg ListSKUPriceSnapshotsByDateRangeParams) ([]GuguSkuPriceSnapshot, error) {
-	rows, err := q.db.QueryContext(ctx, listSKUPriceSnapshotsByDateRange, arg.SkuID, arg.SnapshotDate, arg.SnapshotDate_2)
+	rows, err := q.db.QueryContext(ctx, listSKUPriceSnapshotsByDateRange,
+		arg.SkuID,
+		arg.Currency,
+		arg.SnapshotDate,
+		arg.SnapshotDate_2,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -69,10 +76,9 @@ INSERT INTO gugu.sku_price_snapshot (
 ) VALUES (
     $1, $2, $3, $4, $5
 )
-ON CONFLICT (sku_id, snapshot_date) DO UPDATE SET
+ON CONFLICT (sku_id, currency, snapshot_date) DO UPDATE SET
     price = EXCLUDED.price,
-    original_price = EXCLUDED.original_price,
-    currency = EXCLUDED.currency
+    original_price = EXCLUDED.original_price
 `
 
 type UpsertSKUPriceSnapshotParams struct {

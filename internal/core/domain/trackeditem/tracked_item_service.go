@@ -14,6 +14,7 @@ type AddInput struct {
 	UserID      string
 	ProductID   string
 	OriginalURL string
+	Currency    string
 }
 
 type AddResult struct {
@@ -26,6 +27,7 @@ type AddTrackedItemInput struct {
 	ProviderCommerce  string
 	ExternalProductID string
 	OriginalURL       string
+	Currency          string
 }
 
 type AddTrackedItemResult struct {
@@ -71,10 +73,19 @@ func (s *Service) AddTrackedItem(ctx context.Context, input AddTrackedItemInput)
 		return nil, err
 	}
 
+	currency := input.Currency
+	if currency == "" {
+		currency = product.Currency
+	}
+	if currency == "" {
+		currency = "KRW"
+	}
+
 	addResult, err := s.Add(ctx, AddInput{
 		UserID:      input.UserID,
 		ProductID:   product.ID,
 		OriginalURL: input.OriginalURL,
+		Currency:    currency,
 	})
 	if err != nil {
 		return nil, err
@@ -123,11 +134,17 @@ func (s *Service) Add(ctx context.Context, input AddInput) (*AddResult, error) {
 		return nil, fmt.Errorf("generate tracked item id: %w", err)
 	}
 
+	currency := input.Currency
+	if currency == "" {
+		currency = "KRW"
+	}
+
 	tracked := TrackedItem{
 		ID:          trackedItemID,
 		UserID:      strings.TrimSpace(input.UserID),
 		ProductID:   input.ProductID,
 		OriginalURL: strings.TrimSpace(input.OriginalURL),
+		Currency:    currency,
 		CreatedAt:   s.clock.Now(),
 	}
 	if err := s.writer.Create(ctx, tracked); err != nil {

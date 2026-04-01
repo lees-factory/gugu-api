@@ -17,5 +17,5 @@ SELECT
     recorded_at,
     change_value
 FROM gugu.sku_price_history
-WHERE sku_id = $1
+WHERE sku_id = $1 AND currency = $2
 ORDER BY recorded_at DESC;

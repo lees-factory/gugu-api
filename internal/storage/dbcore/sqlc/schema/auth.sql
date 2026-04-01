@@ -94,6 +94,7 @@ CREATE TABLE IF NOT EXISTS gugu.user_tracked_item (
     product_id TEXT NOT NULL REFERENCES gugu.product(id),
     sku_id TEXT,
     original_url TEXT NOT NULL DEFAULT '',
+    currency TEXT NOT NULL DEFAULT 'KRW',
     deleted_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -104,7 +105,7 @@ CREATE TABLE IF NOT EXISTS gugu.product_price_history (
     price TEXT NOT NULL DEFAULT '',
     currency TEXT NOT NULL DEFAULT '',
     change_value TEXT NOT NULL DEFAULT '',
-    PRIMARY KEY (product_id, recorded_at)
+    PRIMARY KEY (product_id, currency, recorded_at)
 );
 
 CREATE INDEX IF NOT EXISTS idx_app_user_email ON gugu.app_user(email);
@@ -148,7 +149,7 @@ CREATE TABLE IF NOT EXISTS gugu.sku_price_history (
     price TEXT NOT NULL DEFAULT '',
     currency TEXT NOT NULL DEFAULT '',
     change_value TEXT NOT NULL DEFAULT '',
-    PRIMARY KEY (sku_id, recorded_at)
+    PRIMARY KEY (sku_id, currency, recorded_at)
 );
 
 CREATE INDEX IF NOT EXISTS idx_sku_price_history_sku_id_recorded_at ON gugu.sku_price_history(sku_id, recorded_at DESC);
@@ -158,7 +159,7 @@ CREATE TABLE IF NOT EXISTS gugu.product_price_snapshot (
     snapshot_date DATE NOT NULL,
     price TEXT NOT NULL DEFAULT '',
     currency TEXT NOT NULL DEFAULT '',
-    PRIMARY KEY (product_id, snapshot_date)
+    PRIMARY KEY (product_id, currency, snapshot_date)
 );
 
 CREATE TABLE IF NOT EXISTS gugu.sku_price_snapshot (
@@ -167,7 +168,7 @@ CREATE TABLE IF NOT EXISTS gugu.sku_price_snapshot (
     price TEXT NOT NULL DEFAULT '',
     original_price TEXT NOT NULL DEFAULT '',
     currency TEXT NOT NULL DEFAULT '',
-    PRIMARY KEY (sku_id, snapshot_date)
+    PRIMARY KEY (sku_id, currency, snapshot_date)
 );
 
 CREATE INDEX IF NOT EXISTS idx_product_price_snapshot_product_id ON gugu.product_price_snapshot(product_id, snapshot_date DESC);

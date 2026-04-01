@@ -18,9 +18,10 @@ INSERT INTO gugu.user_tracked_item (
     product_id,
     sku_id,
     original_url,
+    currency,
     created_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6
+    $1, $2, $3, $4, $5, $6, $7
 )
 `
 
@@ -30,6 +31,7 @@ type CreateTrackedItemParams struct {
 	ProductID   string         `json:"product_id"`
 	SkuID       sql.NullString `json:"sku_id"`
 	OriginalUrl string         `json:"original_url"`
+	Currency    string         `json:"currency"`
 	CreatedAt   time.Time      `json:"created_at"`
 }
 
@@ -40,6 +42,7 @@ func (q *Queries) CreateTrackedItem(ctx context.Context, arg CreateTrackedItemPa
 		arg.ProductID,
 		arg.SkuID,
 		arg.OriginalUrl,
+		arg.Currency,
 		arg.CreatedAt,
 	)
 	return err
@@ -71,6 +74,7 @@ SELECT
     product_id,
     sku_id,
     original_url,
+    currency,
     deleted_at,
     created_at
 FROM gugu.user_tracked_item
@@ -91,6 +95,7 @@ func (q *Queries) FindTrackedItemByIDAndUserID(ctx context.Context, arg FindTrac
 		&i.ProductID,
 		&i.SkuID,
 		&i.OriginalUrl,
+		&i.Currency,
 		&i.DeletedAt,
 		&i.CreatedAt,
 	)
@@ -104,6 +109,7 @@ SELECT
     product_id,
     sku_id,
     original_url,
+    currency,
     deleted_at,
     created_at
 FROM gugu.user_tracked_item
@@ -124,6 +130,7 @@ func (q *Queries) FindTrackedItemByUserIDAndProductID(ctx context.Context, arg F
 		&i.ProductID,
 		&i.SkuID,
 		&i.OriginalUrl,
+		&i.Currency,
 		&i.DeletedAt,
 		&i.CreatedAt,
 	)
@@ -137,6 +144,7 @@ SELECT
     product_id,
     sku_id,
     original_url,
+    currency,
     deleted_at,
     created_at
 FROM gugu.user_tracked_item
@@ -159,6 +167,7 @@ func (q *Queries) ListTrackedItemsByUserID(ctx context.Context, userID string) (
 			&i.ProductID,
 			&i.SkuID,
 			&i.OriginalUrl,
+			&i.Currency,
 			&i.DeletedAt,
 			&i.CreatedAt,
 		); err != nil {

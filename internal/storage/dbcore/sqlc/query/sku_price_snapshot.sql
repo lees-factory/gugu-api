@@ -8,10 +8,9 @@ INSERT INTO gugu.sku_price_snapshot (
 ) VALUES (
     $1, $2, $3, $4, $5
 )
-ON CONFLICT (sku_id, snapshot_date) DO UPDATE SET
+ON CONFLICT (sku_id, currency, snapshot_date) DO UPDATE SET
     price = EXCLUDED.price,
-    original_price = EXCLUDED.original_price,
-    currency = EXCLUDED.currency;
+    original_price = EXCLUDED.original_price;
 
 -- name: ListSKUPriceSnapshotsByDateRange :many
 SELECT
@@ -22,6 +21,7 @@ SELECT
     currency
 FROM gugu.sku_price_snapshot
 WHERE sku_id = $1
-  AND snapshot_date >= $2
-  AND snapshot_date <= $3
+  AND currency = $2
+  AND snapshot_date >= $3
+  AND snapshot_date <= $4
 ORDER BY snapshot_date ASC;

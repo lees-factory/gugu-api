@@ -25,7 +25,7 @@ func NewBatchFetcher(client AffiliateClient, tokenProvider TokenProvider) *Batch
 	return &BatchFetcher{client: client, tokenProvider: tokenProvider}
 }
 
-func (f *BatchFetcher) FetchPrices(ctx context.Context, externalProductIDs []string) ([]PriceResult, error) {
+func (f *BatchFetcher) FetchPrices(ctx context.Context, externalProductIDs []string, currency string) ([]PriceResult, error) {
 	accessToken, err := f.resolveAccessToken(ctx)
 	if err != nil {
 		return nil, err
@@ -41,8 +41,8 @@ func (f *BatchFetcher) FetchPrices(ctx context.Context, externalProductIDs []str
 
 		detail, err := f.client.GetAffiliateProductDetail(ctx, clientaliexpress.ProductDetailInput{
 			ProductIDs:     chunk,
-			TargetCurrency: "KRW",
-			TargetLanguage: "KO",
+			TargetCurrency: currency,
+			TargetLanguage: LanguageForCurrency(currency),
 			AccessToken:    accessToken,
 		})
 		if err != nil {
@@ -64,6 +64,15 @@ func (f *BatchFetcher) FetchPrices(ctx context.Context, externalProductIDs []str
 	}
 
 	return results, nil
+}
+
+func LanguageForCurrency(currency string) string {
+	switch currency {
+	case "KRW":
+		return "KO"
+	default:
+		return "EN"
+	}
 }
 
 func (f *BatchFetcher) resolveAccessToken(ctx context.Context) (string, error) {

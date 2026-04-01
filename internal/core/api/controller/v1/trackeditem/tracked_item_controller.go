@@ -30,23 +30,28 @@ func (c *Controller) RegisterRoutes(r chi.Router) {
 }
 
 func (c *Controller) Add(r *stdhttp.Request) (int, any, error) {
-	req, err := request.ParseAddTrackedItem(r)
+	req, err := request.ParseAddTrackedItems(r)
 	if err != nil {
-		return 0, nil, err
+		return stdhttp.StatusBadRequest, nil, err
 	}
 
-	result, err := c.trackedItemService.AddTrackedItem(r.Context(), domaintrackeditem.AddTrackedItemInput{
-		UserID:            req.User.ID,
-		ProviderCommerce:  req.ProviderCommerce,
-		ExternalProductID: req.ExternalProductID,
-		OriginalURL:       req.OriginalURL,
-	})
-	if err != nil {
-		return 0, nil, err
+	results := make([]domaintrackeditem.AddTrackedItemResult, 0, len(req.Items))
+	for _, item := range req.Items {
+		result, err := c.trackedItemService.AddTrackedItem(r.Context(), domaintrackeditem.AddTrackedItemInput{
+			UserID:            req.User.ID,
+			ProviderCommerce:  item.ProviderCommerce,
+			ExternalProductID: item.ExternalProductID,
+			OriginalURL:       item.OriginalURL,
+			Currency:          item.Currency,
+		})
+		if err != nil {
+			return 0, nil, err
+		}
+		results = append(results, *result)
 	}
 
 	return stdhttp.StatusCreated, apiresponse.SuccessWithData(
-		response.NewAddTrackedItemFromResult(result),
+		response.NewAddTrackedItems(results),
 	), nil
 }
 

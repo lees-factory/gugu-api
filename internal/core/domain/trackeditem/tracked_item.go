@@ -8,5 +8,6 @@ type TrackedItem struct {
 	ProductID   string
 	SKUID       string
 	OriginalURL string
+	Currency    string
 	CreatedAt   time.Time
 }

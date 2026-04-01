@@ -4,5 +4,5 @@ import "context"
 
 type Repository interface {
 	Create(ctx context.Context, history SKUPriceHistory) error
-	ListBySKUID(ctx context.Context, skuID string) ([]SKUPriceHistory, error)
+	ListBySKUID(ctx context.Context, skuID string, currency string) ([]SKUPriceHistory, error)
 }
