@@ -19,6 +19,8 @@ tags:
     description: 상품 상세 조회 API
   - name: 유저 저장 상품
     description: Tracked Items 조회, 추가, 삭제 API
+  - name: 가격 알림
+    description: 상품 가격 변동 알림 등록/해제/조회 API
   - name: 배치
     description: 운영자/개발자 전용 배치 작업 API
 paths:
@@ -877,6 +879,132 @@ paths:
                 $ref: '#/components/schemas/SuccessResponse'
         '400':
           description: 요청 값이 잘못되었거나 대상을 찾을 수 없다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 내부 오류가 발생했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/products/{productID}/alert:
+    post:
+      tags:
+        - 가격 알림
+      summary: 가격 알림 등록
+      description: 특정 상품에 대한 가격 변동 알림을 등록한다. 이미 등록된 알림이 있으면 재활성화한다.
+      operationId: registerPriceAlert
+      parameters:
+        - in: path
+          name: productID
+          required: true
+          schema:
+            type: string
+          description: 알림을 등록할 상품 ID
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: 'Bearer {access_token}'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterPriceAlertRequest'
+            examples:
+              default:
+                value:
+                  channel: EMAIL
+      responses:
+        '201':
+          description: 알림 등록에 성공했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceAlertResponse'
+        '400':
+          description: 요청 형식이 잘못되었다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: 인증이 필요하다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 내부 오류가 발생했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - 가격 알림
+      summary: 가격 알림 해제
+      description: 특정 상품에 대한 가격 변동 알림을 해제(삭제)한다.
+      operationId: unregisterPriceAlert
+      parameters:
+        - in: path
+          name: productID
+          required: true
+          schema:
+            type: string
+          description: 알림을 해제할 상품 ID
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: 'Bearer {access_token}'
+      responses:
+        '200':
+          description: 알림 해제에 성공했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '401':
+          description: 인증이 필요하다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 내부 오류가 발생했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/alerts:
+    get:
+      tags:
+        - 가격 알림
+      summary: 내 알림 목록 조회
+      description: 인증된 유저가 등록한 모든 가격 알림 목록을 조회한다.
+      operationId: listMyPriceAlerts
+      parameters:
+        - in: header
+          name: Authorization
+          required: true
+          schema:
+            type: string
+          description: 'Bearer {access_token}'
+      responses:
+        '200':
+          description: 조회에 성공했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListPriceAlertsResponse'
+        '401':
+          description: 인증이 필요하다.
           content:
             application/json:
               schema:
@@ -2033,3 +2161,64 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ProductSKUData'
+    RegisterPriceAlertRequest:
+      type: object
+      description: 가격 알림 등록 요청
+      properties:
+        channel:
+          type: string
+          description: '알림 채널 (기본값: EMAIL)'
+          example: EMAIL
+          enum:
+            - EMAIL
+    PriceAlertData:
+      type: object
+      description: 가격 알림 데이터
+      required:
+        - id
+        - product_id
+        - channel
+        - enabled
+        - created_at
+      properties:
+        id:
+          type: string
+          description: 알림 고유 ID
+        product_id:
+          type: string
+          description: 대상 상품 ID
+        channel:
+          type: string
+          description: 알림 채널
+          example: EMAIL
+        enabled:
+          type: boolean
+          description: 알림 활성화 여부
+        created_at:
+          type: string
+          description: 생성 일시 (ISO 8601)
+          example: '2026-04-01T12:00:00Z'
+    PriceAlertResponse:
+      type: object
+      description: 가격 알림 등록 응답
+      required:
+        - result
+        - data
+      properties:
+        result:
+          $ref: '#/components/schemas/ResultType'
+        data:
+          $ref: '#/components/schemas/PriceAlertData'
+    ListPriceAlertsResponse:
+      type: object
+      description: 가격 알림 목록 응답
+      required:
+        - result
+        - data
+      properties:
+        result:
+          $ref: '#/components/schemas/ResultType'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceAlertData'
