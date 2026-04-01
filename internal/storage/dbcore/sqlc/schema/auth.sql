@@ -172,3 +172,16 @@ CREATE TABLE IF NOT EXISTS gugu.sku_price_snapshot (
 
 CREATE INDEX IF NOT EXISTS idx_product_price_snapshot_product_id ON gugu.product_price_snapshot(product_id, snapshot_date DESC);
 CREATE INDEX IF NOT EXISTS idx_sku_price_snapshot_sku_id ON gugu.sku_price_snapshot(sku_id, snapshot_date DESC);
+
+CREATE TABLE IF NOT EXISTS gugu.price_alert (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES gugu.app_user(id),
+    product_id TEXT NOT NULL REFERENCES gugu.product(id),
+    channel TEXT NOT NULL DEFAULT 'EMAIL',
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (user_id, product_id, channel)
+);
+
+CREATE INDEX IF NOT EXISTS idx_price_alert_user_id ON gugu.price_alert(user_id);
+CREATE INDEX IF NOT EXISTS idx_price_alert_product_id ON gugu.price_alert(product_id);

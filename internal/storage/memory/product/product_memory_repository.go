@@ -73,6 +73,27 @@ func (r *ProductMemoryRepository) ListByMarket(_ context.Context, market enum.Ma
 	return products, nil
 }
 
+func (r *ProductMemoryRepository) ListByCollectionSource(_ context.Context, source string, limit int, offset int) ([]domainproduct.Product, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var matched []domainproduct.Product
+	for _, p := range r.byID {
+		if p.CollectionSource == source {
+			matched = append(matched, p)
+		}
+	}
+
+	if offset >= len(matched) {
+		return nil, nil
+	}
+	end := offset + limit
+	if end > len(matched) {
+		end = len(matched)
+	}
+	return matched[offset:end], nil
+}
+
 func (r *ProductMemoryRepository) Create(_ context.Context, product domainproduct.Product) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()

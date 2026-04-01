@@ -109,3 +109,24 @@ SELECT
     updated_at
 FROM gugu.product
 WHERE id = ANY($1::text[]);
+
+-- name: ListProductsByCollectionSource :many
+SELECT
+    id,
+    market,
+    external_product_id,
+    original_url,
+    title,
+    main_image_url,
+    current_price,
+    currency,
+    product_url,
+    promotion_link,
+    collection_source,
+    last_collected_at,
+    created_at,
+    updated_at
+FROM gugu.product
+WHERE collection_source = $1
+ORDER BY created_at DESC
+LIMIT $2 OFFSET $3;

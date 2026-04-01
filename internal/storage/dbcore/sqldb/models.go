@@ -60,6 +60,15 @@ type GuguOauthIdentity struct {
 	LastLoginAt time.Time `json:"last_login_at"`
 }
 
+type GuguPriceAlert struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"user_id"`
+	ProductID string    `json:"product_id"`
+	Channel   string    `json:"channel"`
+	Enabled   bool      `json:"enabled"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
 type GuguProduct struct {
 	ID                string    `json:"id"`
 	Market            string    `json:"market"`

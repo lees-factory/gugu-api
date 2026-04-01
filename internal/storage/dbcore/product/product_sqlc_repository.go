@@ -111,6 +111,22 @@ func (r *ProductSQLCRepository) ListByMarket(ctx context.Context, market enum.Ma
 	return products, nil
 }
 
+func (r *ProductSQLCRepository) ListByCollectionSource(ctx context.Context, source string, limit int, offset int) ([]domainproduct.Product, error) {
+	rows, err := r.queries.ListProductsByCollectionSource(ctx, sqldb.ListProductsByCollectionSourceParams{
+		CollectionSource: source,
+		Limit:            int32(limit),
+		Offset:           int32(offset),
+	})
+	if err != nil {
+		return nil, err
+	}
+	products := make([]domainproduct.Product, len(rows))
+	for i, row := range rows {
+		products[i] = toDomainProduct(row)
+	}
+	return products, nil
+}
+
 func toDomainProduct(row sqldb.GuguProduct) domainproduct.Product {
 	return domainproduct.Product{
 		ID:                row.ID,

@@ -217,6 +217,72 @@ func (q *Queries) FindProductsByIDs(ctx context.Context, dollar_1 []string) ([]G
 	return items, nil
 }
 
+const listProductsByCollectionSource = `-- name: ListProductsByCollectionSource :many
+SELECT
+    id,
+    market,
+    external_product_id,
+    original_url,
+    title,
+    main_image_url,
+    current_price,
+    currency,
+    product_url,
+    promotion_link,
+    collection_source,
+    last_collected_at,
+    created_at,
+    updated_at
+FROM gugu.product
+WHERE collection_source = $1
+ORDER BY created_at DESC
+LIMIT $2 OFFSET $3
+`
+
+type ListProductsByCollectionSourceParams struct {
+	CollectionSource string `json:"collection_source"`
+	Limit            int32  `json:"limit"`
+	Offset           int32  `json:"offset"`
+}
+
+func (q *Queries) ListProductsByCollectionSource(ctx context.Context, arg ListProductsByCollectionSourceParams) ([]GuguProduct, error) {
+	rows, err := q.db.QueryContext(ctx, listProductsByCollectionSource, arg.CollectionSource, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GuguProduct
+	for rows.Next() {
+		var i GuguProduct
+		if err := rows.Scan(
+			&i.ID,
+			&i.Market,
+			&i.ExternalProductID,
+			&i.OriginalUrl,
+			&i.Title,
+			&i.MainImageUrl,
+			&i.CurrentPrice,
+			&i.Currency,
+			&i.ProductUrl,
+			&i.PromotionLink,
+			&i.CollectionSource,
+			&i.LastCollectedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listProductsByMarket = `-- name: ListProductsByMarket :many
 SELECT
     id,
