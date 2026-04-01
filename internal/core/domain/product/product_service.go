@@ -64,6 +64,10 @@ func (s *Service) ListByMarket(ctx context.Context, market enum.Market) ([]Produ
 	return s.finder.ListByMarket(ctx, market)
 }
 
+func (s *Service) ListByCollectionSource(ctx context.Context, source string, limit int, offset int) ([]Product, error) {
+	return s.finder.ListByCollectionSource(ctx, source, limit, offset)
+}
+
 func (s *Service) UpdatePrice(ctx context.Context, productID string, price string, currency string) error {
 	found, err := s.finder.FindByID(ctx, productID)
 	if err != nil {

@@ -11,6 +11,7 @@ type Finder interface {
 	FindByIDs(ctx context.Context, productIDs []string) ([]Product, error)
 	FindByMarketAndExternalProductID(ctx context.Context, market enum.Market, externalProductID string) (*Product, error)
 	ListByMarket(ctx context.Context, market enum.Market) ([]Product, error)
+	ListByCollectionSource(ctx context.Context, source string, limit int, offset int) ([]Product, error)
 }
 
 type finder struct {
@@ -35,4 +36,8 @@ func (f *finder) FindByMarketAndExternalProductID(ctx context.Context, market en
 
 func (f *finder) ListByMarket(ctx context.Context, market enum.Market) ([]Product, error) {
 	return f.repository.ListByMarket(ctx, market)
+}
+
+func (f *finder) ListByCollectionSource(ctx context.Context, source string, limit int, offset int) ([]Product, error) {
+	return f.repository.ListByCollectionSource(ctx, source, limit, offset)
 }
