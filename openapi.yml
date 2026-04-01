@@ -21,8 +21,6 @@ tags:
     description: Tracked Items 조회, 추가, 삭제 API
   - name: 가격 알림
     description: 상품 가격 변동 알림 등록/해제/조회 API
-  - name: 배치
-    description: 운영자/개발자 전용 배치 작업 API
   - name: 디스커버
     description: 상품 탐색 및 추천 API
 paths:
@@ -747,9 +745,9 @@ paths:
     post:
       tags:
         - 유저 저장 상품
-      summary: Tracked Item 추가
-      description: 유저가 전달한 마켓과 외부 상품 식별자로 내부 상품을 조회하거나 수집한 뒤 대시보드에 저장한다.
-      operationId: addTrackedItem
+      summary: Tracked Item 추가 (1~5개)
+      description: 유저가 전달한 마켓과 외부 상품 식별자로 내부 상품을 조회하거나 수집한 뒤 대시보드에 저장한다. 한 번에 최대 5개까지 추가할 수 있다.
+      operationId: addTrackedItems
       requestBody:
         required: true
         content:
@@ -1011,29 +1009,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-        '500':
-          description: 서버 내부 오류가 발생했다.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /v1/batch/update-prices:
-    post:
-      tags:
-        - 배치
-      summary: 전체 상품 가격 일괄 업데이트
-      description: |
-        product 테이블의 모든 상품을 마켓별로 그룹핑하여 외부 API에서 최신 가격을 조회하고 업데이트한다.
-        가격이 변동된 상품만 업데이트하며, 변동 시 price_history에 기록한다.
-        운영자/개발자 전용. 하루 1회 실행 권장.
-      operationId: batchUpdatePrices
-      responses:
-        '200':
-          description: 배치 업데이트가 성공했다.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
         '500':
           description: 서버 내부 오류가 발생했다.
           content:
@@ -1349,29 +1324,38 @@ components:
           example: ali-code-123
     AddTrackedItemRequest:
       type: object
-      description: 유저 저장 상품 추가 요청
+      description: 유저 저장 상품 추가 요청 (1~5개)
       required:
-        - user_id
-        - original_url
-        - provider_commerce
-        - external_product_id
+        - items
       properties:
-        user_id:
-          type: string
-          description: 내부 사용자 ID
-          example: user_01
-        original_url:
-          type: string
-          description: 사용자가 붙여넣은 원본 URL
-          example: https://www.aliexpress.com/item/1005000000000000.html
-        provider_commerce:
-          type: string
-          description: 프론트가 판별한 마켓 식별자
-          example: ALIEXPRESS
-        external_product_id:
-          type: string
-          description: 프론트가 추출한 외부 상품 식별자
-          example: '1005000000000000'
+        items:
+          type: array
+          description: 추가할 상품 목록 (최소 1개, 최대 5개)
+          minItems: 1
+          maxItems: 5
+          items:
+            type: object
+            required:
+              - original_url
+              - provider_commerce
+              - external_product_id
+            properties:
+              original_url:
+                type: string
+                description: 사용자가 붙여넣은 원본 URL
+                example: https://www.aliexpress.com/item/1005000000000000.html
+              provider_commerce:
+                type: string
+                description: 프론트가 판별한 마켓 식별자
+                example: ALIEXPRESS
+              external_product_id:
+                type: string
+                description: 프론트가 추출한 외부 상품 식별자
+                example: '1005000000000000'
+              currency:
+                type: string
+                description: 유저가 원하는 통화 (KRW, USD). 미지정 시 상품 대표 통화 사용.
+                example: KRW
     HealthData:
       type: object
       description: 상태 확인 응답 데이터
@@ -1989,9 +1973,9 @@ components:
           $ref: '#/components/schemas/ResultType'
         data:
           $ref: '#/components/schemas/TrackedItemDetailData'
-    AddTrackedItemData:
+    AddTrackedItemEntry:
       type: object
-      description: 유저 저장 상품 추가 응답 데이터
+      description: 개별 상품 추가 결과
       required:
         - tracked_item_id
         - already_tracked
@@ -2002,6 +1986,26 @@ components:
         already_tracked:
           type: boolean
           description: 이미 저장된 상품이어서 기존 관계를 재사용했는지 여부
+    AddTrackedItemData:
+      type: object
+      description: 유저 저장 상품 추가 응답 데이터
+      required:
+        - results
+        - total
+        - added
+      properties:
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/AddTrackedItemEntry'
+        total:
+          type: integer
+          description: 요청한 상품 수
+          example: 3
+        added:
+          type: integer
+          description: 새로 추가된 상품 수 (already_tracked 제외)
+          example: 2
     AddTrackedItemResponse:
       type: object
       description: 유저 저장 상품 추가 응답
