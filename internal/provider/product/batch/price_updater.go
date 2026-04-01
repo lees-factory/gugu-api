@@ -13,10 +13,15 @@ import (
 	provideraliexpress "github.com/ljj/gugu-api/internal/provider/product/aliexpress"
 )
 
+type PriceChangeNotifier interface {
+	NotifyPriceChange(ctx context.Context, productID string, productTitle string, oldPrice string, newPrice string, currency string)
+}
+
 type PriceUpdater struct {
 	productService     *domainproduct.Service
 	priceHistoryWriter domainpricehistory.Writer
 	aliExpressFetcher  *provideraliexpress.BatchFetcher
+	notifier           PriceChangeNotifier
 	clock              func() time.Time
 }
 
@@ -24,11 +29,13 @@ func NewPriceUpdater(
 	productService *domainproduct.Service,
 	priceHistoryWriter domainpricehistory.Writer,
 	aliExpressFetcher *provideraliexpress.BatchFetcher,
+	notifier PriceChangeNotifier,
 ) *PriceUpdater {
 	return &PriceUpdater{
 		productService:     productService,
 		priceHistoryWriter: priceHistoryWriter,
 		aliExpressFetcher:  aliExpressFetcher,
+		notifier:           notifier,
 		clock:              func() time.Time { return time.Now() },
 	}
 }
@@ -98,6 +105,10 @@ func (u *PriceUpdater) updateMarket(ctx context.Context, market enum.Market) err
 		}); err != nil {
 			log.Printf("failed to record price history for product %s: %v", product.ID, err)
 			continue
+		}
+
+		if u.notifier != nil {
+			u.notifier.NotifyPriceChange(ctx, product.ID, product.Title, product.CurrentPrice, pr.Price, pr.Currency)
 		}
 
 		updated++
