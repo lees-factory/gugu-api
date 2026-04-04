@@ -1,27 +1,34 @@
 -- name: CreatePriceAlert :exec
 INSERT INTO gugu.price_alert (
-    id, user_id, product_id, channel, enabled, created_at
+    id, user_id, sku_id, channel, enabled, created_at
 ) VALUES (
     $1, $2, $3, $4, $5, $6
 );
 
--- name: FindPriceAlertByUserIDAndProductID :one
-SELECT id, user_id, product_id, channel, enabled, created_at
+-- name: FindPriceAlertByUserIDAndSKUID :one
+SELECT id, user_id, sku_id, channel, enabled, created_at
 FROM gugu.price_alert
-WHERE user_id = $1 AND product_id = $2;
+WHERE user_id = $1 AND sku_id = $2;
+
+-- name: ListPriceAlertsBySKUID :many
+SELECT id, user_id, sku_id, channel, enabled, created_at
+FROM gugu.price_alert
+WHERE sku_id = $1 AND enabled = TRUE;
 
 -- name: ListPriceAlertsByProductID :many
-SELECT id, user_id, product_id, channel, enabled, created_at
-FROM gugu.price_alert
-WHERE product_id = $1 AND enabled = TRUE;
+SELECT pa.id, pa.user_id, pa.sku_id, pa.channel, pa.enabled, pa.created_at
+FROM gugu.price_alert pa
+JOIN gugu.sku s ON s.id = pa.sku_id
+WHERE s.product_id = $1 AND pa.enabled = TRUE;
 
 -- name: ListPriceAlertsByProductIDs :many
-SELECT id, user_id, product_id, channel, enabled, created_at
-FROM gugu.price_alert
-WHERE product_id = ANY($1::text[]) AND enabled = TRUE;
+SELECT pa.id, pa.user_id, pa.sku_id, pa.channel, pa.enabled, pa.created_at
+FROM gugu.price_alert pa
+JOIN gugu.sku s ON s.id = pa.sku_id
+WHERE s.product_id = ANY($1::text[]) AND pa.enabled = TRUE;
 
 -- name: ListPriceAlertsByUserID :many
-SELECT id, user_id, product_id, channel, enabled, created_at
+SELECT id, user_id, sku_id, channel, enabled, created_at
 FROM gugu.price_alert
 WHERE user_id = $1
 ORDER BY created_at DESC;
@@ -30,7 +37,3 @@ ORDER BY created_at DESC;
 UPDATE gugu.price_alert
 SET enabled = $2
 WHERE id = $1;
-
--- name: DeletePriceAlertByUserIDAndProductID :execrows
-DELETE FROM gugu.price_alert
-WHERE user_id = $1 AND product_id = $2;

@@ -10,88 +10,24 @@ import (
 	domainproduct "github.com/ljj/gugu-api/internal/core/domain/product"
 	"github.com/ljj/gugu-api/internal/core/enum"
 	provideraliexpress "github.com/ljj/gugu-api/internal/provider/product/aliexpress"
+	memoryproduct "github.com/ljj/gugu-api/internal/storage/memory/product"
 )
 
-func TestUpdateProducts_MultiCurrency(t *testing.T) {
+func TestUpdateProducts_NoProductService_NoNotification(t *testing.T) {
 	fixedTime := time.Date(2026, 4, 1, 12, 0, 0, 0, time.UTC)
 
 	products := []domainproduct.Product{
-		{ID: "p1", Market: enum.MarketAliExpress, ExternalProductID: "100", CurrentPrice: "7700", Currency: "KRW"},
+		{ID: "p1", Market: enum.MarketAliExpress, ExternalProductID: "100"},
 	}
 
-	historyWriter := &stubPriceHistoryWriter{}
-	snapshotWriter := &stubProductSnapshotWriter{}
-
+	notifier := &stubNotifier{}
 	updater := &PriceUpdater{
-		productService:        nil,
-		priceHistoryWriter:    historyWriter,
-		productSnapshotWriter: snapshotWriter,
 		fetcher: &stubFetcher{
 			resultsByCurrency: map[string][]provideraliexpress.PriceResult{
 				"KRW": {{ExternalProductID: "100", Price: "7800", Currency: "KRW"}},
-				"USD": {{ExternalProductID: "100", Price: "5.99", Currency: "USD"}},
 			},
 		},
-		notifier: &stubNotifier{},
-		clock:    func() time.Time { return fixedTime },
-	}
-
-	err := updater.updateProducts(context.Background(), enum.MarketAliExpress, products)
-	if err != nil {
-		t.Fatalf("updateProducts() error = %v", err)
-	}
-
-	// KRW history (price changed 7700 -> 7800) + USD history
-	if len(historyWriter.histories) != 2 {
-		t.Fatalf("expected 2 history records, got %d", len(historyWriter.histories))
-	}
-
-	krwFound := false
-	usdFound := false
-	for _, h := range historyWriter.histories {
-		if h.Currency == "KRW" && h.Price == "7800" {
-			krwFound = true
-			if h.ChangeValue != "100" {
-				t.Errorf("KRW change_value = %q, want 100", h.ChangeValue)
-			}
-		}
-		if h.Currency == "USD" && h.Price == "5.99" {
-			usdFound = true
-		}
-	}
-	if !krwFound {
-		t.Error("KRW price history not found")
-	}
-	if !usdFound {
-		t.Error("USD price history not found")
-	}
-
-	// Snapshots for both currencies
-	if len(snapshotWriter.snapshots) != 2 {
-		t.Fatalf("expected 2 snapshots, got %d", len(snapshotWriter.snapshots))
-	}
-}
-
-func TestUpdateProducts_NoPriceChange_SkipsRepresentativeHistory(t *testing.T) {
-	fixedTime := time.Date(2026, 4, 1, 12, 0, 0, 0, time.UTC)
-
-	products := []domainproduct.Product{
-		{ID: "p1", Market: enum.MarketAliExpress, ExternalProductID: "100", CurrentPrice: "7700", Currency: "KRW"},
-	}
-
-	historyWriter := &stubPriceHistoryWriter{}
-	snapshotWriter := &stubProductSnapshotWriter{}
-
-	updater := &PriceUpdater{
-		priceHistoryWriter:    historyWriter,
-		productSnapshotWriter: snapshotWriter,
-		fetcher: &stubFetcher{
-			resultsByCurrency: map[string][]provideraliexpress.PriceResult{
-				"KRW": {{ExternalProductID: "100", Price: "7700", Currency: "KRW"}}, // same price
-				"USD": {{ExternalProductID: "100", Price: "5.99", Currency: "USD"}},
-			},
-		},
-		notifier: &stubNotifier{},
+		notifier: notifier,
 		clock:    func() time.Time { return fixedTime },
 	}
 
@@ -100,17 +36,8 @@ func TestUpdateProducts_NoPriceChange_SkipsRepresentativeHistory(t *testing.T) {
 		t.Fatalf("error = %v", err)
 	}
 
-	// KRW price unchanged -> no KRW history, only USD
-	if len(historyWriter.histories) != 1 {
-		t.Fatalf("expected 1 history record (USD only), got %d", len(historyWriter.histories))
-	}
-	if historyWriter.histories[0].Currency != "USD" {
-		t.Errorf("expected USD history, got %s", historyWriter.histories[0].Currency)
-	}
-
-	// Snapshots still both (upsert always)
-	if len(snapshotWriter.snapshots) != 2 {
-		t.Errorf("expected 2 snapshots, got %d", len(snapshotWriter.snapshots))
+	if len(notifier.calls) != 0 {
+		t.Fatalf("expected 0 notifications, got %d", len(notifier.calls))
 	}
 }
 
@@ -129,6 +56,76 @@ func TestCalculateChange(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("calculateChange(%q, %q) = %q, want %q", tt.old, tt.new, got, tt.want)
 		}
+	}
+}
+
+func TestUpdateProducts_NotifiesSingleSKUOnly(t *testing.T) {
+	fixedTime := time.Date(2026, 4, 1, 12, 0, 0, 0, time.UTC)
+	productService := newTestProductService(t, []domainproduct.Product{
+		{ID: "p1", Market: enum.MarketAliExpress, ExternalProductID: "100", Title: "Single SKU Product"},
+	}, []domainproduct.SKU{
+		{ID: "sku-1", ProductID: "p1", Price: "7700", Currency: "KRW"},
+	})
+
+	notifier := &stubNotifier{}
+	updater := &PriceUpdater{
+		productService:        productService,
+		priceHistoryWriter:    &stubPriceHistoryWriter{},
+		productSnapshotWriter: &stubProductSnapshotWriter{},
+		fetcher: &stubFetcher{
+			resultsByCurrency: map[string][]provideraliexpress.PriceResult{
+				"KRW": {{ExternalProductID: "100", Price: "7800", Currency: "KRW"}},
+			},
+		},
+		notifier: notifier,
+		clock:    func() time.Time { return fixedTime },
+	}
+
+	if err := updater.updateProducts(context.Background(), enum.MarketAliExpress, []domainproduct.Product{
+		{ID: "p1", Market: enum.MarketAliExpress, ExternalProductID: "100", Title: "Single SKU Product"},
+	}); err != nil {
+		t.Fatalf("updateProducts() error = %v", err)
+	}
+
+	if len(notifier.calls) != 1 {
+		t.Fatalf("expected 1 notification, got %d", len(notifier.calls))
+	}
+	if notifier.calls[0].skuID != "sku-1" {
+		t.Fatalf("skuID = %q, want sku-1", notifier.calls[0].skuID)
+	}
+}
+
+func TestUpdateProducts_SkipsNotificationForMultiSKUProduct(t *testing.T) {
+	fixedTime := time.Date(2026, 4, 1, 12, 0, 0, 0, time.UTC)
+	productService := newTestProductService(t, []domainproduct.Product{
+		{ID: "p1", Market: enum.MarketAliExpress, ExternalProductID: "100", Title: "Multi SKU Product"},
+	}, []domainproduct.SKU{
+		{ID: "sku-1", ProductID: "p1", Price: "7700", Currency: "KRW"},
+		{ID: "sku-2", ProductID: "p1", Price: "7600", Currency: "KRW"},
+	})
+
+	notifier := &stubNotifier{}
+	updater := &PriceUpdater{
+		productService:        productService,
+		priceHistoryWriter:    &stubPriceHistoryWriter{},
+		productSnapshotWriter: &stubProductSnapshotWriter{},
+		fetcher: &stubFetcher{
+			resultsByCurrency: map[string][]provideraliexpress.PriceResult{
+				"KRW": {{ExternalProductID: "100", Price: "7800", Currency: "KRW"}},
+			},
+		},
+		notifier: notifier,
+		clock:    func() time.Time { return fixedTime },
+	}
+
+	if err := updater.updateProducts(context.Background(), enum.MarketAliExpress, []domainproduct.Product{
+		{ID: "p1", Market: enum.MarketAliExpress, ExternalProductID: "100", Title: "Multi SKU Product"},
+	}); err != nil {
+		t.Fatalf("updateProducts() error = %v", err)
+	}
+
+	if len(notifier.calls) != 0 {
+		t.Fatalf("expected 0 notifications, got %d", len(notifier.calls))
 	}
 }
 
@@ -160,7 +157,58 @@ func (w *stubProductSnapshotWriter) Upsert(_ context.Context, s domainps.Product
 	return nil
 }
 
-type stubNotifier struct{}
+type notifierCall struct {
+	skuID string
+}
 
-func (n *stubNotifier) NotifyPriceChange(_ context.Context, _ string, _ string, _ string, _ string, _ string) {
+type stubNotifier struct {
+	calls []notifierCall
+}
+
+func (n *stubNotifier) NotifyPriceChange(_ context.Context, skuID string, _ string, _ string, _ string, _ string) {
+	n.calls = append(n.calls, notifierCall{skuID: skuID})
+}
+
+type stubIDGenerator struct{}
+
+func (g stubIDGenerator) New() (string, error) {
+	return "generated-id", nil
+}
+
+type stubClock struct {
+	now time.Time
+}
+
+func (c stubClock) Now() time.Time {
+	return c.now
+}
+
+func newTestProductService(t *testing.T, products []domainproduct.Product, skus []domainproduct.SKU) *domainproduct.Service {
+	t.Helper()
+
+	productRepo := memoryproduct.NewRepository()
+	skuRepo := memoryproduct.NewSKURepository()
+
+	for _, p := range products {
+		if err := productRepo.Create(context.Background(), p); err != nil {
+			t.Fatalf("create product: %v", err)
+		}
+	}
+
+	for _, sku := range skus {
+		if err := skuRepo.Create(context.Background(), sku); err != nil {
+			t.Fatalf("create sku: %v", err)
+		}
+	}
+
+	return domainproduct.NewService(
+		domainproduct.NewFinder(productRepo),
+		domainproduct.NewWriter(productRepo),
+		memoryproduct.NewVariantRepository(),
+		skuRepo,
+		stubIDGenerator{},
+		stubClock{now: time.Date(2026, 4, 1, 12, 0, 0, 0, time.UTC)},
+		nil,
+		nil,
+	)
 }

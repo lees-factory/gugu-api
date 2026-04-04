@@ -27,10 +27,10 @@ func NewNotifier(finder Finder, mailSender MailSender, emailResolver EmailResolv
 	}
 }
 
-func (n *Notifier) NotifyPriceChange(ctx context.Context, productID string, productTitle string, oldPrice string, newPrice string, currency string) {
-	alerts, err := n.finder.ListByProductID(ctx, productID)
+func (n *Notifier) NotifyPriceChange(ctx context.Context, skuID string, productTitle string, oldPrice string, newPrice string, currency string) {
+	alerts, err := n.finder.ListBySKUID(ctx, skuID)
 	if err != nil {
-		log.Printf("failed to list alerts for product %s: %v", productID, err)
+		log.Printf("failed to list alerts for sku %s: %v", skuID, err)
 		return
 	}
 
@@ -46,7 +46,7 @@ func (n *Notifier) NotifyPriceChange(ctx context.Context, productID string, prod
 		}
 
 		if err := n.mailSender.SendPriceAlert(ctx, email, productTitle, oldPrice, newPrice, currency); err != nil {
-			log.Printf("failed to send price alert to %s for product %s: %v", email, productID, err)
+			log.Printf("failed to send price alert to %s for sku %s: %v", email, skuID, err)
 			continue
 		}
 	}

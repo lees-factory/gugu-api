@@ -20,9 +20,9 @@ func NewController(priceAlertService *domainpricealert.Service) *Controller {
 }
 
 func (c *Controller) RegisterRoutes(r chi.Router) {
-	r.Post("/v1/products/{productID}/alert", apiadvice.Wrap(c.Register))
-	r.Delete("/v1/products/{productID}/alert", apiadvice.Wrap(c.Unregister))
+	r.Post("/v1/alerts", apiadvice.Wrap(c.Register))
 	r.Get("/v1/alerts", apiadvice.Wrap(c.ListMyAlerts))
+	r.Delete("/v1/alerts/{skuID}", apiadvice.Wrap(c.Unregister))
 }
 
 func (c *Controller) Register(r *stdhttp.Request) (int, any, error) {
@@ -31,7 +31,7 @@ func (c *Controller) Register(r *stdhttp.Request) (int, any, error) {
 		return 0, nil, err
 	}
 
-	alert, err := c.priceAlertService.Register(r.Context(), req.User.ID, req.ProductID, req.Channel)
+	alert, err := c.priceAlertService.Register(r.Context(), req.User.ID, req.SKUID, req.Channel)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -44,7 +44,7 @@ func (c *Controller) Register(r *stdhttp.Request) (int, any, error) {
 func (c *Controller) Unregister(r *stdhttp.Request) (int, any, error) {
 	req := request.ParseUnregisterPriceAlert(r)
 
-	if err := c.priceAlertService.Unregister(r.Context(), req.User.ID, req.ProductID); err != nil {
+	if err := c.priceAlertService.Unregister(r.Context(), req.User.ID, req.SKUID); err != nil {
 		return 0, nil, err
 	}
 

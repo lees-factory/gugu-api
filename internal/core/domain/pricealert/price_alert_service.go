@@ -31,14 +31,14 @@ func NewService(finder Finder, writer Writer, idGenerator IDGenerator, clock Clo
 	}
 }
 
-func (s *Service) Register(ctx context.Context, userID string, productID string, channel string) (*PriceAlert, error) {
+func (s *Service) Register(ctx context.Context, userID string, skuID string, channel string) (*PriceAlert, error) {
 	userID = strings.TrimSpace(userID)
-	productID = strings.TrimSpace(productID)
+	skuID = strings.TrimSpace(skuID)
 	if channel == "" {
 		channel = "EMAIL"
 	}
 
-	existing, err := s.finder.FindByUserIDAndProductID(ctx, userID, productID)
+	existing, err := s.finder.FindByUserIDAndSKUID(ctx, userID, skuID)
 	if err != nil {
 		return nil, fmt.Errorf("find existing alert: %w", err)
 	}
@@ -60,7 +60,7 @@ func (s *Service) Register(ctx context.Context, userID string, productID string,
 	alert := PriceAlert{
 		ID:        alertID,
 		UserID:    userID,
-		ProductID: productID,
+		SKUID:     skuID,
 		Channel:   channel,
 		Enabled:   true,
 		CreatedAt: s.clock.Now(),
@@ -72,11 +72,22 @@ func (s *Service) Register(ctx context.Context, userID string, productID string,
 	return &alert, nil
 }
 
-func (s *Service) Unregister(ctx context.Context, userID string, productID string) error {
-	if err := s.writer.DeleteByUserIDAndProductID(ctx, strings.TrimSpace(userID), strings.TrimSpace(productID)); err != nil {
-		return fmt.Errorf("delete alert: %w", err)
+func (s *Service) Unregister(ctx context.Context, userID string, skuID string) error {
+	found, err := s.finder.FindByUserIDAndSKUID(ctx, strings.TrimSpace(userID), strings.TrimSpace(skuID))
+	if err != nil {
+		return fmt.Errorf("find alert: %w", err)
+	}
+	if found == nil || !found.Enabled {
+		return nil
+	}
+	if err := s.writer.UpdateEnabled(ctx, found.ID, false); err != nil {
+		return fmt.Errorf("disable alert: %w", err)
 	}
 	return nil
+}
+
+func (s *Service) ListBySKUID(ctx context.Context, skuID string) ([]PriceAlert, error) {
+	return s.finder.ListBySKUID(ctx, strings.TrimSpace(skuID))
 }
 
 func (s *Service) ListByUserID(ctx context.Context, userID string) ([]PriceAlert, error) {

@@ -77,8 +77,6 @@ CREATE TABLE IF NOT EXISTS gugu.product (
     original_url TEXT NOT NULL DEFAULT '',
     title TEXT NOT NULL DEFAULT '',
     main_image_url TEXT NOT NULL DEFAULT '',
-    current_price TEXT NOT NULL DEFAULT '',
-    currency TEXT NOT NULL DEFAULT '',
     product_url TEXT NOT NULL DEFAULT '',
     promotion_link TEXT NOT NULL DEFAULT '',
     collection_source TEXT NOT NULL DEFAULT '',
@@ -86,6 +84,20 @@ CREATE TABLE IF NOT EXISTS gugu.product (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (market, external_product_id)
+);
+
+CREATE TABLE IF NOT EXISTS gugu.product_variant (
+    product_id TEXT NOT NULL REFERENCES gugu.product(id),
+    language TEXT NOT NULL,
+    currency TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    main_image_url TEXT NOT NULL DEFAULT '',
+    product_url TEXT NOT NULL DEFAULT '',
+    current_price TEXT NOT NULL DEFAULT '',
+    last_collected_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (product_id, language, currency)
 );
 
 CREATE TABLE IF NOT EXISTS gugu.user_tracked_item (
@@ -177,12 +189,12 @@ CREATE INDEX IF NOT EXISTS idx_sku_price_snapshot_sku_id ON gugu.sku_price_snaps
 CREATE TABLE IF NOT EXISTS gugu.price_alert (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES gugu.app_user(id),
-    product_id TEXT NOT NULL REFERENCES gugu.product(id),
+    sku_id TEXT NOT NULL REFERENCES gugu.sku(id),
     channel TEXT NOT NULL DEFAULT 'EMAIL',
     enabled BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE (user_id, product_id, channel)
+    UNIQUE (user_id, sku_id, channel)
 );
 
 CREATE INDEX IF NOT EXISTS idx_price_alert_user_id ON gugu.price_alert(user_id);
-CREATE INDEX IF NOT EXISTS idx_price_alert_product_id ON gugu.price_alert(product_id);
+CREATE INDEX IF NOT EXISTS idx_price_alert_sku_id ON gugu.price_alert(sku_id);

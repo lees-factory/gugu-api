@@ -14,7 +14,7 @@ import (
 
 const createPriceAlert = `-- name: CreatePriceAlert :exec
 INSERT INTO gugu.price_alert (
-    id, user_id, product_id, channel, enabled, created_at
+    id, user_id, sku_id, channel, enabled, created_at
 ) VALUES (
     $1, $2, $3, $4, $5, $6
 )
@@ -23,7 +23,7 @@ INSERT INTO gugu.price_alert (
 type CreatePriceAlertParams struct {
 	ID        string    `json:"id"`
 	UserID    string    `json:"user_id"`
-	ProductID string    `json:"product_id"`
+	SkuID     string    `json:"sku_id"`
 	Channel   string    `json:"channel"`
 	Enabled   bool      `json:"enabled"`
 	CreatedAt time.Time `json:"created_at"`
@@ -33,7 +33,7 @@ func (q *Queries) CreatePriceAlert(ctx context.Context, arg CreatePriceAlertPara
 	_, err := q.db.ExecContext(ctx, createPriceAlert,
 		arg.ID,
 		arg.UserID,
-		arg.ProductID,
+		arg.SkuID,
 		arg.Channel,
 		arg.Enabled,
 		arg.CreatedAt,
@@ -41,42 +41,24 @@ func (q *Queries) CreatePriceAlert(ctx context.Context, arg CreatePriceAlertPara
 	return err
 }
 
-const deletePriceAlertByUserIDAndProductID = `-- name: DeletePriceAlertByUserIDAndProductID :execrows
-DELETE FROM gugu.price_alert
-WHERE user_id = $1 AND product_id = $2
-`
-
-type DeletePriceAlertByUserIDAndProductIDParams struct {
-	UserID    string `json:"user_id"`
-	ProductID string `json:"product_id"`
-}
-
-func (q *Queries) DeletePriceAlertByUserIDAndProductID(ctx context.Context, arg DeletePriceAlertByUserIDAndProductIDParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, deletePriceAlertByUserIDAndProductID, arg.UserID, arg.ProductID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
-}
-
-const findPriceAlertByUserIDAndProductID = `-- name: FindPriceAlertByUserIDAndProductID :one
-SELECT id, user_id, product_id, channel, enabled, created_at
+const findPriceAlertByUserIDAndSKUID = `-- name: FindPriceAlertByUserIDAndSKUID :one
+SELECT id, user_id, sku_id, channel, enabled, created_at
 FROM gugu.price_alert
-WHERE user_id = $1 AND product_id = $2
+WHERE user_id = $1 AND sku_id = $2
 `
 
-type FindPriceAlertByUserIDAndProductIDParams struct {
-	UserID    string `json:"user_id"`
-	ProductID string `json:"product_id"`
+type FindPriceAlertByUserIDAndSKUIDParams struct {
+	UserID string `json:"user_id"`
+	SkuID  string `json:"sku_id"`
 }
 
-func (q *Queries) FindPriceAlertByUserIDAndProductID(ctx context.Context, arg FindPriceAlertByUserIDAndProductIDParams) (GuguPriceAlert, error) {
-	row := q.db.QueryRowContext(ctx, findPriceAlertByUserIDAndProductID, arg.UserID, arg.ProductID)
+func (q *Queries) FindPriceAlertByUserIDAndSKUID(ctx context.Context, arg FindPriceAlertByUserIDAndSKUIDParams) (GuguPriceAlert, error) {
+	row := q.db.QueryRowContext(ctx, findPriceAlertByUserIDAndSKUID, arg.UserID, arg.SkuID)
 	var i GuguPriceAlert
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
-		&i.ProductID,
+		&i.SkuID,
 		&i.Channel,
 		&i.Enabled,
 		&i.CreatedAt,
@@ -85,9 +67,10 @@ func (q *Queries) FindPriceAlertByUserIDAndProductID(ctx context.Context, arg Fi
 }
 
 const listPriceAlertsByProductID = `-- name: ListPriceAlertsByProductID :many
-SELECT id, user_id, product_id, channel, enabled, created_at
-FROM gugu.price_alert
-WHERE product_id = $1 AND enabled = TRUE
+SELECT pa.id, pa.user_id, pa.sku_id, pa.channel, pa.enabled, pa.created_at
+FROM gugu.price_alert pa
+JOIN gugu.sku s ON s.id = pa.sku_id
+WHERE s.product_id = $1 AND pa.enabled = TRUE
 `
 
 func (q *Queries) ListPriceAlertsByProductID(ctx context.Context, productID string) ([]GuguPriceAlert, error) {
@@ -102,7 +85,7 @@ func (q *Queries) ListPriceAlertsByProductID(ctx context.Context, productID stri
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
-			&i.ProductID,
+			&i.SkuID,
 			&i.Channel,
 			&i.Enabled,
 			&i.CreatedAt,
@@ -121,9 +104,10 @@ func (q *Queries) ListPriceAlertsByProductID(ctx context.Context, productID stri
 }
 
 const listPriceAlertsByProductIDs = `-- name: ListPriceAlertsByProductIDs :many
-SELECT id, user_id, product_id, channel, enabled, created_at
-FROM gugu.price_alert
-WHERE product_id = ANY($1::text[]) AND enabled = TRUE
+SELECT pa.id, pa.user_id, pa.sku_id, pa.channel, pa.enabled, pa.created_at
+FROM gugu.price_alert pa
+JOIN gugu.sku s ON s.id = pa.sku_id
+WHERE s.product_id = ANY($1::text[]) AND pa.enabled = TRUE
 `
 
 func (q *Queries) ListPriceAlertsByProductIDs(ctx context.Context, dollar_1 []string) ([]GuguPriceAlert, error) {
@@ -138,7 +122,43 @@ func (q *Queries) ListPriceAlertsByProductIDs(ctx context.Context, dollar_1 []st
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
-			&i.ProductID,
+			&i.SkuID,
+			&i.Channel,
+			&i.Enabled,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPriceAlertsBySKUID = `-- name: ListPriceAlertsBySKUID :many
+SELECT id, user_id, sku_id, channel, enabled, created_at
+FROM gugu.price_alert
+WHERE sku_id = $1 AND enabled = TRUE
+`
+
+func (q *Queries) ListPriceAlertsBySKUID(ctx context.Context, skuID string) ([]GuguPriceAlert, error) {
+	rows, err := q.db.QueryContext(ctx, listPriceAlertsBySKUID, skuID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GuguPriceAlert
+	for rows.Next() {
+		var i GuguPriceAlert
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.SkuID,
 			&i.Channel,
 			&i.Enabled,
 			&i.CreatedAt,
@@ -157,7 +177,7 @@ func (q *Queries) ListPriceAlertsByProductIDs(ctx context.Context, dollar_1 []st
 }
 
 const listPriceAlertsByUserID = `-- name: ListPriceAlertsByUserID :many
-SELECT id, user_id, product_id, channel, enabled, created_at
+SELECT id, user_id, sku_id, channel, enabled, created_at
 FROM gugu.price_alert
 WHERE user_id = $1
 ORDER BY created_at DESC
@@ -175,7 +195,7 @@ func (q *Queries) ListPriceAlertsByUserID(ctx context.Context, userID string) ([
 		if err := rows.Scan(
 			&i.ID,
 			&i.UserID,
-			&i.ProductID,
+			&i.SkuID,
 			&i.Channel,
 			&i.Enabled,
 			&i.CreatedAt,

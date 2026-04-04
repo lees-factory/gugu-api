@@ -53,7 +53,7 @@ func (c *Controller) GetDetail(r *stdhttp.Request) (int, any, error) {
 		return 0, nil, err
 	}
 
-	currency := foundProduct.Currency
+	currency := "KRW"
 	isTrackedByUser := false
 	trackedItemID := ""
 	if req.User.ID != "" {

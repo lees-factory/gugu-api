@@ -26,6 +26,7 @@ import (
 func Wire(cfg config.Config, db *sql.DB, aliExpressTokenStore clientaliexpress.TokenStore) (*Controller, *domaintrackeditem.Service, *domainproduct.Service, error) {
 	trackedItemRepository := buildTrackedItemRepository(db)
 	productRepository := buildProductRepository(db)
+	productVariantRepository := buildProductVariantRepository(db)
 
 	aliExpressClient, err := clientaliexpress.NewHTTPClient(clientaliexpress.Config{
 		BaseURL:     cfg.AliExpressBaseURL,
@@ -45,6 +46,7 @@ func Wire(cfg config.Config, db *sql.DB, aliExpressTokenStore clientaliexpress.T
 	productService := domainproduct.NewService(
 		domainproduct.NewFinder(productRepository),
 		domainproduct.NewWriter(productRepository),
+		productVariantRepository,
 		skuRepository,
 		id.NewRandomHexGenerator(16),
 		clock,
@@ -108,6 +110,13 @@ func buildSKURepository(db *sql.DB) domainproduct.SKURepository {
 		return memoryproduct.NewSKURepository()
 	}
 	return dbcoreproduct.NewSKUSQLCRepository(db)
+}
+
+func buildProductVariantRepository(db *sql.DB) domainproduct.VariantRepository {
+	if db == nil {
+		return memoryproduct.NewVariantRepository()
+	}
+	return dbcoreproduct.NewVariantSQLCRepository(db)
 }
 
 func buildPriceHistoryRepository(db *sql.DB) domainpricehistory.Repository {

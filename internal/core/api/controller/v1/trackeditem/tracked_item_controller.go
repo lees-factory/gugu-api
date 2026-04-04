@@ -2,6 +2,7 @@ package trackeditem
 
 import (
 	stdhttp "net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	apiadvice "github.com/ljj/gugu-api/internal/core/api/controller/advice"
@@ -50,6 +51,7 @@ func (c *Controller) Add(r *stdhttp.Request) (int, any, error) {
 			ExternalProductID: item.ExternalProductID,
 			OriginalURL:       item.OriginalURL,
 			Currency:          item.Currency,
+			Language:          item.Language,
 		})
 		if err != nil {
 			return 0, nil, err
@@ -110,13 +112,7 @@ func (c *Controller) GetSKUPriceHistories(r *stdhttp.Request) (int, any, error) 
 		return 0, nil, err
 	}
 
-	currency := req.Currency
-	if currency == "" {
-		currency = found.TrackedItem.Currency
-	}
-	if currency == "" {
-		currency = "KRW"
-	}
+	currency := resolveSKUPriceHistoryCurrency(req.Currency, found.TrackedItem.Currency)
 
 	histories, err := c.skuPriceHistoryService.ListBySKUID(r.Context(), req.SKUID, currency)
 	if err != nil {
@@ -126,6 +122,20 @@ func (c *Controller) GetSKUPriceHistories(r *stdhttp.Request) (int, any, error) 
 	return stdhttp.StatusOK, apiresponse.SuccessWithData(
 		response.NewSKUPriceHistories(histories),
 	), nil
+}
+
+func resolveSKUPriceHistoryCurrency(requested string, trackedItemCurrency string) string {
+	currency := strings.ToUpper(strings.TrimSpace(requested))
+	if currency != "" {
+		return currency
+	}
+
+	currency = strings.ToUpper(strings.TrimSpace(trackedItemCurrency))
+	if currency != "" {
+		return currency
+	}
+
+	return "KRW"
 }
 
 func (c *Controller) SelectSKU(r *stdhttp.Request) (int, any, error) {

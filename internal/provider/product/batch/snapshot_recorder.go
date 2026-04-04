@@ -43,21 +43,6 @@ func (r *SnapshotRecorder) RecordDailySnapshots(ctx context.Context) error {
 	skuRecorded := 0
 
 	for _, p := range products {
-		if p.CurrentPrice == "" {
-			continue
-		}
-
-		if err := r.productSnapshotWriter.Upsert(ctx, domainps.ProductPriceSnapshot{
-			ProductID:    p.ID,
-			SnapshotDate: today,
-			Price:        p.CurrentPrice,
-			Currency:     p.Currency,
-		}); err != nil {
-			log.Printf("failed to record product snapshot for %s: %v", p.ID, err)
-			continue
-		}
-		productRecorded++
-
 		skus, err := r.productService.FindSKUsByProductID(ctx, p.ID)
 		if err != nil {
 			log.Printf("failed to find skus for product %s: %v", p.ID, err)
@@ -79,6 +64,9 @@ func (r *SnapshotRecorder) RecordDailySnapshots(ctx context.Context) error {
 				continue
 			}
 			skuRecorded++
+		}
+		if len(skus) > 0 {
+			productRecorded++
 		}
 	}
 

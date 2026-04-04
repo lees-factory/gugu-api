@@ -7,5 +7,5 @@ import (
 )
 
 type ProductProvider interface {
-	Provide(ctx context.Context, market enum.Market, externalProductID string, originalURL string) (*NewProduct, error)
+	Provide(ctx context.Context, market enum.Market, externalProductID string, originalURL string, currency string, language string) (*NewProduct, error)
 }

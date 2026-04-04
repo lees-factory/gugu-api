@@ -7,6 +7,7 @@ package sqldb
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/lib/pq"
@@ -20,8 +21,6 @@ INSERT INTO gugu.product (
     original_url,
     title,
     main_image_url,
-    current_price,
-    currency,
     product_url,
     promotion_link,
     collection_source,
@@ -29,7 +28,7 @@ INSERT INTO gugu.product (
     created_at,
     updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
 )
 `
 
@@ -40,8 +39,6 @@ type CreateProductParams struct {
 	OriginalUrl       string    `json:"original_url"`
 	Title             string    `json:"title"`
 	MainImageUrl      string    `json:"main_image_url"`
-	CurrentPrice      string    `json:"current_price"`
-	Currency          string    `json:"currency"`
 	ProductUrl        string    `json:"product_url"`
 	PromotionLink     string    `json:"promotion_link"`
 	CollectionSource  string    `json:"collection_source"`
@@ -58,8 +55,6 @@ func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) er
 		arg.OriginalUrl,
 		arg.Title,
 		arg.MainImageUrl,
-		arg.CurrentPrice,
-		arg.Currency,
 		arg.ProductUrl,
 		arg.PromotionLink,
 		arg.CollectionSource,
@@ -78,8 +73,6 @@ SELECT
     original_url,
     title,
     main_image_url,
-    current_price,
-    currency,
     product_url,
     promotion_link,
     collection_source,
@@ -100,8 +93,6 @@ func (q *Queries) FindProductByID(ctx context.Context, id string) (GuguProduct, 
 		&i.OriginalUrl,
 		&i.Title,
 		&i.MainImageUrl,
-		&i.CurrentPrice,
-		&i.Currency,
 		&i.ProductUrl,
 		&i.PromotionLink,
 		&i.CollectionSource,
@@ -120,8 +111,6 @@ SELECT
     original_url,
     title,
     main_image_url,
-    current_price,
-    currency,
     product_url,
     promotion_link,
     collection_source,
@@ -147,8 +136,6 @@ func (q *Queries) FindProductByMarketAndExternalProductID(ctx context.Context, a
 		&i.OriginalUrl,
 		&i.Title,
 		&i.MainImageUrl,
-		&i.CurrentPrice,
-		&i.Currency,
 		&i.ProductUrl,
 		&i.PromotionLink,
 		&i.CollectionSource,
@@ -159,6 +146,120 @@ func (q *Queries) FindProductByMarketAndExternalProductID(ctx context.Context, a
 	return i, err
 }
 
+const findProductVariantByProductIDLanguageCurrency = `-- name: FindProductVariantByProductIDLanguageCurrency :one
+SELECT
+    product_id,
+    language,
+    currency,
+    title,
+    main_image_url,
+    product_url,
+    current_price,
+    last_collected_at,
+    created_at,
+    updated_at
+FROM gugu.product_variant
+WHERE product_id = $1
+  AND language = $2
+  AND currency = $3
+`
+
+type FindProductVariantByProductIDLanguageCurrencyParams struct {
+	ProductID string `json:"product_id"`
+	Language  string `json:"language"`
+	Currency  string `json:"currency"`
+}
+
+func (q *Queries) FindProductVariantByProductIDLanguageCurrency(ctx context.Context, arg FindProductVariantByProductIDLanguageCurrencyParams) (GuguProductVariant, error) {
+	row := q.db.QueryRowContext(ctx, findProductVariantByProductIDLanguageCurrency, arg.ProductID, arg.Language, arg.Currency)
+	var i GuguProductVariant
+	err := row.Scan(
+		&i.ProductID,
+		&i.Language,
+		&i.Currency,
+		&i.Title,
+		&i.MainImageUrl,
+		&i.ProductUrl,
+		&i.CurrentPrice,
+		&i.LastCollectedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const findProductVariantsByLookupKeys = `-- name: FindProductVariantsByLookupKeys :many
+WITH args AS (
+    SELECT
+        $1::text[] AS product_ids,
+        $2::text[] AS languages,
+        $3::text[] AS currencies
+),
+lookup AS (
+    SELECT
+        product_ids[idx] AS product_id,
+        languages[idx] AS language,
+        currencies[idx] AS currency
+    FROM args, generate_subscripts(product_ids, 1) AS idx
+)
+SELECT
+    pv.product_id,
+    pv.language,
+    pv.currency,
+    pv.title,
+    pv.main_image_url,
+    pv.product_url,
+    pv.current_price,
+    pv.last_collected_at,
+    pv.created_at,
+    pv.updated_at
+FROM gugu.product_variant pv
+JOIN lookup
+  ON pv.product_id = lookup.product_id
+ AND pv.language = lookup.language
+ AND pv.currency = lookup.currency
+`
+
+type FindProductVariantsByLookupKeysParams struct {
+	Column1 []string `json:"column_1"`
+	Column2 []string `json:"column_2"`
+	Column3 []string `json:"column_3"`
+}
+
+func (q *Queries) FindProductVariantsByLookupKeys(ctx context.Context, arg FindProductVariantsByLookupKeysParams) ([]GuguProductVariant, error) {
+	rows, err := q.db.QueryContext(ctx, findProductVariantsByLookupKeys, pq.Array(arg.Column1), pq.Array(arg.Column2), pq.Array(arg.Column3))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GuguProductVariant
+	for rows.Next() {
+		var i GuguProductVariant
+		if err := rows.Scan(
+			&i.ProductID,
+			&i.Language,
+			&i.Currency,
+			&i.Title,
+			&i.MainImageUrl,
+			&i.ProductUrl,
+			&i.CurrentPrice,
+			&i.LastCollectedAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const findProductsByIDs = `-- name: FindProductsByIDs :many
 SELECT
     id,
@@ -167,8 +268,6 @@ SELECT
     original_url,
     title,
     main_image_url,
-    current_price,
-    currency,
     product_url,
     promotion_link,
     collection_source,
@@ -195,8 +294,6 @@ func (q *Queries) FindProductsByIDs(ctx context.Context, dollar_1 []string) ([]G
 			&i.OriginalUrl,
 			&i.Title,
 			&i.MainImageUrl,
-			&i.CurrentPrice,
-			&i.Currency,
 			&i.ProductUrl,
 			&i.PromotionLink,
 			&i.CollectionSource,
@@ -225,8 +322,6 @@ SELECT
     original_url,
     title,
     main_image_url,
-    current_price,
-    currency,
     product_url,
     promotion_link,
     collection_source,
@@ -261,8 +356,6 @@ func (q *Queries) ListProductsByCollectionSource(ctx context.Context, arg ListPr
 			&i.OriginalUrl,
 			&i.Title,
 			&i.MainImageUrl,
-			&i.CurrentPrice,
-			&i.Currency,
 			&i.ProductUrl,
 			&i.PromotionLink,
 			&i.CollectionSource,
@@ -291,8 +384,6 @@ SELECT
     original_url,
     title,
     main_image_url,
-    current_price,
-    currency,
     product_url,
     promotion_link,
     collection_source,
@@ -320,8 +411,6 @@ func (q *Queries) ListProductsByMarket(ctx context.Context, market string) ([]Gu
 			&i.OriginalUrl,
 			&i.Title,
 			&i.MainImageUrl,
-			&i.CurrentPrice,
-			&i.Currency,
 			&i.ProductUrl,
 			&i.PromotionLink,
 			&i.CollectionSource,
@@ -348,13 +437,11 @@ SET
     original_url = $2,
     title = $3,
     main_image_url = $4,
-    current_price = $5,
-    currency = $6,
-    product_url = $7,
-    promotion_link = $8,
-    collection_source = $9,
-    last_collected_at = $10,
-    updated_at = $11
+    product_url = $5,
+    promotion_link = $6,
+    collection_source = $7,
+    last_collected_at = $8,
+    updated_at = $9
 WHERE id = $1
 `
 
@@ -363,8 +450,6 @@ type UpdateProductParams struct {
 	OriginalUrl      string    `json:"original_url"`
 	Title            string    `json:"title"`
 	MainImageUrl     string    `json:"main_image_url"`
-	CurrentPrice     string    `json:"current_price"`
-	Currency         string    `json:"currency"`
 	ProductUrl       string    `json:"product_url"`
 	PromotionLink    string    `json:"promotion_link"`
 	CollectionSource string    `json:"collection_source"`
@@ -378,8 +463,6 @@ func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) (i
 		arg.OriginalUrl,
 		arg.Title,
 		arg.MainImageUrl,
-		arg.CurrentPrice,
-		arg.Currency,
 		arg.ProductUrl,
 		arg.PromotionLink,
 		arg.CollectionSource,
@@ -390,4 +473,58 @@ func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) (i
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const upsertProductVariant = `-- name: UpsertProductVariant :exec
+INSERT INTO gugu.product_variant (
+    product_id,
+    language,
+    currency,
+    title,
+    main_image_url,
+    product_url,
+    current_price,
+    last_collected_at,
+    created_at,
+    updated_at
+) VALUES (
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
+)
+ON CONFLICT (product_id, language, currency)
+DO UPDATE SET
+    title = EXCLUDED.title,
+    main_image_url = EXCLUDED.main_image_url,
+    product_url = EXCLUDED.product_url,
+    current_price = EXCLUDED.current_price,
+    last_collected_at = EXCLUDED.last_collected_at,
+    updated_at = EXCLUDED.updated_at
+`
+
+type UpsertProductVariantParams struct {
+	ProductID       string       `json:"product_id"`
+	Language        string       `json:"language"`
+	Currency        string       `json:"currency"`
+	Title           string       `json:"title"`
+	MainImageUrl    string       `json:"main_image_url"`
+	ProductUrl      string       `json:"product_url"`
+	CurrentPrice    string       `json:"current_price"`
+	LastCollectedAt sql.NullTime `json:"last_collected_at"`
+	CreatedAt       time.Time    `json:"created_at"`
+	UpdatedAt       time.Time    `json:"updated_at"`
+}
+
+func (q *Queries) UpsertProductVariant(ctx context.Context, arg UpsertProductVariantParams) error {
+	_, err := q.db.ExecContext(ctx, upsertProductVariant,
+		arg.ProductID,
+		arg.Language,
+		arg.Currency,
+		arg.Title,
+		arg.MainImageUrl,
+		arg.ProductUrl,
+		arg.CurrentPrice,
+		arg.LastCollectedAt,
+		arg.CreatedAt,
+		arg.UpdatedAt,
+	)
+	return err
 }

@@ -29,6 +29,7 @@ type AddTrackedItemInput struct {
 	ExternalProductID string
 	OriginalURL       string
 	Currency          string
+	Language          string
 }
 
 type AddTrackedItemResult struct {
@@ -69,17 +70,12 @@ func (s *Service) AddTrackedItem(ctx context.Context, input AddTrackedItemInput)
 		return nil, coreerror.New(coreerror.UnsupportedMarket)
 	}
 
-	product, err := s.resolveProduct(ctx, market, input.ExternalProductID, input.OriginalURL)
+	currency := normalizeCurrency(input.Currency)
+	language := normalizeLanguage(input.Language, currency)
+
+	product, err := s.resolveProduct(ctx, market, input.ExternalProductID, input.OriginalURL, currency, language)
 	if err != nil {
 		return nil, err
-	}
-
-	currency := input.Currency
-	if currency == "" {
-		currency = product.Currency
-	}
-	if currency == "" {
-		currency = "KRW"
 	}
 
 	addResult, err := s.Add(ctx, AddInput{
@@ -98,16 +94,19 @@ func (s *Service) AddTrackedItem(ctx context.Context, input AddTrackedItemInput)
 	}, nil
 }
 
-func (s *Service) resolveProduct(ctx context.Context, market enum.Market, externalProductID string, originalURL string) (*domainproduct.Product, error) {
+func (s *Service) resolveProduct(ctx context.Context, market enum.Market, externalProductID string, originalURL string, currency string, language string) (*domainproduct.Product, error) {
 	found, err := s.productService.FindByMarketAndExternalProductID(ctx, market, externalProductID)
 	if err != nil {
 		return nil, fmt.Errorf("find product by market and external product id: %w", err)
 	}
 	if found != nil {
+		if err := s.ensureVariant(ctx, *found, market, externalProductID, originalURL, currency, language); err != nil {
+			return nil, err
+		}
 		return found, nil
 	}
 
-	newProduct, err := s.productProvider.Provide(ctx, market, externalProductID, originalURL)
+	newProduct, err := s.productProvider.Provide(ctx, market, externalProductID, originalURL, currency, language)
 	if err != nil {
 		return nil, fmt.Errorf("provide product: %w", err)
 	}
@@ -116,6 +115,29 @@ func (s *Service) resolveProduct(ctx context.Context, market enum.Market, extern
 	}
 
 	return s.productService.Create(ctx, *newProduct)
+}
+
+func (s *Service) ensureVariant(ctx context.Context, product domainproduct.Product, market enum.Market, externalProductID string, originalURL string, currency string, language string) error {
+	variant, err := s.productService.FindVariant(ctx, product.ID, language, currency)
+	if err != nil {
+		return fmt.Errorf("find product variant: %w", err)
+	}
+	if variant != nil {
+		return nil
+	}
+
+	newProduct, err := s.productProvider.Provide(ctx, market, externalProductID, originalURL, currency, language)
+	if err != nil {
+		return fmt.Errorf("provide product variant: %w", err)
+	}
+	if newProduct == nil {
+		return coreerror.New(coreerror.ProductNotFound)
+	}
+
+	if err := s.productService.UpsertVariant(ctx, product.ID, *newProduct); err != nil {
+		return fmt.Errorf("upsert product variant: %w", err)
+	}
+	return nil
 }
 
 func (s *Service) Add(ctx context.Context, input AddInput) (*AddResult, error) {
@@ -161,6 +183,7 @@ func (s *Service) Add(ctx context.Context, input AddInput) (*AddResult, error) {
 type TrackedItemWithProduct struct {
 	TrackedItem TrackedItem
 	Product     domainproduct.Product
+	Variant     *domainproduct.Variant
 }
 
 func (s *Service) ListWithProducts(ctx context.Context, userID string) ([]TrackedItemWithProduct, error) {
@@ -182,6 +205,10 @@ func (s *Service) ListWithProducts(ctx context.Context, userID string) ([]Tracke
 	if err != nil {
 		return nil, fmt.Errorf("find products by ids: %w", err)
 	}
+	variantMap, err := s.findVariantsForTrackedItems(ctx, trackedItems)
+	if err != nil {
+		return nil, fmt.Errorf("find product variants: %w", err)
+	}
 
 	productMap := make(map[string]domainproduct.Product, len(products))
 	for _, p := range products {
@@ -197,6 +224,7 @@ func (s *Service) ListWithProducts(ctx context.Context, userID string) ([]Tracke
 		result = append(result, TrackedItemWithProduct{
 			TrackedItem: tracked,
 			Product:     product,
+			Variant:     variantMap[variantMapKey(product.ID, tracked.Currency)],
 		})
 	}
 
@@ -244,6 +272,10 @@ func (s *Service) ListWithProductsCursor(ctx context.Context, userID string, cur
 	if err != nil {
 		return nil, fmt.Errorf("find products by ids: %w", err)
 	}
+	variantMap, err := s.findVariantsForTrackedItems(ctx, trackedItems)
+	if err != nil {
+		return nil, fmt.Errorf("find product variants: %w", err)
+	}
 
 	productMap := make(map[string]domainproduct.Product, len(products))
 	for _, p := range products {
@@ -259,6 +291,7 @@ func (s *Service) ListWithProductsCursor(ctx context.Context, userID string, cur
 		items = append(items, TrackedItemWithProduct{
 			TrackedItem: tracked,
 			Product:     product,
+			Variant:     variantMap[variantMapKey(product.ID, tracked.Currency)],
 		})
 	}
 
@@ -278,6 +311,7 @@ func (s *Service) ListWithProductsCursor(ctx context.Context, userID string, cur
 type TrackedItemDetail struct {
 	TrackedItem TrackedItem
 	Product     domainproduct.Product
+	Variant     *domainproduct.Variant
 	SKUs        []domainproduct.SKU
 }
 
@@ -306,6 +340,7 @@ func (s *Service) GetDetail(ctx context.Context, trackedItemID string, userID st
 	return &TrackedItemDetail{
 		TrackedItem: *found,
 		Product:     *product,
+		Variant:     s.findVariantForTrackedItem(ctx, product.ID, found.Currency),
 		SKUs:        skus,
 	}, nil
 }
@@ -352,4 +387,62 @@ func (s *Service) Delete(ctx context.Context, trackedItemID string, userID strin
 	}
 
 	return nil
+}
+
+func normalizeCurrency(currency string) string {
+	currency = strings.ToUpper(strings.TrimSpace(currency))
+	if currency == "" {
+		return "KRW"
+	}
+	return currency
+}
+
+func normalizeLanguage(language string, currency string) string {
+	language = strings.ToUpper(strings.TrimSpace(language))
+	if language != "" {
+		return language
+	}
+
+	switch normalizeCurrency(currency) {
+	case "KRW":
+		return "KO"
+	default:
+		return "EN"
+	}
+}
+
+func (s *Service) findVariantForTrackedItem(ctx context.Context, productID string, currency string) *domainproduct.Variant {
+	language := normalizeLanguage("", currency)
+	variant, err := s.productService.FindVariant(ctx, productID, language, currency)
+	if err != nil {
+		return nil
+	}
+	return variant
+}
+
+func (s *Service) findVariantsForTrackedItems(ctx context.Context, trackedItems []TrackedItem) (map[string]*domainproduct.Variant, error) {
+	keys := make([]domainproduct.VariantLookupKey, 0, len(trackedItems))
+	for _, trackedItem := range trackedItems {
+		keys = append(keys, domainproduct.VariantLookupKey{
+			ProductID: trackedItem.ProductID,
+			Language:  normalizeLanguage("", trackedItem.Currency),
+			Currency:  normalizeCurrency(trackedItem.Currency),
+		})
+	}
+
+	variants, err := s.productService.FindVariants(ctx, keys)
+	if err != nil {
+		return nil, err
+	}
+
+	variantMap := make(map[string]*domainproduct.Variant, len(variants))
+	for i := range variants {
+		variant := variants[i]
+		variantMap[variantMapKey(variant.ProductID, variant.Currency)] = &variant
+	}
+	return variantMap, nil
+}
+
+func variantMapKey(productID string, currency string) string {
+	return strings.TrimSpace(productID) + ":" + normalizeCurrency(currency)
 }

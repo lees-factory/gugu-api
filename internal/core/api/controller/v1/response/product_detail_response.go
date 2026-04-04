@@ -14,7 +14,6 @@ type ProductDetail struct {
 	OriginalURL       string             `json:"original_url"`
 	Title             string             `json:"title"`
 	MainImageURL      string             `json:"main_image_url"`
-	CurrentPrice      string             `json:"current_price"`
 	Currency          string             `json:"currency"`
 	ProductURL        string             `json:"product_url"`
 	PromotionLink     string             `json:"promotion_link,omitempty"`
@@ -50,7 +49,6 @@ func NewProductDetail(product domainproduct.Product, histories []domainpricehist
 		OriginalURL:       product.OriginalURL,
 		Title:             product.Title,
 		MainImageURL:      product.MainImageURL,
-		CurrentPrice:      product.CurrentPrice,
 		Currency:          currency,
 		ProductURL:        product.ProductURL,
 		PromotionLink:     product.PromotionLink,

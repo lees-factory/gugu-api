@@ -18,12 +18,12 @@ func NewRepository() *MemoryRepository {
 	}
 }
 
-func (r *MemoryRepository) FindByUserIDAndProductID(_ context.Context, userID string, productID string) (*domainpricealert.PriceAlert, error) {
+func (r *MemoryRepository) FindByUserIDAndSKUID(_ context.Context, userID string, skuID string) (*domainpricealert.PriceAlert, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	for _, a := range r.byID {
-		if a.UserID == userID && a.ProductID == productID {
+		if a.UserID == userID && a.SKUID == skuID {
 			found := a
 			return &found, nil
 		}
@@ -31,35 +31,26 @@ func (r *MemoryRepository) FindByUserIDAndProductID(_ context.Context, userID st
 	return nil, nil
 }
 
-func (r *MemoryRepository) ListByProductID(_ context.Context, productID string) ([]domainpricealert.PriceAlert, error) {
+func (r *MemoryRepository) ListBySKUID(_ context.Context, skuID string) ([]domainpricealert.PriceAlert, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	var result []domainpricealert.PriceAlert
 	for _, a := range r.byID {
-		if a.ProductID == productID && a.Enabled {
+		if a.SKUID == skuID && a.Enabled {
 			result = append(result, a)
 		}
 	}
 	return result, nil
 }
 
+func (r *MemoryRepository) ListByProductID(_ context.Context, _ string) ([]domainpricealert.PriceAlert, error) {
+	return nil, nil
+}
+
 func (r *MemoryRepository) ListByProductIDs(_ context.Context, productIDs []string) ([]domainpricealert.PriceAlert, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	idSet := make(map[string]struct{}, len(productIDs))
-	for _, id := range productIDs {
-		idSet[id] = struct{}{}
-	}
-
-	var result []domainpricealert.PriceAlert
-	for _, a := range r.byID {
-		if _, ok := idSet[a.ProductID]; ok && a.Enabled {
-			result = append(result, a)
-		}
-	}
-	return result, nil
+	_ = productIDs
+	return nil, nil
 }
 
 func (r *MemoryRepository) ListByUserID(_ context.Context, userID string) ([]domainpricealert.PriceAlert, error) {
@@ -90,18 +81,6 @@ func (r *MemoryRepository) UpdateEnabled(_ context.Context, alertID string, enab
 	if a, ok := r.byID[alertID]; ok {
 		a.Enabled = enabled
 		r.byID[alertID] = a
-	}
-	return nil
-}
-
-func (r *MemoryRepository) DeleteByUserIDAndProductID(_ context.Context, userID string, productID string) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	for id, a := range r.byID {
-		if a.UserID == userID && a.ProductID == productID {
-			delete(r.byID, id)
-		}
 	}
 	return nil
 }

@@ -6,7 +6,7 @@ import (
 
 type PriceAlertItem struct {
 	ID        string `json:"id"`
-	ProductID string `json:"product_id"`
+	SKUID     string `json:"sku_id"`
 	Channel   string `json:"channel"`
 	Enabled   bool   `json:"enabled"`
 	CreatedAt string `json:"created_at"`
@@ -15,7 +15,7 @@ type PriceAlertItem struct {
 func NewPriceAlertItem(alert *domainpricealert.PriceAlert) PriceAlertItem {
 	return PriceAlertItem{
 		ID:        alert.ID,
-		ProductID: alert.ProductID,
+		SKUID:     alert.SKUID,
 		Channel:   alert.Channel,
 		Enabled:   alert.Enabled,
 		CreatedAt: alert.CreatedAt.Format("2006-01-02T15:04:05Z"),
@@ -27,7 +27,7 @@ func NewPriceAlertList(alerts []domainpricealert.PriceAlert) []PriceAlertItem {
 	for _, a := range alerts {
 		items = append(items, PriceAlertItem{
 			ID:        a.ID,
-			ProductID: a.ProductID,
+			SKUID:     a.SKUID,
 			Channel:   a.Channel,
 			Enabled:   a.Enabled,
 			CreatedAt: a.CreatedAt.Format("2006-01-02T15:04:05Z"),

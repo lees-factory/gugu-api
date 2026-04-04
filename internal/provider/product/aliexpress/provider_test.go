@@ -59,7 +59,7 @@ func TestProvide_AffiliateExists_WithDSSKU(t *testing.T) {
 		"KRW", "KO", "KR",
 	)
 
-	result, err := p.Provide(context.Background(), enum.MarketAliExpress, "1001", "https://ae.com/item/1001")
+	result, err := p.Provide(context.Background(), enum.MarketAliExpress, "1001", "https://ae.com/item/1001", "KRW", "")
 	if err != nil {
 		t.Fatalf("Provide() error = %v", err)
 	}
@@ -76,6 +76,9 @@ func TestProvide_AffiliateExists_WithDSSKU(t *testing.T) {
 	}
 	if result.CollectionSource != "AFFILIATE_API" {
 		t.Errorf("CollectionSource = %q, want AFFILIATE_API", result.CollectionSource)
+	}
+	if result.Language != "KO" {
+		t.Errorf("Language = %q, want KO", result.Language)
 	}
 
 	// SKU는 DS에서
@@ -133,7 +136,7 @@ func TestProvide_AffiliateNotFound_DSFallback(t *testing.T) {
 		"KRW", "KO", "KR",
 	)
 
-	result, err := p.Provide(context.Background(), enum.MarketAliExpress, "2001", "https://ae.com/item/2001")
+	result, err := p.Provide(context.Background(), enum.MarketAliExpress, "2001", "https://ae.com/item/2001", "KRW", "")
 	if err != nil {
 		t.Fatalf("Provide() error = %v", err)
 	}
@@ -152,9 +155,6 @@ func TestProvide_AffiliateNotFound_DSFallback(t *testing.T) {
 	}
 	if result.CollectionSource != "DS_API" {
 		t.Errorf("CollectionSource = %q, want DS_API", result.CollectionSource)
-	}
-	if result.CurrentPrice != "12000" {
-		t.Errorf("CurrentPrice = %q, want 12000", result.CurrentPrice)
 	}
 	if len(result.SKUs) != 1 {
 		t.Fatalf("SKUs count = %d, want 1", len(result.SKUs))
@@ -185,7 +185,7 @@ func TestProvide_DSError_AffiliateAlone(t *testing.T) {
 		"KRW", "KO", "KR",
 	)
 
-	result, err := p.Provide(context.Background(), enum.MarketAliExpress, "3001", "")
+	result, err := p.Provide(context.Background(), enum.MarketAliExpress, "3001", "", "KRW", "")
 	if err != nil {
 		t.Fatalf("Provide() error = %v", err)
 	}
@@ -214,7 +214,7 @@ func TestProvide_BothFail_ReturnsNil(t *testing.T) {
 		"KRW", "KO", "KR",
 	)
 
-	result, err := p.Provide(context.Background(), enum.MarketAliExpress, "9999", "")
+	result, err := p.Provide(context.Background(), enum.MarketAliExpress, "9999", "", "KRW", "")
 	if err != nil {
 		t.Fatalf("Provide() error = %v", err)
 	}
@@ -223,15 +223,86 @@ func TestProvide_BothFail_ReturnsNil(t *testing.T) {
 	}
 }
 
+func TestProvide_UsesRequestedCurrencyForAffiliateAndDS(t *testing.T) {
+	affiliate := &stubAffiliateClient{
+		result: &clientaliexpress.ProductDetailResult{
+			Products: []clientaliexpress.AffiliateProduct{
+				{ProductID: 1001, ProductTitle: "USD Product"},
+			},
+		},
+	}
+	ds := &stubDSClient{
+		result: &clientaliexpress.DSProductResult{},
+	}
+
+	p := NewProvider(
+		affiliate,
+		ds,
+		&stubTokenProvider{token: "aff-token"},
+		&stubTokenProvider{token: "ds-token"},
+		"KRW", "KO", "KR",
+	)
+
+	_, err := p.Provide(context.Background(), enum.MarketAliExpress, "1001", "", "USD", "")
+	if err != nil {
+		t.Fatalf("Provide() error = %v", err)
+	}
+
+	if affiliate.lastInput.TargetCurrency != "USD" {
+		t.Fatalf("affiliate target currency = %q, want USD", affiliate.lastInput.TargetCurrency)
+	}
+	if affiliate.lastInput.TargetLanguage != "EN" {
+		t.Fatalf("affiliate target language = %q, want EN", affiliate.lastInput.TargetLanguage)
+	}
+	if ds.lastInput.TargetCurrency != "USD" {
+		t.Fatalf("ds target currency = %q, want USD", ds.lastInput.TargetCurrency)
+	}
+	if ds.lastInput.ShipToCountry != "US" {
+		t.Fatalf("ds ship_to_country = %q, want US", ds.lastInput.ShipToCountry)
+	}
+}
+
 func TestProvide_UnsupportedMarket_ReturnsNil(t *testing.T) {
 	p := NewProvider(nil, nil, nil, nil, "KRW", "KO", "KR")
 
-	result, err := p.Provide(context.Background(), enum.Market("COUPANG"), "1001", "")
+	result, err := p.Provide(context.Background(), enum.Market("COUPANG"), "1001", "", "KRW", "")
 	if err != nil {
 		t.Fatalf("Provide() error = %v", err)
 	}
 	if result != nil {
 		t.Errorf("Provide() = %+v, want nil", result)
+	}
+}
+
+func TestProvide_UsesExplicitLanguageWhenProvided(t *testing.T) {
+	affiliate := &stubAffiliateClient{
+		result: &clientaliexpress.ProductDetailResult{
+			Products: []clientaliexpress.AffiliateProduct{
+				{ProductID: 1001, ProductTitle: "Explicit Language Product"},
+			},
+		},
+	}
+
+	p := NewProvider(
+		affiliate,
+		nil,
+		&stubTokenProvider{token: "aff-token"},
+		nil,
+		"KRW", "KO", "KR",
+	)
+
+	result, err := p.Provide(context.Background(), enum.MarketAliExpress, "1001", "", "KRW", "EN")
+	if err != nil {
+		t.Fatalf("Provide() error = %v", err)
+	}
+	if result == nil {
+		t.Fatal("Provide() returned nil")
+	}
+	if affiliate.lastInput.TargetLanguage != "EN" {
+		t.Fatalf("affiliate target language = %q, want EN", affiliate.lastInput.TargetLanguage)
+	}
+	if result.Language != "EN" {
+		t.Fatalf("result language = %q, want EN", result.Language)
 	}
 }
 
@@ -257,20 +328,24 @@ func TestExtractSKUProperties(t *testing.T) {
 // --- stubs ---
 
 type stubAffiliateClient struct {
-	result *clientaliexpress.ProductDetailResult
-	err    error
+	result    *clientaliexpress.ProductDetailResult
+	err       error
+	lastInput clientaliexpress.ProductDetailInput
 }
 
-func (c *stubAffiliateClient) GetAffiliateProductDetail(_ context.Context, _ clientaliexpress.ProductDetailInput) (*clientaliexpress.ProductDetailResult, error) {
+func (c *stubAffiliateClient) GetAffiliateProductDetail(_ context.Context, input clientaliexpress.ProductDetailInput) (*clientaliexpress.ProductDetailResult, error) {
+	c.lastInput = input
 	return c.result, c.err
 }
 
 type stubDSClient struct {
-	result *clientaliexpress.DSProductResult
-	err    error
+	result    *clientaliexpress.DSProductResult
+	err       error
+	lastInput clientaliexpress.DSProductInput
 }
 
-func (c *stubDSClient) GetDSProduct(_ context.Context, _ clientaliexpress.DSProductInput) (*clientaliexpress.DSProductResult, error) {
+func (c *stubDSClient) GetDSProduct(_ context.Context, input clientaliexpress.DSProductInput) (*clientaliexpress.DSProductResult, error) {
+	c.lastInput = input
 	return c.result, c.err
 }
 

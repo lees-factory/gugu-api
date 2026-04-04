@@ -13,8 +13,6 @@ type Product struct {
 	OriginalURL       string
 	Title             string
 	MainImageURL      string
-	CurrentPrice      string
-	Currency          string
 	ProductURL        string
 	PromotionLink     string
 	CollectionSource  string

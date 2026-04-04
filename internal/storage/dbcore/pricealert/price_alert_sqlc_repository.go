@@ -17,10 +17,10 @@ func NewSQLCRepository(db *sql.DB) *SQLCRepository {
 	return &SQLCRepository{queries: sqldb.New(db)}
 }
 
-func (r *SQLCRepository) FindByUserIDAndProductID(ctx context.Context, userID string, productID string) (*domainpricealert.PriceAlert, error) {
-	row, err := r.queries.FindPriceAlertByUserIDAndProductID(ctx, sqldb.FindPriceAlertByUserIDAndProductIDParams{
-		UserID:    userID,
-		ProductID: productID,
+func (r *SQLCRepository) FindByUserIDAndSKUID(ctx context.Context, userID string, skuID string) (*domainpricealert.PriceAlert, error) {
+	row, err := r.queries.FindPriceAlertByUserIDAndSKUID(ctx, sqldb.FindPriceAlertByUserIDAndSKUIDParams{
+		UserID: userID,
+		SkuID:  skuID,
 	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -30,6 +30,14 @@ func (r *SQLCRepository) FindByUserIDAndProductID(ctx context.Context, userID st
 	}
 	alert := toDomain(row)
 	return &alert, nil
+}
+
+func (r *SQLCRepository) ListBySKUID(ctx context.Context, skuID string) ([]domainpricealert.PriceAlert, error) {
+	rows, err := r.queries.ListPriceAlertsBySKUID(ctx, skuID)
+	if err != nil {
+		return nil, err
+	}
+	return toDomainList(rows), nil
 }
 
 func (r *SQLCRepository) ListByProductID(ctx context.Context, productID string) ([]domainpricealert.PriceAlert, error) {
@@ -60,7 +68,7 @@ func (r *SQLCRepository) Create(ctx context.Context, alert domainpricealert.Pric
 	return r.queries.CreatePriceAlert(ctx, sqldb.CreatePriceAlertParams{
 		ID:        alert.ID,
 		UserID:    alert.UserID,
-		ProductID: alert.ProductID,
+		SkuID:     alert.SKUID,
 		Channel:   alert.Channel,
 		Enabled:   alert.Enabled,
 		CreatedAt: alert.CreatedAt,
@@ -75,19 +83,11 @@ func (r *SQLCRepository) UpdateEnabled(ctx context.Context, alertID string, enab
 	return err
 }
 
-func (r *SQLCRepository) DeleteByUserIDAndProductID(ctx context.Context, userID string, productID string) error {
-	_, err := r.queries.DeletePriceAlertByUserIDAndProductID(ctx, sqldb.DeletePriceAlertByUserIDAndProductIDParams{
-		UserID:    userID,
-		ProductID: productID,
-	})
-	return err
-}
-
 func toDomain(row sqldb.GuguPriceAlert) domainpricealert.PriceAlert {
 	return domainpricealert.PriceAlert{
 		ID:        row.ID,
 		UserID:    row.UserID,
-		ProductID: row.ProductID,
+		SKUID:     row.SkuID,
 		Channel:   row.Channel,
 		Enabled:   row.Enabled,
 		CreatedAt: row.CreatedAt,

@@ -17,7 +17,7 @@ import (
 var supportedCurrencies = []string{"KRW", "USD"}
 
 type PriceChangeNotifier interface {
-	NotifyPriceChange(ctx context.Context, productID string, productTitle string, oldPrice string, newPrice string, currency string)
+	NotifyPriceChange(ctx context.Context, skuID string, productTitle string, oldPrice string, newPrice string, currency string)
 }
 
 type PriceFetcher interface {
@@ -77,9 +77,6 @@ func (u *PriceUpdater) updateProducts(ctx context.Context, market enum.Market, p
 		externalIDs[i] = p.ExternalProductID
 	}
 
-	now := u.clock()
-	today := truncateToDate(now)
-
 	for _, currency := range supportedCurrencies {
 		prices, err := u.fetcher.FetchPrices(ctx, externalIDs, currency)
 		if err != nil {
@@ -97,53 +94,8 @@ func (u *PriceUpdater) updateProducts(ctx context.Context, market enum.Market, p
 				continue
 			}
 
-			if currency == product.Currency {
-				if product.CurrentPrice != pr.Price {
-					changeValue := calculateChange(product.CurrentPrice, pr.Price)
-
-					if u.productService != nil {
-						if err := u.productService.UpdatePrice(ctx, product.ID, pr.Price, pr.Currency); err != nil {
-							log.Printf("failed to update price for product %s: %v", product.ID, err)
-							continue
-						}
-					}
-
-					if err := u.priceHistoryWriter.Create(ctx, domainpricehistory.PriceHistory{
-						ProductID:   product.ID,
-						Price:       pr.Price,
-						Currency:    pr.Currency,
-						RecordedAt:  now,
-						ChangeValue: changeValue,
-					}); err != nil {
-						log.Printf("failed to record price history for product %s currency %s: %v", product.ID, currency, err)
-					}
-
-					if u.notifier != nil {
-						u.notifier.NotifyPriceChange(ctx, product.ID, product.Title, product.CurrentPrice, pr.Price, pr.Currency)
-					}
-
-					updated++
-				}
-			} else {
-				if err := u.priceHistoryWriter.Create(ctx, domainpricehistory.PriceHistory{
-					ProductID:   product.ID,
-					Price:       pr.Price,
-					Currency:    currency,
-					RecordedAt:  now,
-					ChangeValue: "0",
-				}); err != nil {
-					log.Printf("failed to record price history for product %s currency %s: %v", product.ID, currency, err)
-				}
+			if u.notifier != nil && u.notifySKUPriceChange(ctx, product, pr.Price, pr.Currency) {
 				updated++
-			}
-
-			if err := u.productSnapshotWriter.Upsert(ctx, domainps.ProductPriceSnapshot{
-				ProductID:    product.ID,
-				SnapshotDate: today,
-				Price:        pr.Price,
-				Currency:     currency,
-			}); err != nil {
-				log.Printf("failed to upsert product snapshot for product %s currency %s: %v", product.ID, currency, err)
 			}
 		}
 
@@ -151,6 +103,38 @@ func (u *PriceUpdater) updateProducts(ctx context.Context, market enum.Market, p
 	}
 
 	return nil
+}
+
+func (u *PriceUpdater) notifySKUPriceChange(ctx context.Context, product domainproduct.Product, newPrice string, currency string) bool {
+	if u.productService == nil {
+		return false
+	}
+
+	skus, err := u.productService.FindSKUsByProductID(ctx, product.ID)
+	if err != nil {
+		log.Printf("failed to find skus for product %s: %v", product.ID, err)
+		return false
+	}
+
+	if len(skus) != 1 {
+		if len(skus) > 1 {
+			log.Printf("skip sku price alert for product %s: sku-level diff source is required for multi-sku products", product.ID)
+		}
+		return false
+	}
+
+	sku := skus[0]
+	if sku.Currency != "" && currency != "" && sku.Currency != currency {
+		return false
+	}
+
+	oldPrice := sku.Price
+	if oldPrice == "" || oldPrice == newPrice {
+		return false
+	}
+
+	u.notifier.NotifyPriceChange(ctx, sku.ID, product.Title, oldPrice, newPrice, currency)
+	return true
 }
 
 func calculateChange(oldPrice string, newPrice string) string {

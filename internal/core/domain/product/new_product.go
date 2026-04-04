@@ -6,6 +6,7 @@ type NewProduct struct {
 	Market            enum.Market
 	ExternalProductID string
 	OriginalURL       string
+	Language          string
 	Title             string
 	MainImageURL      string
 	CurrentPrice      string

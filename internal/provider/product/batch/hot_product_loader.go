@@ -96,7 +96,6 @@ func (l *HotProductLoader) LoadHotProducts(ctx context.Context, input HotProduct
 			continue
 		}
 
-		price := firstNonEmpty(p.TargetSalePrice, p.SalePrice, p.TargetAppSalePrice, p.AppSalePrice)
 		currency := firstNonEmpty(p.TargetSalePriceCurrency, p.SalePriceCurrency, p.TargetAppSalePriceCurrency, p.AppSalePriceCurrency)
 
 		_, err = l.productService.Create(ctx, domainproduct.NewProduct{
@@ -105,10 +104,9 @@ func (l *HotProductLoader) LoadHotProducts(ctx context.Context, input HotProduct
 			OriginalURL:       strings.TrimSpace(p.ProductDetailURL),
 			Title:             strings.TrimSpace(p.ProductTitle),
 			MainImageURL:      strings.TrimSpace(p.ProductMainImageURL),
-			CurrentPrice:      price,
 			Currency:          currency,
 			ProductURL:        strings.TrimSpace(p.ProductDetailURL),
-			CollectionSource:  hotProductCollectionSource,
+			CollectionSource:  HotProductCollectionSource(input.TargetLanguage),
 		})
 		if err != nil {
 			log.Printf("failed to create hot product %s: %v", externalID, err)
@@ -139,6 +137,11 @@ func defaultString(value string, fallback string) string {
 		return fallback
 	}
 	return v
+}
+
+func HotProductCollectionSource(targetLanguage string) string {
+	lang := strings.ToUpper(defaultString(targetLanguage, "KO"))
+	return hotProductCollectionSource + ":" + lang
 }
 
 func firstNonEmpty(values ...string) string {

@@ -15,6 +15,7 @@ type AddTrackedItemEntry struct {
 	ExternalProductID string `json:"external_product_id"`
 	OriginalURL       string `json:"original_url"`
 	Currency          string `json:"currency"`
+	Language          string `json:"language"`
 }
 
 type AddTrackedItems struct {

@@ -13,13 +13,14 @@ type TrackedItemDetail struct {
 	OriginalURL       string       `json:"original_url"`
 	Title             string       `json:"title"`
 	MainImageURL      string       `json:"main_image_url"`
-	CurrentPrice      string       `json:"current_price"`
 	Currency          string       `json:"currency"`
 	ProductURL        string       `json:"product_url"`
 	SKUs              []ProductSKU `json:"skus"`
 }
 
 func NewTrackedItemDetail(detail *domaintrackeditem.TrackedItemDetail) TrackedItemDetail {
+	display := resolveTrackedItemDisplay(detail.Product, detail.Variant)
+
 	return TrackedItemDetail{
 		TrackedItemID:     detail.TrackedItem.ID,
 		ProductID:         detail.Product.ID,
@@ -27,11 +28,10 @@ func NewTrackedItemDetail(detail *domaintrackeditem.TrackedItemDetail) TrackedIt
 		Market:            string(detail.Product.Market),
 		ExternalProductID: detail.Product.ExternalProductID,
 		OriginalURL:       detail.TrackedItem.OriginalURL,
-		Title:             detail.Product.Title,
-		MainImageURL:      detail.Product.MainImageURL,
-		CurrentPrice:      detail.Product.CurrentPrice,
+		Title:             display.title,
+		MainImageURL:      display.mainImageURL,
 		Currency:          detail.TrackedItem.Currency,
-		ProductURL:        detail.Product.ProductURL,
+		ProductURL:        display.productURL,
 		SKUs:              NewProductSKUs(detail.SKUs),
 	}
 }

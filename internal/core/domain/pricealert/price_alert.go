@@ -5,7 +5,7 @@ import "time"
 type PriceAlert struct {
 	ID        string
 	UserID    string
-	ProductID string
+	SKUID     string
 	Channel   string
 	Enabled   bool
 	CreatedAt time.Time
