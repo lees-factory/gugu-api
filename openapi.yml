@@ -1929,6 +1929,7 @@ components:
         - original_url
         - title
         - main_image_url
+        - current_price
         - currency
         - product_url
       properties:
@@ -1954,6 +1955,9 @@ components:
         main_image_url:
           type: string
           description: 대표 이미지 URL. tracked item currency 기준 variant 우선, 없으면 product 기본값 사용.
+        current_price:
+          type: string
+          description: 카드에 표시할 대표 가격. tracked item currency 기준 variant의 current_price를 사용한다.
         currency:
           type: string
           description: 가격 통화

@@ -31,6 +31,7 @@ func TestNewListTrackedItem_UsesVariantWhenPresent(t *testing.T) {
 			Title:        "Variant Title",
 			MainImageURL: "https://img.example.com/variant.jpg",
 			ProductURL:   "https://example.com/variant",
+			CurrentPrice: "15.99",
 		},
 	})
 
@@ -42,6 +43,9 @@ func TestNewListTrackedItem_UsesVariantWhenPresent(t *testing.T) {
 	}
 	if item.ProductURL != "https://example.com/variant" {
 		t.Fatalf("ProductURL = %q", item.ProductURL)
+	}
+	if item.CurrentPrice != "15.99" {
+		t.Fatalf("CurrentPrice = %q, want 15.99", item.CurrentPrice)
 	}
 }
 

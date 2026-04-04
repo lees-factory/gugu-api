@@ -14,12 +14,17 @@ type ListTrackedItem struct {
 	OriginalURL       string `json:"original_url"`
 	Title             string `json:"title"`
 	MainImageURL      string `json:"main_image_url"`
+	CurrentPrice      string `json:"current_price"`
 	Currency          string `json:"currency"`
 	ProductURL        string `json:"product_url"`
 }
 
 func NewListTrackedItem(item domaintrackeditem.TrackedItemWithProduct) ListTrackedItem {
 	display := resolveTrackedItemDisplay(item.Product, item.Variant)
+	currentPrice := ""
+	if item.Variant != nil {
+		currentPrice = item.Variant.CurrentPrice
+	}
 
 	return ListTrackedItem{
 		TrackedItemID:     item.TrackedItem.ID,
@@ -30,6 +35,7 @@ func NewListTrackedItem(item domaintrackeditem.TrackedItemWithProduct) ListTrack
 		OriginalURL:       item.TrackedItem.OriginalURL,
 		Title:             display.title,
 		MainImageURL:      display.mainImageURL,
+		CurrentPrice:      currentPrice,
 		Currency:          item.TrackedItem.Currency,
 		ProductURL:        display.productURL,
 	}
