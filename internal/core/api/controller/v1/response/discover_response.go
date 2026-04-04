@@ -7,6 +7,7 @@ type HotProductItem struct {
 	Market       string `json:"market"`
 	Title        string `json:"title"`
 	MainImageURL string `json:"main_image_url"`
+	CurrentPrice string `json:"current_price"`
 	Currency     string `json:"currency"`
 	ProductURL   string `json:"product_url"`
 }
@@ -16,6 +17,7 @@ func NewHotProductList(products []domainproduct.Product, variants map[string]*do
 	for _, p := range products {
 		title := p.Title
 		mainImageURL := p.MainImageURL
+		currentPrice := ""
 		currency := fallbackCurrency
 		productURL := p.ProductURL
 
@@ -25,6 +27,9 @@ func NewHotProductList(products []domainproduct.Product, variants map[string]*do
 			}
 			if variant.MainImageURL != "" {
 				mainImageURL = variant.MainImageURL
+			}
+			if variant.CurrentPrice != "" {
+				currentPrice = variant.CurrentPrice
 			}
 			if variant.Currency != "" {
 				currency = variant.Currency
@@ -39,6 +44,7 @@ func NewHotProductList(products []domainproduct.Product, variants map[string]*do
 			Market:       string(p.Market),
 			Title:        title,
 			MainImageURL: mainImageURL,
+			CurrentPrice: currentPrice,
 			Currency:     currency,
 			ProductURL:   productURL,
 		})

@@ -1,6 +1,15 @@
 package trackeditem
 
-import "testing"
+import (
+	"context"
+	"net/http"
+	"testing"
+	"time"
+
+	"github.com/ljj/gugu-api/internal/core/api/controller/v1/response"
+	domainpricealert "github.com/ljj/gugu-api/internal/core/domain/pricealert"
+	memorypricealert "github.com/ljj/gugu-api/internal/storage/memory/pricealert"
+)
 
 func TestResolveSKUPriceHistoryCurrency_UsesOverride(t *testing.T) {
 	got := resolveSKUPriceHistoryCurrency("usd", "KRW")
@@ -21,4 +30,64 @@ func TestResolveSKUPriceHistoryCurrency_FallsBackToKRW(t *testing.T) {
 	if got != "KRW" {
 		t.Fatalf("resolveSKUPriceHistoryCurrency() = %q, want KRW", got)
 	}
+}
+
+func TestResolvePriceAlertStateBySKUID_DefaultsOffWithoutService(t *testing.T) {
+	controller := &Controller{}
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "/v1/tracked-items/tracked-1/price-alert", nil)
+	if err != nil {
+		t.Fatalf("http.NewRequestWithContext() error = %v", err)
+	}
+
+	got := controller.resolvePriceAlertStateBySKUID(req, "user-1", "sku-1")
+
+	if got == nil {
+		t.Fatal("resolvePriceAlertStateBySKUID() returned nil")
+	}
+	if *got != (response.PriceAlertState{Enabled: false}) {
+		t.Fatalf("resolvePriceAlertStateBySKUID() = %+v, want disabled default state", *got)
+	}
+}
+
+func TestResolvePriceAlertStateBySKUID_ReturnsStoredAlert(t *testing.T) {
+	repo := memorypricealert.NewRepository()
+	service := domainpricealert.NewService(
+		domainpricealert.NewFinder(repo),
+		repo,
+		testAlertIDGenerator{},
+		testAlertClock{},
+	)
+	if _, err := service.Register(context.Background(), "user-1", "sku-1", "EMAIL"); err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+
+	controller := &Controller{priceAlertService: service}
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "/v1/tracked-items/tracked-1/price-alert?sku_id=sku-1", nil)
+	if err != nil {
+		t.Fatalf("http.NewRequestWithContext() error = %v", err)
+	}
+
+	got := controller.resolvePriceAlertStateBySKUID(req, "user-1", "sku-1")
+
+	if got == nil {
+		t.Fatal("resolvePriceAlertStateBySKUID() returned nil")
+	}
+	if !got.Enabled {
+		t.Fatalf("resolvePriceAlertStateBySKUID().Enabled = false, want true")
+	}
+	if got.Channel != "EMAIL" {
+		t.Fatalf("resolvePriceAlertStateBySKUID().Channel = %q, want EMAIL", got.Channel)
+	}
+}
+
+type testAlertIDGenerator struct{}
+
+func (testAlertIDGenerator) New() (string, error) {
+	return "alert-1", nil
+}
+
+type testAlertClock struct{}
+
+func (testAlertClock) Now() time.Time {
+	return time.Unix(0, 0)
 }

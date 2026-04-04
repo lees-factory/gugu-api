@@ -1,6 +1,7 @@
 package response
 
 import (
+	domainpricealert "github.com/ljj/gugu-api/internal/core/domain/pricealert"
 	domaintrackeditem "github.com/ljj/gugu-api/internal/core/domain/trackeditem"
 )
 
@@ -16,6 +17,21 @@ type TrackedItemDetail struct {
 	Currency          string       `json:"currency"`
 	ProductURL        string       `json:"product_url"`
 	SKUs              []ProductSKU `json:"skus"`
+}
+
+type PriceAlertState struct {
+	Enabled bool   `json:"enabled"`
+	Channel string `json:"channel,omitempty"`
+}
+
+func NewPriceAlertState(alert *domainpricealert.PriceAlert) PriceAlertState {
+	if alert == nil {
+		return PriceAlertState{Enabled: false}
+	}
+	return PriceAlertState{
+		Enabled: alert.Enabled,
+		Channel: alert.Channel,
+	}
 }
 
 func NewTrackedItemDetail(detail *domaintrackeditem.TrackedItemDetail) TrackedItemDetail {

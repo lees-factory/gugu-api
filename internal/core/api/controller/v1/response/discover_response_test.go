@@ -30,6 +30,7 @@ func TestNewHotProductList(t *testing.T) {
 			Currency:     "USD",
 			Title:        "variant-product-2",
 			MainImageURL: "https://example.com/2-variant.jpg",
+			CurrentPrice: "15.99",
 			ProductURL:   "https://example.com/p2-en",
 		},
 	}, "KRW")
@@ -45,5 +46,8 @@ func TestNewHotProductList(t *testing.T) {
 	}
 	if got := items[1].Currency; got != "USD" {
 		t.Fatalf("second item currency = %q, want USD", got)
+	}
+	if got := items[1].CurrentPrice; got != "15.99" {
+		t.Fatalf("second item current_price = %q, want 15.99", got)
 	}
 }

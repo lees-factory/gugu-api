@@ -827,6 +827,51 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /v1/tracked-items/{trackedItemID}/price-alert:
+    get:
+      tags:
+        - 유저 저장 상품
+      summary: Tracked Item SKU 가격 알림 상태 조회
+      description: 유저 저장 상품 문맥에서 특정 SKU의 가격 알림 상태를 조회한다. `sku_id`가 있으면 해당 SKU 기준으로 조회하고, 없으면 현재 저장된 선택 SKU 기준으로 조회한다. alert row가 없거나 선택 SKU가 없으면 `enabled=false`를 반환한다.
+      operationId: getTrackedItemPriceAlert
+      parameters:
+        - in: path
+          name: trackedItemID
+          required: true
+          schema:
+            type: string
+          description: 유저 저장 상품 ID
+        - in: query
+          name: sku_id
+          required: false
+          schema:
+            type: string
+          description: 조회할 SKU ID. 생략 시 tracked item에 저장된 선택 SKU 사용
+        - in: query
+          name: user_id
+          required: true
+          schema:
+            type: string
+          description: 조회 요청 사용자 ID
+      responses:
+        '200':
+          description: 조회에 성공했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TrackedItemPriceAlertResponse'
+        '400':
+          description: sku_id가 현재 tracked item 상품에 속하지 않거나 요청이 잘못되었다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: 서버 내부 오류가 발생했다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     delete:
       tags:
         - 유저 저장 상품
@@ -2024,6 +2069,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ProductSKUData'
+    PriceAlertStateData:
+      type: object
+      description: 선택된 SKU 기준 가격 알림 상태. alert row가 없으면 `enabled=false` 이다.
+      required:
+        - enabled
+      properties:
+        enabled:
+          type: boolean
+          description: 선택된 SKU의 가격 알림 활성화 여부
+        channel:
+          type: string
+          description: 알림 채널. alert row가 있을 때만 내려간다.
+    TrackedItemPriceAlertResponse:
+      type: object
+      description: 유저 저장 상품 문맥의 SKU 가격 알림 상태 응답
+      required:
+        - result
+        - data
+      properties:
+        result:
+          $ref: '#/components/schemas/ResultType'
+        data:
+          $ref: '#/components/schemas/PriceAlertStateData'
     TrackedItemDetailResponse:
       type: object
       description: 유저 저장 상품 상세 응답
@@ -2310,6 +2378,7 @@ components:
         - market
         - title
         - main_image_url
+        - current_price
         - currency
         - product_url
       properties:
@@ -2326,6 +2395,9 @@ components:
         main_image_url:
           type: string
           description: 대표 이미지 URL. 요청 language variant 우선, 없으면 product 기본값 사용.
+        current_price:
+          type: string
+          description: 대표 가격. 요청 language variant의 current_price를 사용한다.
         currency:
           type: string
           description: 가격 통화. 요청 language variant 우선, 없으면 product 기본값 사용.

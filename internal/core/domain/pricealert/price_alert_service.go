@@ -86,6 +86,10 @@ func (s *Service) Unregister(ctx context.Context, userID string, skuID string) e
 	return nil
 }
 
+func (s *Service) FindByUserIDAndSKUID(ctx context.Context, userID string, skuID string) (*PriceAlert, error) {
+	return s.finder.FindByUserIDAndSKUID(ctx, strings.TrimSpace(userID), strings.TrimSpace(skuID))
+}
+
 func (s *Service) ListBySKUID(ctx context.Context, skuID string) ([]PriceAlert, error) {
 	return s.finder.ListBySKUID(ctx, strings.TrimSpace(skuID))
 }

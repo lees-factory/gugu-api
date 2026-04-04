@@ -5,15 +5,18 @@ import (
 	"fmt"
 
 	clientaliexpress "github.com/ljj/gugu-api/internal/clients/aliexpress"
+	domainpricealert "github.com/ljj/gugu-api/internal/core/domain/pricealert"
 	domainpricehistory "github.com/ljj/gugu-api/internal/core/domain/pricehistory"
 	domainproduct "github.com/ljj/gugu-api/internal/core/domain/product"
 	domainsph "github.com/ljj/gugu-api/internal/core/domain/skupricehistory"
 	domaintrackeditem "github.com/ljj/gugu-api/internal/core/domain/trackeditem"
 	provideraliexpress "github.com/ljj/gugu-api/internal/provider/product/aliexpress"
+	dbcorepricealert "github.com/ljj/gugu-api/internal/storage/dbcore/pricealert"
 	dbcorepricehistory "github.com/ljj/gugu-api/internal/storage/dbcore/pricehistory"
 	dbcoreproduct "github.com/ljj/gugu-api/internal/storage/dbcore/product"
 	dbcoreskuph "github.com/ljj/gugu-api/internal/storage/dbcore/skupricehistory"
 	dbcoretrackeditem "github.com/ljj/gugu-api/internal/storage/dbcore/trackeditem"
+	memorypricealert "github.com/ljj/gugu-api/internal/storage/memory/pricealert"
 	memorypricehistory "github.com/ljj/gugu-api/internal/storage/memory/pricehistory"
 	memoryproduct "github.com/ljj/gugu-api/internal/storage/memory/product"
 	memoryskuph "github.com/ljj/gugu-api/internal/storage/memory/skupricehistory"
@@ -42,6 +45,7 @@ func Wire(cfg config.Config, db *sql.DB, aliExpressTokenStore clientaliexpress.T
 	skuRepository := buildSKURepository(db)
 	priceHistoryRepo := buildPriceHistoryRepository(db)
 	skuPriceHistRepo := buildSKUPriceHistoryRepository(db)
+	priceAlertRepo := buildPriceAlertRepository(db)
 
 	productService := domainproduct.NewService(
 		domainproduct.NewFinder(productRepository),
@@ -86,8 +90,14 @@ func Wire(cfg config.Config, db *sql.DB, aliExpressTokenStore clientaliexpress.T
 	)
 
 	skuPriceHistoryService := domainsph.NewService(domainsph.NewFinder(skuPriceHistRepo))
+	priceAlertService := domainpricealert.NewService(
+		domainpricealert.NewFinder(priceAlertRepo),
+		domainpricealert.NewWriter(priceAlertRepo),
+		id.NewRandomHexGenerator(16),
+		clock,
+	)
 
-	controller := NewController(trackedItemService, skuPriceHistoryService)
+	controller := NewController(trackedItemService, skuPriceHistoryService, priceAlertService)
 	return controller, trackedItemService, productService, nil
 }
 
@@ -131,4 +141,11 @@ func buildSKUPriceHistoryRepository(db *sql.DB) domainsph.Repository {
 		return memoryskuph.NewRepository()
 	}
 	return dbcoreskuph.NewSQLCRepository(db)
+}
+
+func buildPriceAlertRepository(db *sql.DB) domainpricealert.Repository {
+	if db == nil {
+		return memorypricealert.NewRepository()
+	}
+	return dbcorepricealert.NewSQLCRepository(db)
 }

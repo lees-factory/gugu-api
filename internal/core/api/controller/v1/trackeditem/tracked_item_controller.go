@@ -8,6 +8,8 @@ import (
 	apiadvice "github.com/ljj/gugu-api/internal/core/api/controller/advice"
 	"github.com/ljj/gugu-api/internal/core/api/controller/v1/request"
 	"github.com/ljj/gugu-api/internal/core/api/controller/v1/response"
+	domainpricealert "github.com/ljj/gugu-api/internal/core/domain/pricealert"
+	domainproduct "github.com/ljj/gugu-api/internal/core/domain/product"
 	domainsph "github.com/ljj/gugu-api/internal/core/domain/skupricehistory"
 	domaintrackeditem "github.com/ljj/gugu-api/internal/core/domain/trackeditem"
 	coreerror "github.com/ljj/gugu-api/internal/core/error"
@@ -17,12 +19,14 @@ import (
 type Controller struct {
 	trackedItemService     *domaintrackeditem.Service
 	skuPriceHistoryService *domainsph.Service
+	priceAlertService      *domainpricealert.Service
 }
 
-func NewController(trackedItemService *domaintrackeditem.Service, skuPriceHistoryService *domainsph.Service) *Controller {
+func NewController(trackedItemService *domaintrackeditem.Service, skuPriceHistoryService *domainsph.Service, priceAlertService *domainpricealert.Service) *Controller {
 	return &Controller{
 		trackedItemService:     trackedItemService,
 		skuPriceHistoryService: skuPriceHistoryService,
+		priceAlertService:      priceAlertService,
 	}
 }
 
@@ -31,6 +35,7 @@ func (c *Controller) RegisterRoutes(r chi.Router) {
 		r.Get("/", apiadvice.Wrap(c.List))
 		r.Post("/", apiadvice.Wrap(c.Add))
 		r.Get("/{trackedItemID}", apiadvice.Wrap(c.GetDetail))
+		r.Get("/{trackedItemID}/price-alert", apiadvice.Wrap(c.GetPriceAlert))
 		r.Delete("/{trackedItemID}", apiadvice.Wrap(c.Delete))
 		r.Patch("/{trackedItemID}/sku", apiadvice.Wrap(c.SelectSKU))
 		r.Get("/{trackedItemID}/sku-price-histories", apiadvice.Wrap(c.GetSKUPriceHistories))
@@ -124,6 +129,30 @@ func (c *Controller) GetSKUPriceHistories(r *stdhttp.Request) (int, any, error) 
 	), nil
 }
 
+func (c *Controller) GetPriceAlert(r *stdhttp.Request) (int, any, error) {
+	req := request.ParseGetTrackedItemPriceAlert(r)
+
+	detail, err := c.trackedItemService.GetDetail(r.Context(), req.TrackedItemID, req.User.ID)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	skuID := strings.TrimSpace(req.SKUID)
+	if skuID == "" {
+		skuID = strings.TrimSpace(detail.TrackedItem.SKUID)
+	}
+	if skuID == "" {
+		return stdhttp.StatusOK, apiresponse.SuccessWithData(response.NewPriceAlertState(nil)), nil
+	}
+
+	if !containsSKUID(detail.SKUs, skuID) {
+		return stdhttp.StatusBadRequest, nil, coreerror.New(coreerror.SKUIDRequired)
+	}
+
+	alertState := c.resolvePriceAlertStateBySKUID(r, detail.TrackedItem.UserID, skuID)
+	return stdhttp.StatusOK, apiresponse.SuccessWithData(*alertState), nil
+}
+
 func resolveSKUPriceHistoryCurrency(requested string, trackedItemCurrency string) string {
 	currency := strings.ToUpper(strings.TrimSpace(requested))
 	if currency != "" {
@@ -136,6 +165,30 @@ func resolveSKUPriceHistoryCurrency(requested string, trackedItemCurrency string
 	}
 
 	return "KRW"
+}
+
+func (c *Controller) resolvePriceAlertStateBySKUID(r *stdhttp.Request, userID string, skuID string) *response.PriceAlertState {
+	if c.priceAlertService == nil || strings.TrimSpace(skuID) == "" {
+		defaultState := response.NewPriceAlertState(nil)
+		return &defaultState
+	}
+
+	alert, err := c.priceAlertService.FindByUserIDAndSKUID(r.Context(), userID, skuID)
+	if err != nil {
+		defaultState := response.NewPriceAlertState(nil)
+		return &defaultState
+	}
+	state := response.NewPriceAlertState(alert)
+	return &state
+}
+
+func containsSKUID(skus []domainproduct.SKU, skuID string) bool {
+	for _, sku := range skus {
+		if sku.ID == skuID {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Controller) SelectSKU(r *stdhttp.Request) (int, any, error) {
