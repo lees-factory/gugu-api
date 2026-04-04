@@ -36,6 +36,8 @@ func (c *Controller) RegisterRoutes(r chi.Router) {
 		r.Post("/", apiadvice.Wrap(c.Add))
 		r.Get("/{trackedItemID}", apiadvice.Wrap(c.GetDetail))
 		r.Get("/{trackedItemID}/price-alert", apiadvice.Wrap(c.GetPriceAlert))
+		r.Post("/{trackedItemID}/price-alert", apiadvice.Wrap(c.RegisterPriceAlert))
+		r.Delete("/{trackedItemID}/price-alert", apiadvice.Wrap(c.UnregisterPriceAlert))
 		r.Delete("/{trackedItemID}", apiadvice.Wrap(c.Delete))
 		r.Patch("/{trackedItemID}/sku", apiadvice.Wrap(c.SelectSKU))
 		r.Get("/{trackedItemID}/sku-price-histories", apiadvice.Wrap(c.GetSKUPriceHistories))
@@ -137,20 +139,60 @@ func (c *Controller) GetPriceAlert(r *stdhttp.Request) (int, any, error) {
 		return 0, nil, err
 	}
 
-	skuID := strings.TrimSpace(req.SKUID)
-	if skuID == "" {
-		skuID = strings.TrimSpace(detail.TrackedItem.SKUID)
+	skuID, err := resolveTrackedItemPriceAlertSKUID(detail, req.SKUID, false)
+	if err != nil {
+		return 0, nil, err
 	}
 	if skuID == "" {
 		return stdhttp.StatusOK, apiresponse.SuccessWithData(response.NewPriceAlertState(nil)), nil
 	}
 
-	if !containsSKUID(detail.SKUs, skuID) {
-		return stdhttp.StatusBadRequest, nil, coreerror.New(coreerror.SKUIDRequired)
-	}
-
 	alertState := c.resolvePriceAlertStateBySKUID(r, detail.TrackedItem.UserID, skuID)
 	return stdhttp.StatusOK, apiresponse.SuccessWithData(*alertState), nil
+}
+
+func (c *Controller) RegisterPriceAlert(r *stdhttp.Request) (int, any, error) {
+	req, err := request.ParseRegisterTrackedItemPriceAlert(r)
+	if err != nil {
+		return stdhttp.StatusBadRequest, nil, err
+	}
+
+	detail, err := c.trackedItemService.GetDetail(r.Context(), req.TrackedItemID, req.User.ID)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	skuID, err := resolveTrackedItemPriceAlertSKUID(detail, req.SKUID, true)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	alert, err := c.priceAlertService.Register(r.Context(), req.User.ID, skuID, req.Channel)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return stdhttp.StatusCreated, apiresponse.SuccessWithData(response.NewPriceAlertState(alert)), nil
+}
+
+func (c *Controller) UnregisterPriceAlert(r *stdhttp.Request) (int, any, error) {
+	req := request.ParseUnregisterTrackedItemPriceAlert(r)
+
+	detail, err := c.trackedItemService.GetDetail(r.Context(), req.TrackedItemID, req.User.ID)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	skuID, err := resolveTrackedItemPriceAlertSKUID(detail, req.SKUID, true)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	if err := c.priceAlertService.Unregister(r.Context(), req.User.ID, skuID); err != nil {
+		return 0, nil, err
+	}
+
+	return stdhttp.StatusOK, apiresponse.Success(), nil
 }
 
 func resolveSKUPriceHistoryCurrency(requested string, trackedItemCurrency string) string {
@@ -165,6 +207,23 @@ func resolveSKUPriceHistoryCurrency(requested string, trackedItemCurrency string
 	}
 
 	return "KRW"
+}
+
+func resolveTrackedItemPriceAlertSKUID(detail *domaintrackeditem.TrackedItemDetail, requestedSKUID string, required bool) (string, error) {
+	skuID := strings.TrimSpace(requestedSKUID)
+	if skuID == "" {
+		skuID = strings.TrimSpace(detail.TrackedItem.SKUID)
+	}
+	if skuID == "" {
+		if required {
+			return "", coreerror.New(coreerror.SKUIDRequired)
+		}
+		return "", nil
+	}
+	if !containsSKUID(detail.SKUs, skuID) {
+		return "", coreerror.New(coreerror.SKUIDRequired)
+	}
+	return skuID, nil
 }
 
 func (c *Controller) resolvePriceAlertStateBySKUID(r *stdhttp.Request, userID string, skuID string) *response.PriceAlertState {

@@ -8,6 +8,8 @@ import (
 
 	"github.com/ljj/gugu-api/internal/core/api/controller/v1/response"
 	domainpricealert "github.com/ljj/gugu-api/internal/core/domain/pricealert"
+	domainproduct "github.com/ljj/gugu-api/internal/core/domain/product"
+	domaintrackeditem "github.com/ljj/gugu-api/internal/core/domain/trackeditem"
 	memorypricealert "github.com/ljj/gugu-api/internal/storage/memory/pricealert"
 )
 
@@ -77,6 +79,51 @@ func TestResolvePriceAlertStateBySKUID_ReturnsStoredAlert(t *testing.T) {
 	}
 	if got.Channel != "EMAIL" {
 		t.Fatalf("resolvePriceAlertStateBySKUID().Channel = %q, want EMAIL", got.Channel)
+	}
+}
+
+func TestResolveTrackedItemPriceAlertSKUID_UsesRequestedSKU(t *testing.T) {
+	detail := &domaintrackeditem.TrackedItemDetail{
+		TrackedItem: domaintrackeditem.TrackedItem{SKUID: "sku-selected"},
+		SKUs: []domainproduct.SKU{
+			{ID: "sku-selected"},
+			{ID: "sku-requested"},
+		},
+	}
+
+	got, err := resolveTrackedItemPriceAlertSKUID(detail, "sku-requested", true)
+	if err != nil {
+		t.Fatalf("resolveTrackedItemPriceAlertSKUID() error = %v", err)
+	}
+	if got != "sku-requested" {
+		t.Fatalf("resolveTrackedItemPriceAlertSKUID() = %q, want sku-requested", got)
+	}
+}
+
+func TestResolveTrackedItemPriceAlertSKUID_UsesSelectedSKUByDefault(t *testing.T) {
+	detail := &domaintrackeditem.TrackedItemDetail{
+		TrackedItem: domaintrackeditem.TrackedItem{SKUID: "sku-selected"},
+		SKUs:        []domainproduct.SKU{{ID: "sku-selected"}},
+	}
+
+	got, err := resolveTrackedItemPriceAlertSKUID(detail, "", true)
+	if err != nil {
+		t.Fatalf("resolveTrackedItemPriceAlertSKUID() error = %v", err)
+	}
+	if got != "sku-selected" {
+		t.Fatalf("resolveTrackedItemPriceAlertSKUID() = %q, want sku-selected", got)
+	}
+}
+
+func TestResolveTrackedItemPriceAlertSKUID_AllowsMissingSKUForRead(t *testing.T) {
+	detail := &domaintrackeditem.TrackedItemDetail{}
+
+	got, err := resolveTrackedItemPriceAlertSKUID(detail, "", false)
+	if err != nil {
+		t.Fatalf("resolveTrackedItemPriceAlertSKUID() error = %v", err)
+	}
+	if got != "" {
+		t.Fatalf("resolveTrackedItemPriceAlertSKUID() = %q, want empty", got)
 	}
 }
 
