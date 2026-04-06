@@ -1047,7 +1047,7 @@ paths:
       tags:
         - 유저 저장 상품
       summary: SKU 가격 변동 내역 조회
-      description: 유저 저장 상품에서 특정 SKU의 가격 변동 내역을 조회한다. `currency` query가 있으면 해당 통화로 override 하고, 없으면 tracked item의 `currency`를 기본값으로 사용한다. 해당 통화 데이터가 없으면 빈 배열을 반환한다.
+      description: 유저 저장 상품에서 특정 SKU의 가격 변동 이벤트만 조회한다. source는 `sku_price_history` 이며, 가격이 실제로 변한 시점만 반환한다. `currency` query가 있으면 해당 통화로 override 하고, 없으면 tracked item의 `currency`를 기본값으로 사용한다. 해당 통화 데이터가 없으면 빈 배열을 반환한다.
       operationId: getSKUPriceHistories
       parameters:
         - in: path
@@ -1077,6 +1077,65 @@ paths:
                 $ref: '#/components/schemas/SKUPriceHistoryResponse'
         '400':
           description: sku_id가 누락되었거나 요청이 잘못되었다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 유저 저장 상품을 찾을 수 없다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /v1/tracked-items/{trackedItemID}/sku-price-trend:
+    get:
+      tags:
+        - 유저 저장 상품
+      summary: SKU 일별 가격 추세 조회
+      description: 유저 저장 상품 문맥에서 특정 SKU의 일별 가격 추세를 조회한다. source는 `sku_price_snapshot` 이며, 날짜 구간 내 일별 상태를 반환한다. `currency` query가 있으면 해당 통화로 override 하고, 없으면 tracked item의 `currency`를 기본값으로 사용한다.
+      operationId: getTrackedItemSKUPriceTrend
+      parameters:
+        - in: path
+          name: trackedItemID
+          required: true
+          schema:
+            type: string
+          description: 유저 저장 상품 ID
+        - in: query
+          name: sku_id
+          required: true
+          schema:
+            type: string
+          description: 조회할 SKU ID
+        - in: query
+          name: from
+          required: true
+          schema:
+            type: string
+            format: date
+          description: 조회 시작일 (YYYY-MM-DD)
+        - in: query
+          name: to
+          required: true
+          schema:
+            type: string
+            format: date
+          description: 조회 종료일 (YYYY-MM-DD)
+        - in: query
+          name: currency
+          required: false
+          schema:
+            type: string
+          description: 통화 코드. 지정하면 tracked item 기본 통화를 override 한다. 생략 시 tracked item currency 사용.
+      responses:
+        '200':
+          description: 조회에 성공했다. 해당 통화 snapshot 이력이 없으면 빈 points 배열을 반환한다.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PriceTrendResponse'
+        '400':
+          description: sku_id, from, to가 누락되었거나 날짜 형식이 잘못되었다.
           content:
             application/json:
               schema:
@@ -2186,6 +2245,47 @@ components:
         change_value:
           type: string
           description: 이전 기록 대비 변동값
+    PriceTrendResponse:
+      type: object
+      description: 가격 추세 응답. 요청 구간의 snapshot 데이터가 없으면 `data.points`는 빈 배열이다.
+      required:
+        - result
+        - data
+      properties:
+        result:
+          $ref: '#/components/schemas/ResultType'
+        data:
+          $ref: '#/components/schemas/PriceTrendData'
+    PriceTrendData:
+      type: object
+      required:
+        - points
+      properties:
+        points:
+          type: array
+          items:
+            $ref: '#/components/schemas/PriceTrendPoint'
+    PriceTrendPoint:
+      type: object
+      required:
+        - date
+        - price
+        - currency
+      properties:
+        date:
+          type: string
+          format: date
+          description: 스냅샷 날짜
+        price:
+          type: string
+          description: 해당 날짜 가격
+        original_price:
+          type: string
+          nullable: true
+          description: 원가 또는 비교 기준 가격. SKU snapshot 에서만 내려올 수 있다.
+        currency:
+          type: string
+          description: 가격 통화
     ProductPriceHistoryData:
       type: object
       description: 상품 가격 이력 데이터
