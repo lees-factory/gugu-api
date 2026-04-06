@@ -7,17 +7,20 @@ import (
 	clientaliexpress "github.com/ljj/gugu-api/internal/clients/aliexpress"
 	domainpricealert "github.com/ljj/gugu-api/internal/core/domain/pricealert"
 	domainpricehistory "github.com/ljj/gugu-api/internal/core/domain/pricehistory"
+	domainps "github.com/ljj/gugu-api/internal/core/domain/pricesnapshot"
 	domainproduct "github.com/ljj/gugu-api/internal/core/domain/product"
 	domainsph "github.com/ljj/gugu-api/internal/core/domain/skupricehistory"
 	domaintrackeditem "github.com/ljj/gugu-api/internal/core/domain/trackeditem"
 	provideraliexpress "github.com/ljj/gugu-api/internal/provider/product/aliexpress"
 	dbcorepricealert "github.com/ljj/gugu-api/internal/storage/dbcore/pricealert"
 	dbcorepricehistory "github.com/ljj/gugu-api/internal/storage/dbcore/pricehistory"
+	dbcoresnapshot "github.com/ljj/gugu-api/internal/storage/dbcore/pricesnapshot"
 	dbcoreproduct "github.com/ljj/gugu-api/internal/storage/dbcore/product"
 	dbcoreskuph "github.com/ljj/gugu-api/internal/storage/dbcore/skupricehistory"
 	dbcoretrackeditem "github.com/ljj/gugu-api/internal/storage/dbcore/trackeditem"
 	memorypricealert "github.com/ljj/gugu-api/internal/storage/memory/pricealert"
 	memorypricehistory "github.com/ljj/gugu-api/internal/storage/memory/pricehistory"
+	memorysnapshot "github.com/ljj/gugu-api/internal/storage/memory/pricesnapshot"
 	memoryproduct "github.com/ljj/gugu-api/internal/storage/memory/product"
 	memoryskuph "github.com/ljj/gugu-api/internal/storage/memory/skupricehistory"
 	memorytrackeditem "github.com/ljj/gugu-api/internal/storage/memory/trackeditem"
@@ -90,6 +93,7 @@ func Wire(cfg config.Config, db *sql.DB, aliExpressTokenStore clientaliexpress.T
 	)
 
 	skuPriceHistoryService := domainsph.NewService(domainsph.NewFinder(skuPriceHistRepo))
+	snapshotService := buildSnapshotService(db)
 	priceAlertService := domainpricealert.NewService(
 		domainpricealert.NewFinder(priceAlertRepo),
 		domainpricealert.NewWriter(priceAlertRepo),
@@ -97,7 +101,7 @@ func Wire(cfg config.Config, db *sql.DB, aliExpressTokenStore clientaliexpress.T
 		clock,
 	)
 
-	controller := NewController(trackedItemService, skuPriceHistoryService, priceAlertService)
+	controller := NewController(trackedItemService, skuPriceHistoryService, snapshotService, priceAlertService)
 	return controller, trackedItemService, productService, nil
 }
 
@@ -148,4 +152,21 @@ func buildPriceAlertRepository(db *sql.DB) domainpricealert.Repository {
 		return memorypricealert.NewRepository()
 	}
 	return dbcorepricealert.NewSQLCRepository(db)
+}
+
+func buildSnapshotService(db *sql.DB) *domainps.Service {
+	if db == nil {
+		productRepo := memorysnapshot.NewProductSnapshotRepository()
+		skuRepo := memorysnapshot.NewSKUSnapshotRepository()
+		return domainps.NewService(
+			domainps.NewProductSnapshotFinder(productRepo),
+			domainps.NewSKUSnapshotFinder(skuRepo),
+		)
+	}
+	productRepo := dbcoresnapshot.NewProductSnapshotSQLCRepository(db)
+	skuRepo := dbcoresnapshot.NewSKUSnapshotSQLCRepository(db)
+	return domainps.NewService(
+		domainps.NewProductSnapshotFinder(productRepo),
+		domainps.NewSKUSnapshotFinder(skuRepo),
+	)
 }

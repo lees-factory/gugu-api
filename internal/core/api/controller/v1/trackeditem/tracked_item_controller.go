@@ -1,14 +1,17 @@
 package trackeditem
 
 import (
+	"fmt"
 	stdhttp "net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	apiadvice "github.com/ljj/gugu-api/internal/core/api/controller/advice"
 	"github.com/ljj/gugu-api/internal/core/api/controller/v1/request"
 	"github.com/ljj/gugu-api/internal/core/api/controller/v1/response"
 	domainpricealert "github.com/ljj/gugu-api/internal/core/domain/pricealert"
+	domainps "github.com/ljj/gugu-api/internal/core/domain/pricesnapshot"
 	domainproduct "github.com/ljj/gugu-api/internal/core/domain/product"
 	domainsph "github.com/ljj/gugu-api/internal/core/domain/skupricehistory"
 	domaintrackeditem "github.com/ljj/gugu-api/internal/core/domain/trackeditem"
@@ -19,13 +22,20 @@ import (
 type Controller struct {
 	trackedItemService     *domaintrackeditem.Service
 	skuPriceHistoryService *domainsph.Service
+	snapshotService        *domainps.Service
 	priceAlertService      *domainpricealert.Service
 }
 
-func NewController(trackedItemService *domaintrackeditem.Service, skuPriceHistoryService *domainsph.Service, priceAlertService *domainpricealert.Service) *Controller {
+func NewController(
+	trackedItemService *domaintrackeditem.Service,
+	skuPriceHistoryService *domainsph.Service,
+	snapshotService *domainps.Service,
+	priceAlertService *domainpricealert.Service,
+) *Controller {
 	return &Controller{
 		trackedItemService:     trackedItemService,
 		skuPriceHistoryService: skuPriceHistoryService,
+		snapshotService:        snapshotService,
 		priceAlertService:      priceAlertService,
 	}
 }
@@ -41,6 +51,7 @@ func (c *Controller) RegisterRoutes(r chi.Router) {
 		r.Delete("/{trackedItemID}", apiadvice.Wrap(c.Delete))
 		r.Patch("/{trackedItemID}/sku", apiadvice.Wrap(c.SelectSKU))
 		r.Get("/{trackedItemID}/sku-price-histories", apiadvice.Wrap(c.GetSKUPriceHistories))
+		r.Get("/{trackedItemID}/sku-price-trend", apiadvice.Wrap(c.GetSKUPriceTrend))
 	})
 }
 
@@ -128,6 +139,40 @@ func (c *Controller) GetSKUPriceHistories(r *stdhttp.Request) (int, any, error) 
 
 	return stdhttp.StatusOK, apiresponse.SuccessWithData(
 		response.NewSKUPriceHistories(histories),
+	), nil
+}
+
+func (c *Controller) GetSKUPriceTrend(r *stdhttp.Request) (int, any, error) {
+	req := request.ParseGetSKUPriceTrend(r)
+
+	from, err := time.Parse(time.DateOnly, req.From)
+	if err != nil {
+		return stdhttp.StatusBadRequest, nil, fmt.Errorf("invalid 'from' date format, expected YYYY-MM-DD: %w", err)
+	}
+	to, err := time.Parse(time.DateOnly, req.To)
+	if err != nil {
+		return stdhttp.StatusBadRequest, nil, fmt.Errorf("invalid 'to' date format, expected YYYY-MM-DD: %w", err)
+	}
+
+	found, err := c.trackedItemService.GetDetail(r.Context(), req.TrackedItemID, req.User.ID)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	skuID, err := resolveTrackedItemPriceAlertSKUID(found, req.SKUID, true)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	currency := resolveSKUPriceHistoryCurrency(req.Currency, found.TrackedItem.Currency)
+
+	snapshots, err := c.snapshotService.ListSKUSnapshotsByDateRange(r.Context(), skuID, currency, from, to)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return stdhttp.StatusOK, apiresponse.SuccessWithData(
+		response.NewSKUPriceTrend(snapshots),
 	), nil
 }
 
