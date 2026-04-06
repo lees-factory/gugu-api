@@ -81,6 +81,9 @@ func registerOpenAPIRoute(router chi.Router) {
 	router.Get("/openapi.yml", func(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 		w.Header().Set("Content-Type", "text/yaml; charset=utf-8")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
 		stdhttp.ServeFile(w, r, "openapi.yml")
 	})
 }
