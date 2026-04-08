@@ -55,6 +55,7 @@ func NewServer(cfg config.Config, db *sql.DB) (*Server, error) {
 	jwtIssuer := security.NewJWTTokenIssuer(cfg.JWTSecret, cfg.JWTIssuer)
 	router.Group(func(r chi.Router) {
 		r.Use(auth.UserArgumentResolver(jwtIssuer))
+		authControllers.Auth.RegisterProtectedRoutes(r)
 		trackedItemController.RegisterRoutes(r)
 	})
 

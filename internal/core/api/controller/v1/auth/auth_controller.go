@@ -1,7 +1,9 @@
 package auth
 
 import (
+	"net"
 	stdhttp "net/http"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	apiadvice "github.com/ljj/gugu-api/internal/core/api/controller/advice"
@@ -14,6 +16,8 @@ import (
 type AuthController struct {
 	authService *supportauth.Service
 }
+
+const defaultDeviceName = "unknown-device"
 
 func NewAuthController(authService *supportauth.Service) *AuthController {
 	return &AuthController{authService: authService}
@@ -28,6 +32,13 @@ func (c *AuthController) RegisterRoutes(r chi.Router) {
 	})
 }
 
+func (c *AuthController) RegisterProtectedRoutes(r chi.Router) {
+	r.Route("/v1/auth", func(r chi.Router) {
+		r.Get("/sessions", apiadvice.Wrap(c.ListMySessions))
+		r.Delete("/sessions/{sessionID}", apiadvice.Wrap(c.RevokeMySession))
+	})
+}
+
 func (c *AuthController) LoginEmail(r *stdhttp.Request) (int, any, error) {
 	var req request.LoginEmail
 	if err := apiadvice.DecodeJSON(r, &req); err != nil {
@@ -38,8 +49,8 @@ func (c *AuthController) LoginEmail(r *stdhttp.Request) (int, any, error) {
 		Email:      req.Email,
 		Password:   req.Password,
 		UserAgent:  r.UserAgent(),
-		ClientIP:   r.RemoteAddr,
-		DeviceName: r.Header.Get("X-Device-Name"),
+		ClientIP:   normalizedClientIP(r.RemoteAddr),
+		DeviceName: normalizedDeviceName(r.Header.Get("X-Device-Name")),
 	})
 	if err != nil {
 		return 0, nil, err
@@ -62,8 +73,8 @@ func (c *AuthController) LoginOAuth(r *stdhttp.Request) (int, any, error) {
 		Email:       req.Email,
 		DisplayName: req.DisplayName,
 		UserAgent:   r.UserAgent(),
-		ClientIP:    r.RemoteAddr,
-		DeviceName:  r.Header.Get("X-Device-Name"),
+		ClientIP:    normalizedClientIP(r.RemoteAddr),
+		DeviceName:  normalizedDeviceName(r.Header.Get("X-Device-Name")),
 	})
 	if err != nil {
 		return 0, nil, err
@@ -83,8 +94,8 @@ func (c *AuthController) Refresh(r *stdhttp.Request) (int, any, error) {
 	tokens, err := c.authService.RefreshTokens(r.Context(), supportauth.RefreshTokensInput{
 		RefreshToken: req.RefreshToken,
 		UserAgent:    r.UserAgent(),
-		ClientIP:     r.RemoteAddr,
-		DeviceName:   req.DeviceName,
+		ClientIP:     normalizedClientIP(r.RemoteAddr),
+		DeviceName:   normalizedDeviceName(req.DeviceName),
 	})
 	if err != nil {
 		return 0, nil, err
@@ -104,4 +115,54 @@ func (c *AuthController) Logout(r *stdhttp.Request) (int, any, error) {
 	}
 
 	return stdhttp.StatusOK, apiresponse.Success(), nil
+}
+
+func (c *AuthController) ListMySessions(r *stdhttp.Request) (int, any, error) {
+	req := request.ParseListMyAuthSessions(r)
+
+	sessions, err := c.authService.ListMyActiveSessions(r.Context(), req.User.ID)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	return stdhttp.StatusOK, apiresponse.SuccessWithData(response.NewLoginSessions(sessions)), nil
+}
+
+func (c *AuthController) RevokeMySession(r *stdhttp.Request) (int, any, error) {
+	req := request.ParseRevokeMyAuthSession(r)
+
+	if err := c.authService.RevokeMySession(r.Context(), req.User.ID, req.SessionID); err != nil {
+		return 0, nil, err
+	}
+
+	return stdhttp.StatusOK, apiresponse.Success(), nil
+}
+
+func normalizedClientIP(remoteAddr string) string {
+	trimmed := strings.TrimSpace(remoteAddr)
+	if trimmed == "" {
+		return ""
+	}
+
+	host, _, err := net.SplitHostPort(trimmed)
+	if err == nil {
+		if parsed := net.ParseIP(host); parsed != nil {
+			return parsed.String()
+		}
+		return host
+	}
+
+	if parsed := net.ParseIP(trimmed); parsed != nil {
+		return parsed.String()
+	}
+
+	return trimmed
+}
+
+func normalizedDeviceName(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return defaultDeviceName
+	}
+	return trimmed
 }

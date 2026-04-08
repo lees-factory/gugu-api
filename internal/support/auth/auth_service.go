@@ -27,6 +27,8 @@ type Service struct {
 	refreshTokenHasher     RefreshTokenHasher
 }
 
+const maxActiveLoginSessionsPerUser = 5
+
 func NewService(
 	userFinder domainuser.Finder,
 	userCreator domainuser.Creator,
@@ -205,6 +207,21 @@ func (s *Service) Logout(ctx context.Context, input LogoutInput) error {
 	return nil
 }
 
+func (s *Service) ListMyActiveSessions(ctx context.Context, userID string) ([]LoginSession, error) {
+	sessions, err := s.loginSessionReader.ListActiveByUserID(ctx, userID, s.clock.Now())
+	if err != nil {
+		return nil, fmt.Errorf("list active login sessions by user id: %w", err)
+	}
+	return sessions, nil
+}
+
+func (s *Service) RevokeMySession(ctx context.Context, userID string, sessionID string) error {
+	if err := s.loginSessionWriter.RevokeByUserSessionID(ctx, userID, sessionID, s.clock.Now()); err != nil {
+		return fmt.Errorf("revoke login session by user and session id: %w", err)
+	}
+	return nil
+}
+
 func (s *Service) FindOAuthIdentity(ctx context.Context, provider OAuthProvider, subject string) (*OAuthIdentity, error) {
 	provider = OAuthProvider(normalizeValue(string(provider)))
 	if provider == "" {
@@ -272,12 +289,32 @@ func (s *Service) verifyPassword(passwordHash string, password string) error {
 
 func (s *Service) issueLoginTokens(ctx context.Context, userID string, metadata SessionMetadata) (*AuthTokens, error) {
 	now := s.clock.Now()
+	if err := s.enforceActiveSessionLimit(ctx, userID, now); err != nil {
+		return nil, err
+	}
+
 	tokenFamilyID, err := s.tokenFamilyIDGenerator.New()
 	if err != nil {
 		return nil, fmt.Errorf("generate token family id: %w", err)
 	}
 
 	return s.createLoginSession(ctx, userID, tokenFamilyID, nil, metadata, now)
+}
+
+func (s *Service) enforceActiveSessionLimit(ctx context.Context, userID string, now time.Time) error {
+	activeCount, err := s.loginSessionReader.CountActiveByUserID(ctx, userID, now)
+	if err != nil {
+		return fmt.Errorf("count active login sessions: %w", err)
+	}
+
+	for activeCount >= maxActiveLoginSessionsPerUser {
+		if err := s.loginSessionWriter.RevokeOldestActiveByUserID(ctx, userID, now, now); err != nil {
+			return fmt.Errorf("revoke oldest active login session: %w", err)
+		}
+		activeCount--
+	}
+
+	return nil
 }
 
 func (s *Service) rotateLoginSession(ctx context.Context, session LoginSession, metadata SessionMetadata, now time.Time) (*AuthTokens, error) {

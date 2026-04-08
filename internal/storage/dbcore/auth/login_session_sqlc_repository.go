@@ -6,8 +6,8 @@ import (
 	"errors"
 	"time"
 
-	supportauth "github.com/ljj/gugu-api/internal/support/auth"
 	"github.com/ljj/gugu-api/internal/storage/dbcore/sqldb"
+	supportauth "github.com/ljj/gugu-api/internal/support/auth"
 )
 
 type LoginSessionSQLCRepository struct {
@@ -49,6 +49,33 @@ func (r *LoginSessionSQLCRepository) FindByRefreshTokenHash(ctx context.Context,
 	return toDomainLoginSession(row), nil
 }
 
+func (r *LoginSessionSQLCRepository) ListActiveByUserID(ctx context.Context, userID string, now time.Time) ([]supportauth.LoginSession, error) {
+	rows, err := r.queries.ListActiveUserLoginSessionsByUserID(ctx, sqldb.CountActiveUserLoginSessionsByUserIDParams{
+		UserID:    userID,
+		ExpiresAt: now,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]supportauth.LoginSession, 0, len(rows))
+	for _, row := range rows {
+		items = append(items, *toDomainLoginSession(row))
+	}
+	return items, nil
+}
+
+func (r *LoginSessionSQLCRepository) CountActiveByUserID(ctx context.Context, userID string, now time.Time) (int, error) {
+	count, err := r.queries.CountActiveUserLoginSessionsByUserID(ctx, sqldb.CountActiveUserLoginSessionsByUserIDParams{
+		UserID:    userID,
+		ExpiresAt: now,
+	})
+	if err != nil {
+		return 0, err
+	}
+	return int(count), nil
+}
+
 func (r *LoginSessionSQLCRepository) MarkRotated(ctx context.Context, sessionID string, rotatedAt time.Time) error {
 	affected, err := r.queries.MarkUserLoginSessionRotated(ctx, sqldb.MarkUserLoginSessionRotatedParams{
 		ID:        sessionID,
@@ -61,6 +88,23 @@ func (r *LoginSessionSQLCRepository) Revoke(ctx context.Context, sessionID strin
 	affected, err := r.queries.RevokeUserLoginSession(ctx, sqldb.RevokeUserLoginSessionParams{
 		ID:        sessionID,
 		RevokedAt: sql.NullTime{Time: revokedAt, Valid: true},
+	})
+	return mapAffectedRows(affected, err)
+}
+
+func (r *LoginSessionSQLCRepository) RevokeByUserSessionID(ctx context.Context, userID string, sessionID string, revokedAt time.Time) error {
+	return r.queries.RevokeUserLoginSessionByUserIDSessionID(ctx, sqldb.RevokeUserLoginSessionByUserIDSessionIDParams{
+		UserID:    userID,
+		ID:        sessionID,
+		RevokedAt: sql.NullTime{Time: revokedAt, Valid: true},
+	})
+}
+
+func (r *LoginSessionSQLCRepository) RevokeOldestActiveByUserID(ctx context.Context, userID string, now time.Time, revokedAt time.Time) error {
+	affected, err := r.queries.RevokeOldestActiveUserLoginSessionByUserID(ctx, sqldb.RevokeOldestActiveUserLoginSessionByUserIDParams{
+		UserID:    userID,
+		RevokedAt: sql.NullTime{Time: revokedAt, Valid: true},
+		ExpiresAt: now,
 	})
 	return mapAffectedRows(affected, err)
 }

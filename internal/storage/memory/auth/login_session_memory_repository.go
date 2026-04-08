@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"database/sql"
 	"sync"
 	"time"
 
@@ -49,6 +50,41 @@ func (r *LoginSessionMemoryRepository) FindByRefreshTokenHash(_ context.Context,
 	return &session, nil
 }
 
+func (r *LoginSessionMemoryRepository) ListActiveByUserID(_ context.Context, userID string, now time.Time) ([]supportauth.LoginSession, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	items := make([]supportauth.LoginSession, 0)
+	for _, session := range r.sessions {
+		if session.UserID != userID {
+			continue
+		}
+		if session.RevokedAt != nil || session.RotatedAt != nil || !session.ExpiresAt.After(now) {
+			continue
+		}
+		items = append(items, session)
+	}
+	return items, nil
+}
+
+func (r *LoginSessionMemoryRepository) CountActiveByUserID(_ context.Context, userID string, now time.Time) (int, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	count := 0
+	for _, session := range r.sessions {
+		if session.UserID != userID {
+			continue
+		}
+		if session.RevokedAt != nil || session.RotatedAt != nil || !session.ExpiresAt.After(now) {
+			continue
+		}
+		count++
+	}
+
+	return count, nil
+}
+
 func (r *LoginSessionMemoryRepository) MarkRotated(_ context.Context, sessionID string, rotatedAt time.Time) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -66,6 +102,51 @@ func (r *LoginSessionMemoryRepository) Revoke(_ context.Context, sessionID strin
 	session := r.sessions[sessionID]
 	session.RevokedAt = &revokedAt
 	r.sessions[sessionID] = session
+	return nil
+}
+
+func (r *LoginSessionMemoryRepository) RevokeByUserSessionID(_ context.Context, userID string, sessionID string, revokedAt time.Time) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	session, ok := r.sessions[sessionID]
+	if !ok {
+		return nil
+	}
+	if session.UserID != userID || session.RevokedAt != nil {
+		return nil
+	}
+
+	session.RevokedAt = &revokedAt
+	r.sessions[sessionID] = session
+	return nil
+}
+
+func (r *LoginSessionMemoryRepository) RevokeOldestActiveByUserID(_ context.Context, userID string, now time.Time, revokedAt time.Time) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var oldest *supportauth.LoginSession
+	for _, session := range r.sessions {
+		if session.UserID != userID {
+			continue
+		}
+		if session.RevokedAt != nil || session.RotatedAt != nil || !session.ExpiresAt.After(now) {
+			continue
+		}
+		if oldest == nil || session.CreatedAt.Before(oldest.CreatedAt) {
+			s := session
+			oldest = &s
+		}
+	}
+
+	if oldest == nil {
+		return sql.ErrNoRows
+	}
+
+	session := r.sessions[oldest.ID]
+	session.RevokedAt = &revokedAt
+	r.sessions[oldest.ID] = session
 	return nil
 }
 
