@@ -33,10 +33,8 @@ func (c *AuthController) RegisterRoutes(r chi.Router) {
 }
 
 func (c *AuthController) RegisterProtectedRoutes(r chi.Router) {
-	r.Route("/v1/auth", func(r chi.Router) {
-		r.Get("/sessions", apiadvice.Wrap(c.ListMySessions))
-		r.Delete("/sessions/{sessionID}", apiadvice.Wrap(c.RevokeMySession))
-	})
+	r.Get("/v1/auth/sessions", apiadvice.Wrap(c.ListMySessions))
+	r.Delete("/v1/auth/sessions/{sessionID}", apiadvice.Wrap(c.RevokeMySession))
 }
 
 func (c *AuthController) LoginEmail(r *stdhttp.Request) (int, any, error) {
