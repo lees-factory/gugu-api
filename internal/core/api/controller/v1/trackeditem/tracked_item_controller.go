@@ -1,6 +1,7 @@
 package trackeditem
 
 import (
+	"context"
 	"fmt"
 	stdhttp "net/http"
 	"strings"
@@ -89,9 +90,10 @@ func (c *Controller) GetDetail(r *stdhttp.Request) (int, any, error) {
 	if err != nil {
 		return 0, nil, err
 	}
+	currentPrice := c.resolveTrackedItemCurrentPrice(r.Context(), detail)
 
 	return stdhttp.StatusOK, apiresponse.SuccessWithData(
-		response.NewTrackedItemDetail(detail),
+		response.NewTrackedItemDetail(detail, currentPrice),
 	), nil
 }
 
@@ -293,6 +295,62 @@ func containsSKUID(skus []domainproduct.SKU, skuID string) bool {
 		}
 	}
 	return false
+}
+
+func (c *Controller) resolveTrackedItemCurrentPrice(ctx context.Context, detail *domaintrackeditem.TrackedItemDetail) string {
+	skuID, err := resolveTrackedItemPriceAlertSKUID(detail, "", false)
+	if err != nil || skuID == "" {
+		return ""
+	}
+
+	currency := resolveSKUPriceHistoryCurrency("", detail.TrackedItem.Currency)
+
+	if c.snapshotService == nil {
+		return ""
+	}
+
+	now := time.Now()
+	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	todaySnapshots, err := c.snapshotService.ListSKUSnapshotsByDateRange(ctx, skuID, currency, todayStart, todayStart)
+	if err == nil {
+		if latestToday := latestSnapshotPrice(todaySnapshots); latestToday != "" {
+			return latestToday
+		}
+	}
+
+	allSnapshots, err := c.snapshotService.ListSKUSnapshotsByDateRange(
+		ctx,
+		skuID,
+		currency,
+		time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+		now.Add(24*time.Hour),
+	)
+	if err != nil {
+		return ""
+	}
+	return latestSnapshotPrice(allSnapshots)
+}
+
+func latestSnapshotPrice(snapshots []domainps.SKUPriceSnapshot) string {
+	if len(snapshots) == 0 {
+		return ""
+	}
+
+	var latest *domainps.SKUPriceSnapshot
+	for i := range snapshots {
+		s := snapshots[i]
+		if strings.TrimSpace(s.Price) == "" {
+			continue
+		}
+		if latest == nil || s.SnapshotDate.After(latest.SnapshotDate) {
+			latest = &s
+		}
+	}
+
+	if latest == nil {
+		return ""
+	}
+	return strings.TrimSpace(latest.Price)
 }
 
 func (c *Controller) SelectSKU(r *stdhttp.Request) (int, any, error) {

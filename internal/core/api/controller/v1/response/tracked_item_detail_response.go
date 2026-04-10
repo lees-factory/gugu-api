@@ -14,6 +14,7 @@ type TrackedItemDetail struct {
 	OriginalURL       string       `json:"original_url"`
 	Title             string       `json:"title"`
 	MainImageURL      string       `json:"main_image_url"`
+	CurrentPrice      string       `json:"current_price"`
 	Currency          string       `json:"currency"`
 	ProductURL        string       `json:"product_url"`
 	SKUs              []ProductSKU `json:"skus"`
@@ -34,7 +35,7 @@ func NewPriceAlertState(alert *domainpricealert.PriceAlert) PriceAlertState {
 	}
 }
 
-func NewTrackedItemDetail(detail *domaintrackeditem.TrackedItemDetail) TrackedItemDetail {
+func NewTrackedItemDetail(detail *domaintrackeditem.TrackedItemDetail, currentPrice string) TrackedItemDetail {
 	display := resolveTrackedItemDisplay(detail.Product, detail.Variant)
 
 	return TrackedItemDetail{
@@ -46,6 +47,7 @@ func NewTrackedItemDetail(detail *domaintrackeditem.TrackedItemDetail) TrackedIt
 		OriginalURL:       detail.TrackedItem.OriginalURL,
 		Title:             display.title,
 		MainImageURL:      display.mainImageURL,
+		CurrentPrice:      currentPrice,
 		Currency:          detail.TrackedItem.Currency,
 		ProductURL:        display.productURL,
 		SKUs:              NewProductSKUs(detail.SKUs),

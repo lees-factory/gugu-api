@@ -251,6 +251,98 @@ func TestGetSKUPriceTrend_UsesTrackedItemCurrencyByDefault(t *testing.T) {
 	}
 }
 
+func TestGetDetail_UsesTodaySKUSnapshotPriceFirst(t *testing.T) {
+	controller, _, snapshotRepo := newTestTrackedItemController(t, "KRW")
+
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	yesterday := today.AddDate(0, 0, -1)
+
+	if err := snapshotRepo.Upsert(context.Background(), domainps.SKUPriceSnapshot{
+		SKUID:         "sku-1",
+		SnapshotDate:  yesterday,
+		Price:         "15800",
+		OriginalPrice: "16800",
+		Currency:      "KRW",
+	}); err != nil {
+		t.Fatalf("Upsert() error = %v", err)
+	}
+	if err := snapshotRepo.Upsert(context.Background(), domainps.SKUPriceSnapshot{
+		SKUID:         "sku-1",
+		SnapshotDate:  today,
+		Price:         "15700",
+		OriginalPrice: "16800",
+		Currency:      "KRW",
+	}); err != nil {
+		t.Fatalf("Upsert() error = %v", err)
+	}
+
+	req := newTrackedItemRequest(t, http.MethodGet, "/v1/tracked-items/tracked-1", "tracked-1")
+
+	status, body, err := controller.GetDetail(req)
+	if err != nil {
+		t.Fatalf("GetDetail() error = %v", err)
+	}
+	if status != http.StatusOK {
+		t.Fatalf("GetDetail() status = %d, want 200", status)
+	}
+
+	resp, ok := body.(apiresponse.APIResponse[response.TrackedItemDetail])
+	if !ok {
+		t.Fatalf("GetDetail() body type = %T", body)
+	}
+	if resp.Data == nil {
+		t.Fatal("GetDetail() returned nil data")
+	}
+	if resp.Data.CurrentPrice != "15700" {
+		t.Fatalf("GetDetail() current_price = %q, want 15700", resp.Data.CurrentPrice)
+	}
+}
+
+func TestGetDetail_FallsBackToLatestSKUSnapshotPrice(t *testing.T) {
+	controller, _, snapshotRepo := newTestTrackedItemController(t, "KRW")
+
+	if err := snapshotRepo.Upsert(context.Background(), domainps.SKUPriceSnapshot{
+		SKUID:         "sku-1",
+		SnapshotDate:  time.Date(2026, 4, 4, 0, 0, 0, 0, time.UTC),
+		Price:         "16000",
+		OriginalPrice: "16800",
+		Currency:      "KRW",
+	}); err != nil {
+		t.Fatalf("Upsert() error = %v", err)
+	}
+	if err := snapshotRepo.Upsert(context.Background(), domainps.SKUPriceSnapshot{
+		SKUID:         "sku-1",
+		SnapshotDate:  time.Date(2026, 4, 9, 0, 0, 0, 0, time.UTC),
+		Price:         "15650",
+		OriginalPrice: "16800",
+		Currency:      "KRW",
+	}); err != nil {
+		t.Fatalf("Upsert() error = %v", err)
+	}
+
+	req := newTrackedItemRequest(t, http.MethodGet, "/v1/tracked-items/tracked-1", "tracked-1")
+
+	status, body, err := controller.GetDetail(req)
+	if err != nil {
+		t.Fatalf("GetDetail() error = %v", err)
+	}
+	if status != http.StatusOK {
+		t.Fatalf("GetDetail() status = %d, want 200", status)
+	}
+
+	resp, ok := body.(apiresponse.APIResponse[response.TrackedItemDetail])
+	if !ok {
+		t.Fatalf("GetDetail() body type = %T", body)
+	}
+	if resp.Data == nil {
+		t.Fatal("GetDetail() returned nil data")
+	}
+	if resp.Data.CurrentPrice != "15650" {
+		t.Fatalf("GetDetail() current_price = %q, want 15650", resp.Data.CurrentPrice)
+	}
+}
+
 func newTestTrackedItemController(t *testing.T, trackedItemCurrency string) (*Controller, *memoryskupricehistory.MemoryRepository, *memorypricesnapshot.SKUSnapshotMemoryRepository) {
 	t.Helper()
 
