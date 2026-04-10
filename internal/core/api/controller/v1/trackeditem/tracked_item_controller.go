@@ -90,10 +90,12 @@ func (c *Controller) GetDetail(r *stdhttp.Request) (int, any, error) {
 	if err != nil {
 		return 0, nil, err
 	}
-	currentPrice := c.resolveTrackedItemCurrentPrice(r.Context(), detail)
+	skuCurrentPrices := c.resolveTrackedItemSKUCurrentPrices(r.Context(), detail)
+	currentPrice := resolveTrackedItemCurrentPrice(detail, skuCurrentPrices)
+	skus := response.NewProductSKUsWithCurrentPrice(detail.SKUs, skuCurrentPrices)
 
 	return stdhttp.StatusOK, apiresponse.SuccessWithData(
-		response.NewTrackedItemDetail(detail, currentPrice),
+		response.NewTrackedItemDetail(detail, currentPrice, skus),
 	), nil
 }
 
@@ -297,56 +299,70 @@ func containsSKUID(skus []domainproduct.SKU, skuID string) bool {
 	return false
 }
 
-func (c *Controller) resolveTrackedItemCurrentPrice(ctx context.Context, detail *domaintrackeditem.TrackedItemDetail) string {
+func (c *Controller) resolveTrackedItemSKUCurrentPrices(ctx context.Context, detail *domaintrackeditem.TrackedItemDetail) map[string]string {
+	result := make(map[string]string, len(detail.SKUs))
+	if c.snapshotService == nil {
+		return result
+	}
+
+	currency := resolveSKUPriceHistoryCurrency("", detail.TrackedItem.Currency)
+	now := time.Now()
+	today := now.Format(time.DateOnly)
+
+	for _, sku := range detail.SKUs {
+		snapshots, err := c.snapshotService.ListSKUSnapshotsByDateRange(
+			ctx,
+			strings.TrimSpace(sku.ID),
+			currency,
+			time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
+			now.Add(24*time.Hour),
+		)
+		if err != nil {
+			continue
+		}
+		price := resolveSnapshotCurrentPrice(snapshots, today)
+		if price == "" {
+			continue
+		}
+		result[strings.TrimSpace(sku.ID)] = price
+	}
+
+	return result
+}
+
+func resolveTrackedItemCurrentPrice(detail *domaintrackeditem.TrackedItemDetail, skuCurrentPrices map[string]string) string {
 	skuID, err := resolveTrackedItemPriceAlertSKUID(detail, "", false)
 	if err != nil || skuID == "" {
 		return ""
 	}
-
-	currency := resolveSKUPriceHistoryCurrency("", detail.TrackedItem.Currency)
-
-	if c.snapshotService == nil {
-		return ""
-	}
-
-	now := time.Now()
-	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	todaySnapshots, err := c.snapshotService.ListSKUSnapshotsByDateRange(ctx, skuID, currency, todayStart, todayStart)
-	if err == nil {
-		if latestToday := latestSnapshotPrice(todaySnapshots); latestToday != "" {
-			return latestToday
-		}
-	}
-
-	allSnapshots, err := c.snapshotService.ListSKUSnapshotsByDateRange(
-		ctx,
-		skuID,
-		currency,
-		time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC),
-		now.Add(24*time.Hour),
-	)
-	if err != nil {
-		return ""
-	}
-	return latestSnapshotPrice(allSnapshots)
+	return strings.TrimSpace(skuCurrentPrices[strings.TrimSpace(skuID)])
 }
 
-func latestSnapshotPrice(snapshots []domainps.SKUPriceSnapshot) string {
+func resolveSnapshotCurrentPrice(snapshots []domainps.SKUPriceSnapshot, today string) string {
 	if len(snapshots) == 0 {
 		return ""
 	}
 
+	var latestToday *domainps.SKUPriceSnapshot
 	var latest *domainps.SKUPriceSnapshot
 	for i := range snapshots {
 		s := snapshots[i]
 		if strings.TrimSpace(s.Price) == "" {
 			continue
 		}
+		if s.SnapshotDate.Format(time.DateOnly) == today {
+			if latestToday == nil || s.SnapshotDate.After(latestToday.SnapshotDate) {
+				latestToday = &s
+			}
+		}
 		if latest == nil || s.SnapshotDate.After(latest.SnapshotDate) {
 			latest = &s
 		}
 	}
 
+	if latestToday != nil {
+		return strings.TrimSpace(latestToday.Price)
+	}
 	if latest == nil {
 		return ""
 	}

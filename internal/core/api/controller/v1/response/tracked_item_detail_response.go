@@ -35,7 +35,7 @@ func NewPriceAlertState(alert *domainpricealert.PriceAlert) PriceAlertState {
 	}
 }
 
-func NewTrackedItemDetail(detail *domaintrackeditem.TrackedItemDetail, currentPrice string) TrackedItemDetail {
+func NewTrackedItemDetail(detail *domaintrackeditem.TrackedItemDetail, currentPrice string, skus []ProductSKU) TrackedItemDetail {
 	display := resolveTrackedItemDisplay(detail.Product, detail.Variant)
 
 	return TrackedItemDetail{
@@ -50,6 +50,6 @@ func NewTrackedItemDetail(detail *domaintrackeditem.TrackedItemDetail, currentPr
 		CurrentPrice:      currentPrice,
 		Currency:          detail.TrackedItem.Currency,
 		ProductURL:        display.productURL,
-		SKUs:              NewProductSKUs(detail.SKUs),
+		SKUs:              skus,
 	}
 }

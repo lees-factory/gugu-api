@@ -65,7 +65,12 @@ func TestNewTrackedItemDetail_FallsBackToProductWhenVariantMissing(t *testing.T)
 			MainImageURL:      "https://img.example.com/base.jpg",
 			ProductURL:        "https://example.com/base",
 		},
-	}, "1000")
+	}, "1000", []ProductSKU{
+		{
+			ID:           "sku-1",
+			CurrentPrice: "1000",
+		},
+	})
 
 	if item.Title != "Base Title" {
 		t.Fatalf("Title = %q, want Base Title", item.Title)
@@ -78,5 +83,8 @@ func TestNewTrackedItemDetail_FallsBackToProductWhenVariantMissing(t *testing.T)
 	}
 	if item.CurrentPrice != "1000" {
 		t.Fatalf("CurrentPrice = %q, want 1000", item.CurrentPrice)
+	}
+	if len(item.SKUs) != 1 || item.SKUs[0].CurrentPrice != "1000" {
+		t.Fatalf("SKUs.current_price = %+v, want single sku current_price=1000", item.SKUs)
 	}
 }

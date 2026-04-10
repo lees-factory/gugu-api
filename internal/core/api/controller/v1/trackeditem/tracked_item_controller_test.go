@@ -297,6 +297,9 @@ func TestGetDetail_UsesTodaySKUSnapshotPriceFirst(t *testing.T) {
 	if resp.Data.CurrentPrice != "15700" {
 		t.Fatalf("GetDetail() current_price = %q, want 15700", resp.Data.CurrentPrice)
 	}
+	if len(resp.Data.SKUs) == 0 || resp.Data.SKUs[0].CurrentPrice != "15700" {
+		t.Fatalf("GetDetail() skus[0].current_price = %q, want 15700", firstSKUCurrentPrice(resp.Data.SKUs))
+	}
 }
 
 func TestGetDetail_FallsBackToLatestSKUSnapshotPrice(t *testing.T) {
@@ -341,6 +344,16 @@ func TestGetDetail_FallsBackToLatestSKUSnapshotPrice(t *testing.T) {
 	if resp.Data.CurrentPrice != "15650" {
 		t.Fatalf("GetDetail() current_price = %q, want 15650", resp.Data.CurrentPrice)
 	}
+	if len(resp.Data.SKUs) == 0 || resp.Data.SKUs[0].CurrentPrice != "15650" {
+		t.Fatalf("GetDetail() skus[0].current_price = %q, want 15650", firstSKUCurrentPrice(resp.Data.SKUs))
+	}
+}
+
+func firstSKUCurrentPrice(skus []response.ProductSKU) string {
+	if len(skus) == 0 {
+		return ""
+	}
+	return skus[0].CurrentPrice
 }
 
 func newTestTrackedItemController(t *testing.T, trackedItemCurrency string) (*Controller, *memoryskupricehistory.MemoryRepository, *memorypricesnapshot.SKUSnapshotMemoryRepository) {
