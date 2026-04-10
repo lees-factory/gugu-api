@@ -1438,7 +1438,7 @@ components:
           example: '2026-03-14T12:00:00Z'
     Tokens:
       type: object
-      description: 로그인 성공 시 발급되는 JWT 토큰 묶음 (refresh token TTL: 14일)
+      description: "로그인 성공 시 발급되는 JWT 토큰 묶음 (refresh token TTL: 14일)"
       required:
         - access_token
         - refresh_token
