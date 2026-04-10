@@ -892,7 +892,7 @@ paths:
       tags:
         - 유저 저장 상품
       summary: Tracked Item 상세 조회
-      description: 유저 저장 상품의 상세 정보(상품 정보, SKU 목록 포함)를 조회한다. `title`, `main_image_url`, `product_url`는 tracked item의 `currency`에 대응하는 `product_variant`를 우선 사용하고, variant가 없으면 `product` 기본값으로 fallback 한다.
+      description: 유저 저장 상품의 상세 정보(상품 정보, SKU 목록 포함)를 조회한다. `title`, `main_image_url`, `product_url`는 tracked item의 `currency`에 대응하는 `product_variant`를 우선 사용하고, variant가 없으면 `product` 기본값으로 fallback 한다. `current_price`는 선택 SKU의 `sku_price_snapshot`에서 오늘 값을 우선 조회하고, 없으면 최신 snapshot 값을 사용한다.
       operationId: getTrackedItemDetail
       parameters:
         - in: path
@@ -2201,7 +2201,7 @@ components:
           description: Affiliate 프로모션 링크. 빈 값이면 product_url 사용.
     TrackedItemDetailData:
       type: object
-      description: 유저 저장 상품 상세 데이터. `title`, `main_image_url`, `product_url`는 tracked item currency 기준 variant 우선, 없으면 product fallback 이다.
+      description: 유저 저장 상품 상세 데이터. `title`, `main_image_url`, `product_url`는 tracked item currency 기준 variant 우선, 없으면 product fallback 이다. `current_price`는 선택 SKU snapshot 기준 현재 표시 가격이다.
       required:
         - tracked_item_id
         - product_id
@@ -2210,6 +2210,7 @@ components:
         - original_url
         - title
         - main_image_url
+        - current_price
         - currency
         - product_url
         - skus
@@ -2239,6 +2240,9 @@ components:
         main_image_url:
           type: string
           description: 대표 이미지 URL. tracked item currency 기준 variant 우선, 없으면 product 기본값 사용.
+        current_price:
+          type: string
+          description: 현재 표시 가격. 선택 SKU의 `sku_price_snapshot`에서 오늘 값을 우선 조회하고, 없으면 최신 snapshot 값을 사용한다.
         currency:
           type: string
           description: 가격 통화
