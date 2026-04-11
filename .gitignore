@@ -16,6 +16,7 @@
 
 
 .gocache
+.gocache_**
 # Go build and test artifacts
 .cache/
 bin/
