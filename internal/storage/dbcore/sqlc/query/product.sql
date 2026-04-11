@@ -2,7 +2,7 @@
 INSERT INTO gugu.product (
     id,
     market,
-    external_product_id,
+    origin_product_id,
     original_url,
     title,
     main_image_url,
@@ -33,7 +33,7 @@ WHERE id = $1;
 SELECT
     id,
     market,
-    external_product_id,
+    origin_product_id AS external_product_id,
     original_url,
     title,
     main_image_url,
@@ -50,7 +50,7 @@ WHERE id = $1;
 SELECT
     id,
     market,
-    external_product_id,
+    origin_product_id AS external_product_id,
     original_url,
     title,
     main_image_url,
@@ -61,13 +61,13 @@ SELECT
     created_at,
     updated_at
 FROM gugu.product
-WHERE market = $1 AND external_product_id = $2;
+WHERE market = $1 AND origin_product_id = $2;
 
 -- name: ListProductsByMarket :many
 SELECT
     id,
     market,
-    external_product_id,
+    origin_product_id AS external_product_id,
     original_url,
     title,
     main_image_url,
@@ -85,7 +85,7 @@ ORDER BY created_at;
 SELECT
     id,
     market,
-    external_product_id,
+    origin_product_id AS external_product_id,
     original_url,
     title,
     main_image_url,
@@ -102,7 +102,7 @@ WHERE id = ANY($1::text[]);
 SELECT
     id,
     market,
-    external_product_id,
+    origin_product_id AS external_product_id,
     original_url,
     title,
     main_image_url,

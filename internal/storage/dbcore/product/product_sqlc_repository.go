@@ -45,8 +45,8 @@ func (r *ProductSQLCRepository) FindByIDs(ctx context.Context, productIDs []stri
 
 func (r *ProductSQLCRepository) FindByMarketAndExternalProductID(ctx context.Context, market enum.Market, externalProductID string) (*domainproduct.Product, error) {
 	row, err := r.queries.FindProductByMarketAndExternalProductID(ctx, sqldb.FindProductByMarketAndExternalProductIDParams{
-		Market:            string(market),
-		ExternalProductID: externalProductID,
+		Market:          string(market),
+		OriginProductID: externalProductID,
 	})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -60,18 +60,18 @@ func (r *ProductSQLCRepository) FindByMarketAndExternalProductID(ctx context.Con
 
 func (r *ProductSQLCRepository) Create(ctx context.Context, product domainproduct.Product) error {
 	return r.queries.CreateProduct(ctx, sqldb.CreateProductParams{
-		ID:                product.ID,
-		Market:            string(product.Market),
-		ExternalProductID: product.ExternalProductID,
-		OriginalUrl:       product.OriginalURL,
-		Title:             product.Title,
-		MainImageUrl:      product.MainImageURL,
-		ProductUrl:        product.ProductURL,
-		PromotionLink:     product.PromotionLink,
-		CollectionSource:  product.CollectionSource,
-		LastCollectedAt:   product.LastCollectedAt,
-		CreatedAt:         product.CreatedAt,
-		UpdatedAt:         product.UpdatedAt,
+		ID:               product.ID,
+		Market:           string(product.Market),
+		OriginProductID:  product.ExternalProductID,
+		OriginalUrl:      product.OriginalURL,
+		Title:            product.Title,
+		MainImageUrl:     product.MainImageURL,
+		ProductUrl:       product.ProductURL,
+		PromotionLink:    product.PromotionLink,
+		CollectionSource: product.CollectionSource,
+		LastCollectedAt:  product.LastCollectedAt,
+		CreatedAt:        product.CreatedAt,
+		UpdatedAt:        product.UpdatedAt,
 	})
 }
 

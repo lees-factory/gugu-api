@@ -70,19 +70,18 @@ type GuguPriceAlert struct {
 }
 
 type GuguProduct struct {
-	ID                string         `json:"id"`
-	Market            string         `json:"market"`
-	ExternalProductID string         `json:"external_product_id"`
-	OriginProductID   sql.NullString `json:"origin_product_id"`
-	OriginalUrl       string         `json:"original_url"`
-	Title             string         `json:"title"`
-	MainImageUrl      string         `json:"main_image_url"`
-	ProductUrl        string         `json:"product_url"`
-	PromotionLink     string         `json:"promotion_link"`
-	CollectionSource  string         `json:"collection_source"`
-	LastCollectedAt   time.Time      `json:"last_collected_at"`
-	CreatedAt         time.Time      `json:"created_at"`
-	UpdatedAt         time.Time      `json:"updated_at"`
+	ID               string    `json:"id"`
+	Market           string    `json:"market"`
+	OriginProductID  string    `json:"origin_product_id"`
+	OriginalUrl      string    `json:"original_url"`
+	Title            string    `json:"title"`
+	MainImageUrl     string    `json:"main_image_url"`
+	ProductUrl       string    `json:"product_url"`
+	PromotionLink    string    `json:"promotion_link"`
+	CollectionSource string    `json:"collection_source"`
+	LastCollectedAt  time.Time `json:"last_collected_at"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 type GuguSku struct {

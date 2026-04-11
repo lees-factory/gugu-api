@@ -73,8 +73,7 @@ CREATE TABLE IF NOT EXISTS gugu.aliexpress_seller_token (
 CREATE TABLE IF NOT EXISTS gugu.product (
     id TEXT PRIMARY KEY,
     market TEXT NOT NULL,
-    external_product_id TEXT NOT NULL,
-    origin_product_id TEXT,
+    origin_product_id TEXT NOT NULL,
     original_url TEXT NOT NULL DEFAULT '',
     title TEXT NOT NULL DEFAULT '',
     main_image_url TEXT NOT NULL DEFAULT '',
@@ -84,7 +83,7 @@ CREATE TABLE IF NOT EXISTS gugu.product (
     last_collected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE (market, external_product_id)
+    UNIQUE (market, origin_product_id)
 );
 
 CREATE TABLE IF NOT EXISTS gugu.user_tracked_item (
@@ -108,10 +107,6 @@ CREATE INDEX IF NOT EXISTS idx_user_login_session_user_id ON gugu.user_login_ses
 CREATE INDEX IF NOT EXISTS idx_user_login_session_family_id ON gugu.user_login_session(token_family_id);
 CREATE INDEX IF NOT EXISTS idx_aliexpress_seller_token_access_token_expires_at ON gugu.aliexpress_seller_token(access_token_expires_at);
 CREATE INDEX IF NOT EXISTS idx_aliexpress_seller_token_refresh_token_expires_at ON gugu.aliexpress_seller_token(refresh_token_expires_at);
-CREATE INDEX IF NOT EXISTS idx_product_market_external_product_id ON gugu.product(market, external_product_id);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_product_market_origin_product_id
-    ON gugu.product(market, origin_product_id)
-    WHERE origin_product_id IS NOT NULL AND BTRIM(origin_product_id) <> '';
 CREATE INDEX IF NOT EXISTS idx_user_tracked_item_user_id ON gugu.user_tracked_item(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_tracked_item_product_id ON gugu.user_tracked_item(product_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_user_tracked_item_user_product_active

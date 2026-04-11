@@ -16,7 +16,7 @@ const createProduct = `-- name: CreateProduct :exec
 INSERT INTO gugu.product (
     id,
     market,
-    external_product_id,
+    origin_product_id,
     original_url,
     title,
     main_image_url,
@@ -32,25 +32,25 @@ INSERT INTO gugu.product (
 `
 
 type CreateProductParams struct {
-	ID                string    `json:"id"`
-	Market            string    `json:"market"`
-	ExternalProductID string    `json:"external_product_id"`
-	OriginalUrl       string    `json:"original_url"`
-	Title             string    `json:"title"`
-	MainImageUrl      string    `json:"main_image_url"`
-	ProductUrl        string    `json:"product_url"`
-	PromotionLink     string    `json:"promotion_link"`
-	CollectionSource  string    `json:"collection_source"`
-	LastCollectedAt   time.Time `json:"last_collected_at"`
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
+	ID               string    `json:"id"`
+	Market           string    `json:"market"`
+	OriginProductID  string    `json:"origin_product_id"`
+	OriginalUrl      string    `json:"original_url"`
+	Title            string    `json:"title"`
+	MainImageUrl     string    `json:"main_image_url"`
+	ProductUrl       string    `json:"product_url"`
+	PromotionLink    string    `json:"promotion_link"`
+	CollectionSource string    `json:"collection_source"`
+	LastCollectedAt  time.Time `json:"last_collected_at"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 
 func (q *Queries) CreateProduct(ctx context.Context, arg CreateProductParams) error {
 	_, err := q.db.ExecContext(ctx, createProduct,
 		arg.ID,
 		arg.Market,
-		arg.ExternalProductID,
+		arg.OriginProductID,
 		arg.OriginalUrl,
 		arg.Title,
 		arg.MainImageUrl,
@@ -68,7 +68,7 @@ const findProductByID = `-- name: FindProductByID :one
 SELECT
     id,
     market,
-    external_product_id,
+    origin_product_id AS external_product_id,
     original_url,
     title,
     main_image_url,
@@ -121,7 +121,7 @@ const findProductByMarketAndExternalProductID = `-- name: FindProductByMarketAnd
 SELECT
     id,
     market,
-    external_product_id,
+    origin_product_id AS external_product_id,
     original_url,
     title,
     main_image_url,
@@ -132,12 +132,12 @@ SELECT
     created_at,
     updated_at
 FROM gugu.product
-WHERE market = $1 AND external_product_id = $2
+WHERE market = $1 AND origin_product_id = $2
 `
 
 type FindProductByMarketAndExternalProductIDParams struct {
-	Market            string `json:"market"`
-	ExternalProductID string `json:"external_product_id"`
+	Market          string `json:"market"`
+	OriginProductID string `json:"origin_product_id"`
 }
 
 type FindProductByMarketAndExternalProductIDRow struct {
@@ -156,7 +156,7 @@ type FindProductByMarketAndExternalProductIDRow struct {
 }
 
 func (q *Queries) FindProductByMarketAndExternalProductID(ctx context.Context, arg FindProductByMarketAndExternalProductIDParams) (FindProductByMarketAndExternalProductIDRow, error) {
-	row := q.db.QueryRowContext(ctx, findProductByMarketAndExternalProductID, arg.Market, arg.ExternalProductID)
+	row := q.db.QueryRowContext(ctx, findProductByMarketAndExternalProductID, arg.Market, arg.OriginProductID)
 	var i FindProductByMarketAndExternalProductIDRow
 	err := row.Scan(
 		&i.ID,
@@ -179,7 +179,7 @@ const findProductsByIDs = `-- name: FindProductsByIDs :many
 SELECT
     id,
     market,
-    external_product_id,
+    origin_product_id AS external_product_id,
     original_url,
     title,
     main_image_url,
@@ -248,7 +248,7 @@ const listProductsByCollectionSource = `-- name: ListProductsByCollectionSource 
 SELECT
     id,
     market,
-    external_product_id,
+    origin_product_id AS external_product_id,
     original_url,
     title,
     main_image_url,
@@ -325,7 +325,7 @@ const listProductsByMarket = `-- name: ListProductsByMarket :many
 SELECT
     id,
     market,
-    external_product_id,
+    origin_product_id AS external_product_id,
     original_url,
     title,
     main_image_url,
