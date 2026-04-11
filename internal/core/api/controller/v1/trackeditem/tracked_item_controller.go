@@ -49,8 +49,12 @@ func (c *Controller) RegisterRoutes(r chi.Router) {
 		r.Get("/{trackedItemID}/price-alert", apiadvice.Wrap(c.GetPriceAlert))
 		r.Post("/{trackedItemID}/price-alert", apiadvice.Wrap(c.RegisterPriceAlert))
 		r.Delete("/{trackedItemID}/price-alert", apiadvice.Wrap(c.UnregisterPriceAlert))
+		r.Get("/{trackedItemID}/skus/{skuID}/price-alert", apiadvice.Wrap(c.GetPriceAlert))
+		r.Post("/{trackedItemID}/skus/{skuID}/price-alert", apiadvice.Wrap(c.RegisterPriceAlert))
+		r.Delete("/{trackedItemID}/skus/{skuID}/price-alert", apiadvice.Wrap(c.UnregisterPriceAlert))
 		r.Delete("/{trackedItemID}", apiadvice.Wrap(c.Delete))
 		r.Patch("/{trackedItemID}/sku", apiadvice.Wrap(c.SelectSKU))
+		r.Patch("/{trackedItemID}/language", apiadvice.Wrap(c.UpdateLanguage))
 		r.Get("/{trackedItemID}/sku-price-histories", apiadvice.Wrap(c.GetSKUPriceHistories))
 		r.Get("/{trackedItemID}/sku-price-trend", apiadvice.Wrap(c.GetSKUPriceTrend))
 	})
@@ -67,6 +71,7 @@ func (c *Controller) Add(r *stdhttp.Request) (int, any, error) {
 		result, err := c.trackedItemService.AddTrackedItem(r.Context(), domaintrackeditem.AddTrackedItemInput{
 			UserID:            req.User.ID,
 			ProviderCommerce:  item.ProviderCommerce,
+			OriginProductID:   item.OriginProductID,
 			ExternalProductID: item.ExternalProductID,
 			OriginalURL:       item.OriginalURL,
 			Currency:          item.Currency,
@@ -90,9 +95,9 @@ func (c *Controller) GetDetail(r *stdhttp.Request) (int, any, error) {
 	if err != nil {
 		return 0, nil, err
 	}
-	skuCurrentPrices := c.resolveTrackedItemSKUCurrentPrices(r.Context(), detail)
-	currentPrice := resolveTrackedItemCurrentPrice(detail, skuCurrentPrices)
-	skus := response.NewProductSKUsWithCurrentPrice(detail.SKUs, skuCurrentPrices)
+	skuCurrentSnapshots := c.resolveTrackedItemSKUCurrentSnapshots(r.Context(), detail)
+	currentPrice := resolveTrackedItemCurrentPrice(detail, skuCurrentSnapshots)
+	skus := response.NewProductSKUsWithCurrentPrice(detail.SKUs, skuCurrentSnapshots)
 
 	return stdhttp.StatusOK, apiresponse.SuccessWithData(
 		response.NewTrackedItemDetail(detail, currentPrice, skus),
@@ -106,9 +111,10 @@ func (c *Controller) List(r *stdhttp.Request) (int, any, error) {
 	if err != nil {
 		return 0, nil, err
 	}
+	currentPriceByTrackedItemID := c.resolveTrackedItemsCurrentPrices(r.Context(), result.Items)
 
 	return stdhttp.StatusOK, apiresponse.SuccessWithData(
-		response.NewListTrackedItemsPage(result),
+		response.NewListTrackedItemsPage(result, currentPriceByTrackedItemID),
 	), nil
 }
 
@@ -116,6 +122,19 @@ func (c *Controller) Delete(r *stdhttp.Request) (int, any, error) {
 	req := request.ParseDeleteTrackedItem(r)
 
 	if err := c.trackedItemService.Delete(r.Context(), req.TrackedItemID, req.User.ID); err != nil {
+		return 0, nil, err
+	}
+
+	return stdhttp.StatusOK, apiresponse.Success(), nil
+}
+
+func (c *Controller) UpdateLanguage(r *stdhttp.Request) (int, any, error) {
+	req, err := request.ParseUpdateTrackedItemLanguage(r)
+	if err != nil {
+		return stdhttp.StatusBadRequest, nil, err
+	}
+
+	if err := c.trackedItemService.UpdatePreferredLanguage(r.Context(), req.TrackedItemID, req.User.ID, req.Language); err != nil {
 		return 0, nil, err
 	}
 
@@ -193,7 +212,8 @@ func (c *Controller) GetPriceAlert(r *stdhttp.Request) (int, any, error) {
 		return 0, nil, err
 	}
 	if skuID == "" {
-		return stdhttp.StatusOK, apiresponse.SuccessWithData(response.NewPriceAlertState(nil)), nil
+		alertState := c.resolvePriceAlertStateByTrackedItem(r, detail)
+		return stdhttp.StatusOK, apiresponse.SuccessWithData(*alertState), nil
 	}
 
 	alertState := c.resolvePriceAlertStateBySKUID(r, detail.TrackedItem.UserID, skuID)
@@ -220,6 +240,8 @@ func (c *Controller) RegisterPriceAlert(r *stdhttp.Request) (int, any, error) {
 	if err != nil {
 		return 0, nil, err
 	}
+	// 등록된 SKU를 tracked item 기본 선택값으로 동기화해 조회 일관성을 맞춘다.
+	_ = c.trackedItemService.SelectSKU(r.Context(), req.TrackedItemID, req.User.ID, skuID)
 
 	return stdhttp.StatusCreated, apiresponse.SuccessWithData(response.NewPriceAlertState(alert)), nil
 }
@@ -290,6 +312,45 @@ func (c *Controller) resolvePriceAlertStateBySKUID(r *stdhttp.Request, userID st
 	return &state
 }
 
+func (c *Controller) resolvePriceAlertStateByTrackedItem(r *stdhttp.Request, detail *domaintrackeditem.TrackedItemDetail) *response.PriceAlertState {
+	if c.priceAlertService == nil || detail == nil {
+		defaultState := response.NewPriceAlertState(nil)
+		return &defaultState
+	}
+
+	seen := make(map[string]struct{}, len(detail.SKUs)+1)
+	candidates := make([]string, 0, len(detail.SKUs)+1)
+
+	selected := strings.TrimSpace(detail.TrackedItem.SKUID)
+	if selected != "" {
+		seen[selected] = struct{}{}
+		candidates = append(candidates, selected)
+	}
+	for _, sku := range detail.SKUs {
+		skuID := strings.TrimSpace(sku.ID)
+		if skuID == "" {
+			continue
+		}
+		if _, ok := seen[skuID]; ok {
+			continue
+		}
+		seen[skuID] = struct{}{}
+		candidates = append(candidates, skuID)
+	}
+
+	for _, skuID := range candidates {
+		alert, err := c.priceAlertService.FindByUserIDAndSKUID(r.Context(), detail.TrackedItem.UserID, skuID)
+		if err != nil || alert == nil {
+			continue
+		}
+		state := response.NewPriceAlertState(alert)
+		return &state
+	}
+
+	defaultState := response.NewPriceAlertState(nil)
+	return &defaultState
+}
+
 func containsSKUID(skus []domainproduct.SKU, skuID string) bool {
 	for _, sku := range skus {
 		if sku.ID == skuID {
@@ -299,8 +360,8 @@ func containsSKUID(skus []domainproduct.SKU, skuID string) bool {
 	return false
 }
 
-func (c *Controller) resolveTrackedItemSKUCurrentPrices(ctx context.Context, detail *domaintrackeditem.TrackedItemDetail) map[string]string {
-	result := make(map[string]string, len(detail.SKUs))
+func (c *Controller) resolveTrackedItemSKUCurrentSnapshots(ctx context.Context, detail *domaintrackeditem.TrackedItemDetail) map[string]response.SKUCurrentSnapshot {
+	result := make(map[string]response.SKUCurrentSnapshot, len(detail.SKUs))
 	if c.snapshotService == nil {
 		return result
 	}
@@ -321,26 +382,69 @@ func (c *Controller) resolveTrackedItemSKUCurrentPrices(ctx context.Context, det
 			continue
 		}
 		price := resolveSnapshotCurrentPrice(snapshots, today)
-		if price == "" {
+		snapshot := resolveLatestSnapshot(snapshots, today)
+		if snapshot == nil || strings.TrimSpace(price) == "" {
 			continue
 		}
-		result[strings.TrimSpace(sku.ID)] = price
+		result[strings.TrimSpace(sku.ID)] = response.SKUCurrentSnapshot{
+			Price:         strings.TrimSpace(snapshot.Price),
+			OriginalPrice: strings.TrimSpace(snapshot.OriginalPrice),
+			Currency:      strings.TrimSpace(snapshot.Currency),
+		}
 	}
 
 	return result
 }
 
-func resolveTrackedItemCurrentPrice(detail *domaintrackeditem.TrackedItemDetail, skuCurrentPrices map[string]string) string {
+func (c *Controller) resolveTrackedItemsCurrentPrices(ctx context.Context, items []domaintrackeditem.TrackedItemWithProduct) map[string]string {
+	result := make(map[string]string, len(items))
+	if c.snapshotService == nil {
+		return result
+	}
+
+	now := time.Now()
+	today := now.Format(time.DateOnly)
+	from := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+
+	for _, item := range items {
+		skuID := strings.TrimSpace(item.TrackedItem.SKUID)
+		if skuID == "" {
+			continue
+		}
+		currency := resolveSKUPriceHistoryCurrency("", item.TrackedItem.Currency)
+		snapshots, err := c.snapshotService.ListSKUSnapshotsByDateRange(ctx, skuID, currency, from, now.Add(24*time.Hour))
+		if err != nil {
+			continue
+		}
+		price := resolveSnapshotCurrentPrice(snapshots, today)
+		if price == "" {
+			continue
+		}
+		result[strings.TrimSpace(item.TrackedItem.ID)] = price
+	}
+
+	return result
+}
+
+func resolveTrackedItemCurrentPrice(detail *domaintrackeditem.TrackedItemDetail, skuCurrentSnapshots map[string]response.SKUCurrentSnapshot) string {
 	skuID, err := resolveTrackedItemPriceAlertSKUID(detail, "", false)
 	if err != nil || skuID == "" {
 		return ""
 	}
-	return strings.TrimSpace(skuCurrentPrices[strings.TrimSpace(skuID)])
+	return strings.TrimSpace(skuCurrentSnapshots[strings.TrimSpace(skuID)].Price)
 }
 
 func resolveSnapshotCurrentPrice(snapshots []domainps.SKUPriceSnapshot, today string) string {
-	if len(snapshots) == 0 {
+	snapshot := resolveLatestSnapshot(snapshots, today)
+	if snapshot == nil {
 		return ""
+	}
+	return strings.TrimSpace(snapshot.Price)
+}
+
+func resolveLatestSnapshot(snapshots []domainps.SKUPriceSnapshot, today string) *domainps.SKUPriceSnapshot {
+	if len(snapshots) == 0 {
+		return nil
 	}
 
 	var latestToday *domainps.SKUPriceSnapshot
@@ -361,12 +465,12 @@ func resolveSnapshotCurrentPrice(snapshots []domainps.SKUPriceSnapshot, today st
 	}
 
 	if latestToday != nil {
-		return strings.TrimSpace(latestToday.Price)
+		return latestToday
 	}
 	if latest == nil {
-		return ""
+		return nil
 	}
-	return strings.TrimSpace(latest.Price)
+	return latest
 }
 
 func (c *Controller) SelectSKU(r *stdhttp.Request) (int, any, error) {

@@ -819,7 +819,7 @@ paths:
       tags:
         - 유저 저장 상품
       summary: Tracked Items 목록 조회
-      description: 특정 유저가 대시보드에 저장한 활성 상품 목록을 조회한다. 카드의 `title`, `main_image_url`, `product_url`는 tracked item의 `currency`에 대응하는 `product_variant`를 우선 사용하고, variant가 없으면 `product` 기본값으로 fallback 한다.
+      description: 특정 유저가 대시보드에 저장한 활성 상품 목록을 조회한다. 카드의 `title`, `main_image_url`, `product_url`는 tracked item의 `preferred_language` 기준 `product_localization`을 우선 사용하고, 없으면 `product` 기본값으로 fallback 한다.
       operationId: listTrackedItems
       parameters:
         - in: query
@@ -892,7 +892,7 @@ paths:
       tags:
         - 유저 저장 상품
       summary: Tracked Item 상세 조회
-      description: 유저 저장 상품의 상세 정보(상품 정보, SKU 목록 포함)를 조회한다. `title`, `main_image_url`, `product_url`는 tracked item의 `currency`에 대응하는 `product_variant`를 우선 사용하고, variant가 없으면 `product` 기본값으로 fallback 한다. `current_price`와 `skus[].current_price`는 선택 통화 기준 `sku_price_snapshot`에서 오늘 값을 우선 조회하고, 없으면 최신 snapshot 값을 사용한다.
+      description: 유저 저장 상품의 상세 정보(상품 정보, SKU 목록 포함)를 조회한다. `title`, `main_image_url`, `product_url`는 tracked item의 `preferred_language` 기준 `product_localization`을 우선 사용하고, 없으면 `product` 기본값으로 fallback 한다. `current_price`와 `skus[].current_price`는 선택 통화 기준 `sku_price_snapshot`에서 오늘 값을 우선 조회하고, 없으면 최신 snapshot 값을 사용한다.
       operationId: getTrackedItemDetail
       parameters:
         - in: path
@@ -964,13 +964,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /v1/tracked-items/{trackedItemID}/price-alert:
+  /v1/tracked-items/{trackedItemID}/skus/{skuID}/price-alert:
     get:
       tags:
         - 유저 저장 상품
       summary: Tracked Item SKU 가격 알림 상태 조회
-      description: 유저 저장 상품 문맥에서 특정 SKU의 가격 알림 상태를 조회한다. `sku_id`가 있으면 해당 SKU 기준으로 조회하고, 없으면 현재 저장된 선택 SKU 기준으로 조회한다. alert row가 없거나 선택 SKU가 없으면 `enabled=false`를 반환한다.
-      operationId: getTrackedItemPriceAlert
+      description: 유저 저장 상품 문맥에서 경로의 SKU에 대한 가격 알림 상태를 조회한다.
+      operationId: getTrackedItemSKUPriceAlert
       parameters:
         - in: path
           name: trackedItemID
@@ -978,12 +978,12 @@ paths:
           schema:
             type: string
           description: 유저 저장 상품 ID
-        - in: query
-          name: sku_id
-          required: false
+        - in: path
+          name: skuID
+          required: true
           schema:
             type: string
-          description: 조회할 SKU ID. 생략 시 tracked item에 저장된 선택 SKU 사용
+          description: 조회할 SKU ID
         - in: query
           name: user_id
           required: true
@@ -1013,8 +1013,8 @@ paths:
       tags:
         - 유저 저장 상품
       summary: Tracked Item SKU 가격 알림 등록
-      description: 유저 저장 상품 문맥에서 특정 SKU의 가격 알림을 등록한다. `sku_id`가 있으면 해당 SKU 기준으로 등록하고, 없으면 현재 저장된 선택 SKU 기준으로 등록한다. 이미 등록된 알림이 있으면 재활성화한다.
-      operationId: registerTrackedItemPriceAlert
+      description: 유저 저장 상품 문맥에서 경로의 SKU 가격 알림을 등록한다. 이미 등록된 알림이 있으면 재활성화한다.
+      operationId: registerTrackedItemSKUPriceAlert
       parameters:
         - in: path
           name: trackedItemID
@@ -1022,6 +1022,12 @@ paths:
           schema:
             type: string
           description: 유저 저장 상품 ID
+        - in: path
+          name: skuID
+          required: true
+          schema:
+            type: string
+          description: 등록할 SKU ID
         - in: query
           name: user_id
           required: true
@@ -1029,7 +1035,7 @@ paths:
             type: string
           description: 요청 사용자 ID
       requestBody:
-        required: true
+        required: false
         content:
           application/json:
             schema:
@@ -1037,7 +1043,6 @@ paths:
             examples:
               default:
                 value:
-                  sku_id: sku_123
                   channel: EMAIL
       responses:
         '201':
@@ -1062,8 +1067,8 @@ paths:
       tags:
         - 유저 저장 상품
       summary: Tracked Item SKU 가격 알림 해제
-      description: 유저 저장 상품 문맥에서 특정 SKU의 가격 알림을 비활성화한다. `sku_id`가 없으면 현재 저장된 선택 SKU 기준으로 처리한다.
-      operationId: unregisterTrackedItemPriceAlert
+      description: 유저 저장 상품 문맥에서 경로의 SKU 가격 알림을 비활성화한다.
+      operationId: unregisterTrackedItemSKUPriceAlert
       parameters:
         - in: path
           name: trackedItemID
@@ -1071,12 +1076,12 @@ paths:
           schema:
             type: string
           description: 유저 저장 상품 ID
-        - in: query
-          name: sku_id
-          required: false
+        - in: path
+          name: skuID
+          required: true
           schema:
             type: string
-          description: 해제할 SKU ID. 생략 시 tracked item에 저장된 선택 SKU 사용
+          description: 해제할 SKU ID
         - in: query
           name: user_id
           required: true
@@ -1250,7 +1255,7 @@ paths:
       tags:
         - 디스커버
       summary: 인기 상품 목록 조회
-      description: 수집된 인기 상품을 `language` 기준으로 페이지네이션 조회한다. 응답의 `title`, `main_image_url`, `currency`, `product_url`는 해당 language의 `product_variant`를 우선 사용하고, variant가 없으면 `product` 기본값으로 fallback 한다.
+      description: 수집된 인기 상품을 `language` 기준으로 페이지네이션 조회한다. 응답의 `title`, `main_image_url`, `currency`, `product_url`는 해당 language의 `product_localization`을 우선 사용하고, 없으면 `product` 기본값으로 fallback 한다.
       operationId: listHotProducts
       parameters:
         - in: query
@@ -2667,12 +2672,8 @@ components:
             $ref: '#/components/schemas/ProductSKUData'
     RegisterPriceAlertRequest:
       type: object
-      description: tracked item 문맥의 가격 알림 등록 요청. `sku_id`를 생략하면 저장된 선택 SKU를 사용한다.
+      description: tracked item 문맥의 가격 알림 등록 요청.
       properties:
-        sku_id:
-          type: string
-          description: 알림을 등록할 SKU ID. 생략 시 tracked item에 저장된 선택 SKU 사용.
-          example: sku_123
         channel:
           type: string
           description: '알림 채널 (기본값: EMAIL)'

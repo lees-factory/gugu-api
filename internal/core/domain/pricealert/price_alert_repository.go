@@ -10,4 +10,5 @@ type Repository interface {
 	ListByUserID(ctx context.Context, userID string) ([]PriceAlert, error)
 	Create(ctx context.Context, alert PriceAlert) error
 	UpdateEnabled(ctx context.Context, alertID string, enabled bool) error
+	UpdateSettings(ctx context.Context, alertID string, channel string, enabled bool) error
 }

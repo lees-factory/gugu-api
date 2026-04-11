@@ -83,6 +83,15 @@ func (r *SQLCRepository) UpdateEnabled(ctx context.Context, alertID string, enab
 	return err
 }
 
+func (r *SQLCRepository) UpdateSettings(ctx context.Context, alertID string, channel string, enabled bool) error {
+	_, err := r.queries.UpdatePriceAlertSettings(ctx, sqldb.UpdatePriceAlertSettingsParams{
+		ID:      alertID,
+		Channel: channel,
+		Enabled: enabled,
+	})
+	return err
+}
+
 func toDomain(row sqldb.GuguPriceAlert) domainpricealert.PriceAlert {
 	return domainpricealert.PriceAlert{
 		ID:        row.ID,

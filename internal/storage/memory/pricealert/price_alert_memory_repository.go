@@ -84,3 +84,15 @@ func (r *MemoryRepository) UpdateEnabled(_ context.Context, alertID string, enab
 	}
 	return nil
 }
+
+func (r *MemoryRepository) UpdateSettings(_ context.Context, alertID string, channel string, enabled bool) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if a, ok := r.byID[alertID]; ok {
+		a.Channel = channel
+		a.Enabled = enabled
+		r.byID[alertID] = a
+	}
+	return nil
+}

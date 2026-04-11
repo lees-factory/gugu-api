@@ -2,6 +2,8 @@ package request
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"strings"
 
@@ -19,7 +21,7 @@ func ParseGetTrackedItemPriceAlert(r *http.Request) GetTrackedItemPriceAlert {
 	return GetTrackedItemPriceAlert{
 		User:          auth.RequestUserFrom(r.Context()),
 		TrackedItemID: strings.TrimSpace(chi.URLParam(r, "trackedItemID")),
-		SKUID:         strings.TrimSpace(r.URL.Query().Get("sku_id")),
+		SKUID:         resolveSKUID(chi.URLParam(r, "skuID"), r.URL.Query().Get("sku_id")),
 	}
 }
 
@@ -35,14 +37,15 @@ func ParseRegisterTrackedItemPriceAlert(r *http.Request) (RegisterTrackedItemPri
 		SKUID   string `json:"sku_id"`
 		Channel string `json:"channel"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil && !errors.Is(err, io.EOF) {
 		return RegisterTrackedItemPriceAlert{}, err
 	}
 
+	pathSKUID := strings.TrimSpace(chi.URLParam(r, "skuID"))
 	return RegisterTrackedItemPriceAlert{
 		User:          auth.RequestUserFrom(r.Context()),
 		TrackedItemID: strings.TrimSpace(chi.URLParam(r, "trackedItemID")),
-		SKUID:         strings.TrimSpace(body.SKUID),
+		SKUID:         resolveSKUID(pathSKUID, body.SKUID),
 		Channel:       strings.TrimSpace(body.Channel),
 	}, nil
 }
@@ -57,6 +60,14 @@ func ParseUnregisterTrackedItemPriceAlert(r *http.Request) UnregisterTrackedItem
 	return UnregisterTrackedItemPriceAlert{
 		User:          auth.RequestUserFrom(r.Context()),
 		TrackedItemID: strings.TrimSpace(chi.URLParam(r, "trackedItemID")),
-		SKUID:         strings.TrimSpace(r.URL.Query().Get("sku_id")),
+		SKUID:         resolveSKUID(chi.URLParam(r, "skuID"), r.URL.Query().Get("sku_id")),
 	}
+}
+
+func resolveSKUID(primary string, fallback string) string {
+	skuID := strings.TrimSpace(primary)
+	if skuID != "" {
+		return skuID
+	}
+	return strings.TrimSpace(fallback)
 }

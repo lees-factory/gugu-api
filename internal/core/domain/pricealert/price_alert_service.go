@@ -34,6 +34,7 @@ func NewService(finder Finder, writer Writer, idGenerator IDGenerator, clock Clo
 func (s *Service) Register(ctx context.Context, userID string, skuID string, channel string) (*PriceAlert, error) {
 	userID = strings.TrimSpace(userID)
 	skuID = strings.TrimSpace(skuID)
+	channel = strings.ToUpper(strings.TrimSpace(channel))
 	if channel == "" {
 		channel = "EMAIL"
 	}
@@ -43,11 +44,12 @@ func (s *Service) Register(ctx context.Context, userID string, skuID string, cha
 		return nil, fmt.Errorf("find existing alert: %w", err)
 	}
 	if existing != nil {
-		if !existing.Enabled {
-			if err := s.writer.UpdateEnabled(ctx, existing.ID, true); err != nil {
-				return nil, fmt.Errorf("re-enable alert: %w", err)
+		if !existing.Enabled || existing.Channel != channel {
+			if err := s.writer.UpdateSettings(ctx, existing.ID, channel, true); err != nil {
+				return nil, fmt.Errorf("update alert settings: %w", err)
 			}
 			existing.Enabled = true
+			existing.Channel = channel
 		}
 		return existing, nil
 	}

@@ -45,6 +45,8 @@ const findPriceAlertByUserIDAndSKUID = `-- name: FindPriceAlertByUserIDAndSKUID 
 SELECT id, user_id, sku_id, channel, enabled, created_at
 FROM gugu.price_alert
 WHERE user_id = $1 AND sku_id = $2
+ORDER BY created_at DESC, id DESC
+LIMIT 1
 `
 
 type FindPriceAlertByUserIDAndSKUIDParams struct {
@@ -226,6 +228,27 @@ type UpdatePriceAlertEnabledParams struct {
 
 func (q *Queries) UpdatePriceAlertEnabled(ctx context.Context, arg UpdatePriceAlertEnabledParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, updatePriceAlertEnabled, arg.ID, arg.Enabled)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const updatePriceAlertSettings = `-- name: UpdatePriceAlertSettings :execrows
+UPDATE gugu.price_alert
+SET channel = $2,
+    enabled = $3
+WHERE id = $1
+`
+
+type UpdatePriceAlertSettingsParams struct {
+	ID      string `json:"id"`
+	Channel string `json:"channel"`
+	Enabled bool   `json:"enabled"`
+}
+
+func (q *Queries) UpdatePriceAlertSettings(ctx context.Context, arg UpdatePriceAlertSettingsParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updatePriceAlertSettings, arg.ID, arg.Channel, arg.Enabled)
 	if err != nil {
 		return 0, err
 	}
