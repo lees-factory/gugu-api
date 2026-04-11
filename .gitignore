@@ -14,6 +14,8 @@
 # Logs
 *.log
 
+
+.gocache
 # Go build and test artifacts
 .cache/
 bin/
