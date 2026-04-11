@@ -11,6 +11,27 @@ import (
 	"time"
 )
 
+const countActiveUserLoginSessionsByUserID = `-- name: CountActiveUserLoginSessionsByUserID :one
+SELECT COUNT(*)
+FROM gugu.user_login_session
+WHERE user_id = $1
+  AND revoked_at IS NULL
+  AND rotated_at IS NULL
+  AND expires_at > $2
+`
+
+type CountActiveUserLoginSessionsByUserIDParams struct {
+	UserID    string    `json:"user_id"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+func (q *Queries) CountActiveUserLoginSessionsByUserID(ctx context.Context, arg CountActiveUserLoginSessionsByUserIDParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countActiveUserLoginSessionsByUserID, arg.UserID, arg.ExpiresAt)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createUserLoginSession = `-- name: CreateUserLoginSession :exec
 INSERT INTO gugu.user_login_session (
     id,
@@ -111,27 +132,6 @@ func (q *Queries) FindUserLoginSessionByRefreshTokenHash(ctx context.Context, re
 	return i, err
 }
 
-const countActiveUserLoginSessionsByUserID = `-- name: CountActiveUserLoginSessionsByUserID :one
-SELECT COUNT(*)
-FROM gugu.user_login_session
-WHERE user_id = $1
-  AND revoked_at IS NULL
-  AND rotated_at IS NULL
-  AND expires_at > $2
-`
-
-type CountActiveUserLoginSessionsByUserIDParams struct {
-	UserID    string    `json:"user_id"`
-	ExpiresAt time.Time `json:"expires_at"`
-}
-
-func (q *Queries) CountActiveUserLoginSessionsByUserID(ctx context.Context, arg CountActiveUserLoginSessionsByUserIDParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countActiveUserLoginSessionsByUserID, arg.UserID, arg.ExpiresAt)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
 const listActiveUserLoginSessionsByUserID = `-- name: ListActiveUserLoginSessionsByUserID :many
 SELECT
     id,
@@ -156,13 +156,18 @@ WHERE user_id = $1
 ORDER BY created_at DESC
 `
 
-func (q *Queries) ListActiveUserLoginSessionsByUserID(ctx context.Context, arg CountActiveUserLoginSessionsByUserIDParams) ([]GuguUserLoginSession, error) {
+type ListActiveUserLoginSessionsByUserIDParams struct {
+	UserID    string    `json:"user_id"`
+	ExpiresAt time.Time `json:"expires_at"`
+}
+
+func (q *Queries) ListActiveUserLoginSessionsByUserID(ctx context.Context, arg ListActiveUserLoginSessionsByUserIDParams) ([]GuguUserLoginSession, error) {
 	rows, err := q.db.QueryContext(ctx, listActiveUserLoginSessionsByUserID, arg.UserID, arg.ExpiresAt)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []GuguUserLoginSession{}
+	var items []GuguUserLoginSession
 	for rows.Next() {
 		var i GuguUserLoginSession
 		if err := rows.Scan(
@@ -192,54 +197,6 @@ func (q *Queries) ListActiveUserLoginSessionsByUserID(ctx context.Context, arg C
 		return nil, err
 	}
 	return items, nil
-}
-
-const revokeUserLoginSessionByUserIDSessionID = `-- name: RevokeUserLoginSessionByUserIDSessionID :exec
-UPDATE gugu.user_login_session
-SET revoked_at = $3
-WHERE user_id = $1
-  AND id = $2
-  AND revoked_at IS NULL
-`
-
-type RevokeUserLoginSessionByUserIDSessionIDParams struct {
-	UserID    string       `json:"user_id"`
-	ID        string       `json:"id"`
-	RevokedAt sql.NullTime `json:"revoked_at"`
-}
-
-func (q *Queries) RevokeUserLoginSessionByUserIDSessionID(ctx context.Context, arg RevokeUserLoginSessionByUserIDSessionIDParams) error {
-	_, err := q.db.ExecContext(ctx, revokeUserLoginSessionByUserIDSessionID, arg.UserID, arg.ID, arg.RevokedAt)
-	return err
-}
-
-const revokeOldestActiveUserLoginSessionByUserID = `-- name: RevokeOldestActiveUserLoginSessionByUserID :execrows
-UPDATE gugu.user_login_session
-SET revoked_at = $2
-WHERE id = (
-    SELECT id
-    FROM gugu.user_login_session
-    WHERE user_id = $1
-      AND revoked_at IS NULL
-      AND rotated_at IS NULL
-      AND expires_at > $3
-    ORDER BY created_at ASC
-    LIMIT 1
-)
-`
-
-type RevokeOldestActiveUserLoginSessionByUserIDParams struct {
-	UserID    string       `json:"user_id"`
-	RevokedAt sql.NullTime `json:"revoked_at"`
-	ExpiresAt time.Time    `json:"expires_at"`
-}
-
-func (q *Queries) RevokeOldestActiveUserLoginSessionByUserID(ctx context.Context, arg RevokeOldestActiveUserLoginSessionByUserIDParams) (int64, error) {
-	result, err := q.db.ExecContext(ctx, revokeOldestActiveUserLoginSessionByUserID, arg.UserID, arg.RevokedAt, arg.ExpiresAt)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected()
 }
 
 const markUserLoginSessionReuseDetected = `-- name: MarkUserLoginSessionReuseDetected :execrows
@@ -280,6 +237,35 @@ func (q *Queries) MarkUserLoginSessionRotated(ctx context.Context, arg MarkUserL
 	return result.RowsAffected()
 }
 
+const revokeOldestActiveUserLoginSessionByUserID = `-- name: RevokeOldestActiveUserLoginSessionByUserID :execrows
+UPDATE gugu.user_login_session
+SET revoked_at = $2
+WHERE id = (
+    SELECT s.id
+    FROM gugu.user_login_session s
+    WHERE s.user_id = $1
+      AND s.revoked_at IS NULL
+      AND s.rotated_at IS NULL
+      AND s.expires_at > $3
+    ORDER BY s.created_at ASC
+    LIMIT 1
+)
+`
+
+type RevokeOldestActiveUserLoginSessionByUserIDParams struct {
+	UserID    string       `json:"user_id"`
+	RevokedAt sql.NullTime `json:"revoked_at"`
+	ExpiresAt time.Time    `json:"expires_at"`
+}
+
+func (q *Queries) RevokeOldestActiveUserLoginSessionByUserID(ctx context.Context, arg RevokeOldestActiveUserLoginSessionByUserIDParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, revokeOldestActiveUserLoginSessionByUserID, arg.UserID, arg.RevokedAt, arg.ExpiresAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const revokeUserLoginSession = `-- name: RevokeUserLoginSession :execrows
 UPDATE gugu.user_login_session
 SET revoked_at = $2
@@ -297,6 +283,25 @@ func (q *Queries) RevokeUserLoginSession(ctx context.Context, arg RevokeUserLogi
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const revokeUserLoginSessionByUserIDSessionID = `-- name: RevokeUserLoginSessionByUserIDSessionID :exec
+UPDATE gugu.user_login_session
+SET revoked_at = $3
+WHERE user_id = $1
+  AND id = $2
+  AND revoked_at IS NULL
+`
+
+type RevokeUserLoginSessionByUserIDSessionIDParams struct {
+	UserID    string       `json:"user_id"`
+	ID        string       `json:"id"`
+	RevokedAt sql.NullTime `json:"revoked_at"`
+}
+
+func (q *Queries) RevokeUserLoginSessionByUserIDSessionID(ctx context.Context, arg RevokeUserLoginSessionByUserIDSessionIDParams) error {
+	_, err := q.db.ExecContext(ctx, revokeUserLoginSessionByUserIDSessionID, arg.UserID, arg.ID, arg.RevokedAt)
+	return err
 }
 
 const revokeUserLoginSessionFamily = `-- name: RevokeUserLoginSessionFamily :execrows

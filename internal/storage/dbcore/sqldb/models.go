@@ -84,34 +84,6 @@ type GuguProduct struct {
 	UpdatedAt         time.Time `json:"updated_at"`
 }
 
-type GuguProductPriceHistory struct {
-	ProductID   string    `json:"product_id"`
-	RecordedAt  time.Time `json:"recorded_at"`
-	Price       string    `json:"price"`
-	Currency    string    `json:"currency"`
-	ChangeValue string    `json:"change_value"`
-}
-
-type GuguProductPriceSnapshot struct {
-	ProductID    string    `json:"product_id"`
-	SnapshotDate time.Time `json:"snapshot_date"`
-	Price        string    `json:"price"`
-	Currency     string    `json:"currency"`
-}
-
-type GuguProductVariant struct {
-	ProductID       string       `json:"product_id"`
-	Language        string       `json:"language"`
-	Currency        string       `json:"currency"`
-	Title           string       `json:"title"`
-	MainImageUrl    string       `json:"main_image_url"`
-	ProductUrl      string       `json:"product_url"`
-	CurrentPrice    string       `json:"current_price"`
-	LastCollectedAt sql.NullTime `json:"last_collected_at"`
-	CreatedAt       time.Time    `json:"created_at"`
-	UpdatedAt       time.Time    `json:"updated_at"`
-}
-
 type GuguSku struct {
 	ID            string    `json:"id"`
 	ProductID     string    `json:"product_id"`
@@ -163,12 +135,21 @@ type GuguUserLoginSession struct {
 }
 
 type GuguUserTrackedItem struct {
-	ID          string         `json:"id"`
-	UserID      string         `json:"user_id"`
-	ProductID   string         `json:"product_id"`
-	SkuID       sql.NullString `json:"sku_id"`
-	OriginalUrl string         `json:"original_url"`
-	Currency    string         `json:"currency"`
-	DeletedAt   sql.NullTime   `json:"deleted_at"`
-	CreatedAt   time.Time      `json:"created_at"`
+	ID                    string         `json:"id"`
+	UserID                string         `json:"user_id"`
+	ProductID             string         `json:"product_id"`
+	SkuID                 sql.NullString `json:"sku_id"`
+	OriginalUrl           string         `json:"original_url"`
+	ViewExternalProductID string         `json:"view_external_product_id"`
+	PreferredLanguage     string         `json:"preferred_language"`
+	TrackingScope         string         `json:"tracking_scope"`
+	Currency              string         `json:"currency"`
+	DeletedAt             sql.NullTime   `json:"deleted_at"`
+	CreatedAt             time.Time      `json:"created_at"`
+}
+
+type GuguUserTrackedItemWatchSku struct {
+	TrackedItemID string    `json:"tracked_item_id"`
+	SkuID         string    `json:"sku_id"`
+	CreatedAt     time.Time `json:"created_at"`
 }

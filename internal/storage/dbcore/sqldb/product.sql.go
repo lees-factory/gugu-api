@@ -7,7 +7,6 @@ package sqldb
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
 	"github.com/lib/pq"
@@ -144,120 +143,6 @@ func (q *Queries) FindProductByMarketAndExternalProductID(ctx context.Context, a
 		&i.UpdatedAt,
 	)
 	return i, err
-}
-
-const findProductVariantByProductIDLanguageCurrency = `-- name: FindProductVariantByProductIDLanguageCurrency :one
-SELECT
-    product_id,
-    language,
-    currency,
-    title,
-    main_image_url,
-    product_url,
-    current_price,
-    last_collected_at,
-    created_at,
-    updated_at
-FROM gugu.product_variant
-WHERE product_id = $1
-  AND language = $2
-  AND currency = $3
-`
-
-type FindProductVariantByProductIDLanguageCurrencyParams struct {
-	ProductID string `json:"product_id"`
-	Language  string `json:"language"`
-	Currency  string `json:"currency"`
-}
-
-func (q *Queries) FindProductVariantByProductIDLanguageCurrency(ctx context.Context, arg FindProductVariantByProductIDLanguageCurrencyParams) (GuguProductVariant, error) {
-	row := q.db.QueryRowContext(ctx, findProductVariantByProductIDLanguageCurrency, arg.ProductID, arg.Language, arg.Currency)
-	var i GuguProductVariant
-	err := row.Scan(
-		&i.ProductID,
-		&i.Language,
-		&i.Currency,
-		&i.Title,
-		&i.MainImageUrl,
-		&i.ProductUrl,
-		&i.CurrentPrice,
-		&i.LastCollectedAt,
-		&i.CreatedAt,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const findProductVariantsByLookupKeys = `-- name: FindProductVariantsByLookupKeys :many
-WITH args AS (
-    SELECT
-        $1::text[] AS product_ids,
-        $2::text[] AS languages,
-        $3::text[] AS currencies
-),
-lookup AS (
-    SELECT
-        product_ids[idx] AS product_id,
-        languages[idx] AS language,
-        currencies[idx] AS currency
-    FROM args, generate_subscripts(product_ids, 1) AS idx
-)
-SELECT
-    pv.product_id,
-    pv.language,
-    pv.currency,
-    pv.title,
-    pv.main_image_url,
-    pv.product_url,
-    pv.current_price,
-    pv.last_collected_at,
-    pv.created_at,
-    pv.updated_at
-FROM gugu.product_variant pv
-JOIN lookup
-  ON pv.product_id = lookup.product_id
- AND pv.language = lookup.language
- AND pv.currency = lookup.currency
-`
-
-type FindProductVariantsByLookupKeysParams struct {
-	Column1 []string `json:"column_1"`
-	Column2 []string `json:"column_2"`
-	Column3 []string `json:"column_3"`
-}
-
-func (q *Queries) FindProductVariantsByLookupKeys(ctx context.Context, arg FindProductVariantsByLookupKeysParams) ([]GuguProductVariant, error) {
-	rows, err := q.db.QueryContext(ctx, findProductVariantsByLookupKeys, pq.Array(arg.Column1), pq.Array(arg.Column2), pq.Array(arg.Column3))
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GuguProductVariant
-	for rows.Next() {
-		var i GuguProductVariant
-		if err := rows.Scan(
-			&i.ProductID,
-			&i.Language,
-			&i.Currency,
-			&i.Title,
-			&i.MainImageUrl,
-			&i.ProductUrl,
-			&i.CurrentPrice,
-			&i.LastCollectedAt,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const findProductsByIDs = `-- name: FindProductsByIDs :many
@@ -473,58 +358,4 @@ func (q *Queries) UpdateProduct(ctx context.Context, arg UpdateProductParams) (i
 		return 0, err
 	}
 	return result.RowsAffected()
-}
-
-const upsertProductVariant = `-- name: UpsertProductVariant :exec
-INSERT INTO gugu.product_variant (
-    product_id,
-    language,
-    currency,
-    title,
-    main_image_url,
-    product_url,
-    current_price,
-    last_collected_at,
-    created_at,
-    updated_at
-) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
-)
-ON CONFLICT (product_id, language, currency)
-DO UPDATE SET
-    title = EXCLUDED.title,
-    main_image_url = EXCLUDED.main_image_url,
-    product_url = EXCLUDED.product_url,
-    current_price = EXCLUDED.current_price,
-    last_collected_at = EXCLUDED.last_collected_at,
-    updated_at = EXCLUDED.updated_at
-`
-
-type UpsertProductVariantParams struct {
-	ProductID       string       `json:"product_id"`
-	Language        string       `json:"language"`
-	Currency        string       `json:"currency"`
-	Title           string       `json:"title"`
-	MainImageUrl    string       `json:"main_image_url"`
-	ProductUrl      string       `json:"product_url"`
-	CurrentPrice    string       `json:"current_price"`
-	LastCollectedAt sql.NullTime `json:"last_collected_at"`
-	CreatedAt       time.Time    `json:"created_at"`
-	UpdatedAt       time.Time    `json:"updated_at"`
-}
-
-func (q *Queries) UpsertProductVariant(ctx context.Context, arg UpsertProductVariantParams) error {
-	_, err := q.db.ExecContext(ctx, upsertProductVariant,
-		arg.ProductID,
-		arg.Language,
-		arg.Currency,
-		arg.Title,
-		arg.MainImageUrl,
-		arg.ProductUrl,
-		arg.CurrentPrice,
-		arg.LastCollectedAt,
-		arg.CreatedAt,
-		arg.UpdatedAt,
-	)
-	return err
 }

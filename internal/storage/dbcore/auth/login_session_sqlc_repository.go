@@ -50,7 +50,7 @@ func (r *LoginSessionSQLCRepository) FindByRefreshTokenHash(ctx context.Context,
 }
 
 func (r *LoginSessionSQLCRepository) ListActiveByUserID(ctx context.Context, userID string, now time.Time) ([]supportauth.LoginSession, error) {
-	rows, err := r.queries.ListActiveUserLoginSessionsByUserID(ctx, sqldb.CountActiveUserLoginSessionsByUserIDParams{
+	rows, err := r.queries.ListActiveUserLoginSessionsByUserID(ctx, sqldb.ListActiveUserLoginSessionsByUserIDParams{
 		UserID:    userID,
 		ExpiresAt: now,
 	})

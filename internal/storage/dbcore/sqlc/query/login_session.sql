@@ -79,13 +79,13 @@ WHERE user_id = $1
 UPDATE gugu.user_login_session
 SET revoked_at = $2
 WHERE id = (
-    SELECT id
-    FROM gugu.user_login_session
-    WHERE user_id = $1
-      AND revoked_at IS NULL
-      AND rotated_at IS NULL
-      AND expires_at > $3
-    ORDER BY created_at ASC
+    SELECT s.id
+    FROM gugu.user_login_session s
+    WHERE s.user_id = $1
+      AND s.revoked_at IS NULL
+      AND s.rotated_at IS NULL
+      AND s.expires_at > $3
+    ORDER BY s.created_at ASC
     LIMIT 1
 );
 
