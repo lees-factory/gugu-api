@@ -46,9 +46,6 @@ func (c *Controller) RegisterRoutes(r chi.Router) {
 		r.Get("/", apiadvice.Wrap(c.List))
 		r.Post("/", apiadvice.Wrap(c.Add))
 		r.Get("/{trackedItemID}", apiadvice.Wrap(c.GetDetail))
-		r.Get("/{trackedItemID}/price-alert", apiadvice.Wrap(c.GetPriceAlert))
-		r.Post("/{trackedItemID}/price-alert", apiadvice.Wrap(c.RegisterPriceAlert))
-		r.Delete("/{trackedItemID}/price-alert", apiadvice.Wrap(c.UnregisterPriceAlert))
 		r.Get("/{trackedItemID}/skus/{skuID}/price-alert", apiadvice.Wrap(c.GetPriceAlert))
 		r.Post("/{trackedItemID}/skus/{skuID}/price-alert", apiadvice.Wrap(c.RegisterPriceAlert))
 		r.Delete("/{trackedItemID}/skus/{skuID}/price-alert", apiadvice.Wrap(c.UnregisterPriceAlert))
@@ -207,13 +204,9 @@ func (c *Controller) GetPriceAlert(r *stdhttp.Request) (int, any, error) {
 		return 0, nil, err
 	}
 
-	skuID, err := resolveTrackedItemPriceAlertSKUID(detail, req.SKUID, false)
+	skuID, err := resolveTrackedItemPriceAlertSKUID(detail, req.SKUID, true)
 	if err != nil {
 		return 0, nil, err
-	}
-	if skuID == "" {
-		alertState := c.resolvePriceAlertStateByTrackedItem(r, detail)
-		return stdhttp.StatusOK, apiresponse.SuccessWithData(*alertState), nil
 	}
 
 	alertState := c.resolvePriceAlertStateBySKUID(r, detail.TrackedItem.UserID, skuID)
@@ -310,45 +303,6 @@ func (c *Controller) resolvePriceAlertStateBySKUID(r *stdhttp.Request, userID st
 	}
 	state := response.NewPriceAlertState(alert)
 	return &state
-}
-
-func (c *Controller) resolvePriceAlertStateByTrackedItem(r *stdhttp.Request, detail *domaintrackeditem.TrackedItemDetail) *response.PriceAlertState {
-	if c.priceAlertService == nil || detail == nil {
-		defaultState := response.NewPriceAlertState(nil)
-		return &defaultState
-	}
-
-	seen := make(map[string]struct{}, len(detail.SKUs)+1)
-	candidates := make([]string, 0, len(detail.SKUs)+1)
-
-	selected := strings.TrimSpace(detail.TrackedItem.SKUID)
-	if selected != "" {
-		seen[selected] = struct{}{}
-		candidates = append(candidates, selected)
-	}
-	for _, sku := range detail.SKUs {
-		skuID := strings.TrimSpace(sku.ID)
-		if skuID == "" {
-			continue
-		}
-		if _, ok := seen[skuID]; ok {
-			continue
-		}
-		seen[skuID] = struct{}{}
-		candidates = append(candidates, skuID)
-	}
-
-	for _, skuID := range candidates {
-		alert, err := c.priceAlertService.FindByUserIDAndSKUID(r.Context(), detail.TrackedItem.UserID, skuID)
-		if err != nil || alert == nil {
-			continue
-		}
-		state := response.NewPriceAlertState(alert)
-		return &state
-	}
-
-	defaultState := response.NewPriceAlertState(nil)
-	return &defaultState
 }
 
 func containsSKUID(skus []domainproduct.SKU, skuID string) bool {

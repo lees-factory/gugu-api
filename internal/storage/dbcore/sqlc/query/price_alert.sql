@@ -17,18 +17,6 @@ SELECT id, user_id, sku_id, channel, enabled, created_at
 FROM gugu.price_alert
 WHERE sku_id = $1 AND enabled = TRUE;
 
--- name: ListPriceAlertsByProductID :many
-SELECT pa.id, pa.user_id, pa.sku_id, pa.channel, pa.enabled, pa.created_at
-FROM gugu.price_alert pa
-JOIN gugu.sku s ON s.id = pa.sku_id
-WHERE s.product_id = $1 AND pa.enabled = TRUE;
-
--- name: ListPriceAlertsByProductIDs :many
-SELECT pa.id, pa.user_id, pa.sku_id, pa.channel, pa.enabled, pa.created_at
-FROM gugu.price_alert pa
-JOIN gugu.sku s ON s.id = pa.sku_id
-WHERE s.product_id = ANY($1::text[]) AND pa.enabled = TRUE;
-
 -- name: ListPriceAlertsByUserID :many
 SELECT id, user_id, sku_id, channel, enabled, created_at
 FROM gugu.price_alert

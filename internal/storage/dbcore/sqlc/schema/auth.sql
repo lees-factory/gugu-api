@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS gugu.product (
     id TEXT PRIMARY KEY,
     market TEXT NOT NULL,
     external_product_id TEXT NOT NULL,
+    origin_product_id TEXT,
     original_url TEXT NOT NULL DEFAULT '',
     title TEXT NOT NULL DEFAULT '',
     main_image_url TEXT NOT NULL DEFAULT '',
@@ -108,6 +109,9 @@ CREATE INDEX IF NOT EXISTS idx_user_login_session_family_id ON gugu.user_login_s
 CREATE INDEX IF NOT EXISTS idx_aliexpress_seller_token_access_token_expires_at ON gugu.aliexpress_seller_token(access_token_expires_at);
 CREATE INDEX IF NOT EXISTS idx_aliexpress_seller_token_refresh_token_expires_at ON gugu.aliexpress_seller_token(refresh_token_expires_at);
 CREATE INDEX IF NOT EXISTS idx_product_market_external_product_id ON gugu.product(market, external_product_id);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_product_market_origin_product_id
+    ON gugu.product(market, origin_product_id)
+    WHERE origin_product_id IS NOT NULL AND BTRIM(origin_product_id) <> '';
 CREATE INDEX IF NOT EXISTS idx_user_tracked_item_user_id ON gugu.user_tracked_item(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_tracked_item_product_id ON gugu.user_tracked_item(product_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_user_tracked_item_user_product_active
@@ -122,9 +126,6 @@ CREATE TABLE IF NOT EXISTS gugu.sku (
     sku_name TEXT NOT NULL DEFAULT '',
     color TEXT NOT NULL DEFAULT '',
     size TEXT NOT NULL DEFAULT '',
-    price TEXT NOT NULL DEFAULT '',
-    original_price TEXT NOT NULL DEFAULT '',
-    currency TEXT NOT NULL DEFAULT '',
     image_url TEXT NOT NULL DEFAULT '',
     sku_properties TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

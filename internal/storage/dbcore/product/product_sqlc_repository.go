@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	domainproduct "github.com/ljj/gugu-api/internal/core/domain/product"
 	"github.com/ljj/gugu-api/internal/core/enum"
@@ -26,7 +27,7 @@ func (r *ProductSQLCRepository) FindByID(ctx context.Context, productID string) 
 		}
 		return nil, err
 	}
-	item := toDomainProduct(row)
+	item := toDomainProductFromFindByID(row)
 	return &item, nil
 }
 
@@ -37,7 +38,7 @@ func (r *ProductSQLCRepository) FindByIDs(ctx context.Context, productIDs []stri
 	}
 	products := make([]domainproduct.Product, len(rows))
 	for i, row := range rows {
-		products[i] = toDomainProduct(row)
+		products[i] = toDomainProductFromFindByIDs(row)
 	}
 	return products, nil
 }
@@ -53,7 +54,7 @@ func (r *ProductSQLCRepository) FindByMarketAndExternalProductID(ctx context.Con
 		}
 		return nil, err
 	}
-	item := toDomainProduct(row)
+	item := toDomainProductFromFindByMarketAndExternalProductID(row)
 	return &item, nil
 }
 
@@ -102,7 +103,7 @@ func (r *ProductSQLCRepository) ListByMarket(ctx context.Context, market enum.Ma
 	}
 	products := make([]domainproduct.Product, len(rows))
 	for i, row := range rows {
-		products[i] = toDomainProduct(row)
+		products[i] = toDomainProductFromListByMarket(row)
 	}
 	return products, nil
 }
@@ -118,24 +119,122 @@ func (r *ProductSQLCRepository) ListByCollectionSource(ctx context.Context, sour
 	}
 	products := make([]domainproduct.Product, len(rows))
 	for i, row := range rows {
-		products[i] = toDomainProduct(row)
+		products[i] = toDomainProductFromListByCollectionSource(row)
 	}
 	return products, nil
 }
 
-func toDomainProduct(row sqldb.GuguProduct) domainproduct.Product {
+func toDomainProductValues(
+	id string,
+	market string,
+	externalProductID string,
+	originalURL string,
+	title string,
+	mainImageURL string,
+	productURL string,
+	promotionLink string,
+	collectionSource string,
+	lastCollectedAt time.Time,
+	createdAt time.Time,
+	updatedAt time.Time,
+) domainproduct.Product {
 	return domainproduct.Product{
-		ID:                row.ID,
-		Market:            enum.Market(row.Market),
-		ExternalProductID: row.ExternalProductID,
-		OriginalURL:       row.OriginalUrl,
-		Title:             row.Title,
-		MainImageURL:      row.MainImageUrl,
-		ProductURL:        row.ProductUrl,
-		PromotionLink:     row.PromotionLink,
-		CollectionSource:  row.CollectionSource,
-		LastCollectedAt:   row.LastCollectedAt,
-		CreatedAt:         row.CreatedAt,
-		UpdatedAt:         row.UpdatedAt,
+		ID:                id,
+		Market:            enum.Market(market),
+		ExternalProductID: externalProductID,
+		OriginalURL:       originalURL,
+		Title:             title,
+		MainImageURL:      mainImageURL,
+		ProductURL:        productURL,
+		PromotionLink:     promotionLink,
+		CollectionSource:  collectionSource,
+		LastCollectedAt:   lastCollectedAt,
+		CreatedAt:         createdAt,
+		UpdatedAt:         updatedAt,
 	}
+}
+
+func toDomainProductFromFindByID(row sqldb.FindProductByIDRow) domainproduct.Product {
+	return toDomainProductValues(
+		row.ID,
+		row.Market,
+		row.ExternalProductID,
+		row.OriginalUrl,
+		row.Title,
+		row.MainImageUrl,
+		row.ProductUrl,
+		row.PromotionLink,
+		row.CollectionSource,
+		row.LastCollectedAt,
+		row.CreatedAt,
+		row.UpdatedAt,
+	)
+}
+
+func toDomainProductFromFindByIDs(row sqldb.FindProductsByIDsRow) domainproduct.Product {
+	return toDomainProductValues(
+		row.ID,
+		row.Market,
+		row.ExternalProductID,
+		row.OriginalUrl,
+		row.Title,
+		row.MainImageUrl,
+		row.ProductUrl,
+		row.PromotionLink,
+		row.CollectionSource,
+		row.LastCollectedAt,
+		row.CreatedAt,
+		row.UpdatedAt,
+	)
+}
+
+func toDomainProductFromFindByMarketAndExternalProductID(row sqldb.FindProductByMarketAndExternalProductIDRow) domainproduct.Product {
+	return toDomainProductValues(
+		row.ID,
+		row.Market,
+		row.ExternalProductID,
+		row.OriginalUrl,
+		row.Title,
+		row.MainImageUrl,
+		row.ProductUrl,
+		row.PromotionLink,
+		row.CollectionSource,
+		row.LastCollectedAt,
+		row.CreatedAt,
+		row.UpdatedAt,
+	)
+}
+
+func toDomainProductFromListByMarket(row sqldb.ListProductsByMarketRow) domainproduct.Product {
+	return toDomainProductValues(
+		row.ID,
+		row.Market,
+		row.ExternalProductID,
+		row.OriginalUrl,
+		row.Title,
+		row.MainImageUrl,
+		row.ProductUrl,
+		row.PromotionLink,
+		row.CollectionSource,
+		row.LastCollectedAt,
+		row.CreatedAt,
+		row.UpdatedAt,
+	)
+}
+
+func toDomainProductFromListByCollectionSource(row sqldb.ListProductsByCollectionSourceRow) domainproduct.Product {
+	return toDomainProductValues(
+		row.ID,
+		row.Market,
+		row.ExternalProductID,
+		row.OriginalUrl,
+		row.Title,
+		row.MainImageUrl,
+		row.ProductUrl,
+		row.PromotionLink,
+		row.CollectionSource,
+		row.LastCollectedAt,
+		row.CreatedAt,
+		row.UpdatedAt,
+	)
 }

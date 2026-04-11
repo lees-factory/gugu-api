@@ -40,22 +40,6 @@ func (r *SQLCRepository) ListBySKUID(ctx context.Context, skuID string) ([]domai
 	return toDomainList(rows), nil
 }
 
-func (r *SQLCRepository) ListByProductID(ctx context.Context, productID string) ([]domainpricealert.PriceAlert, error) {
-	rows, err := r.queries.ListPriceAlertsByProductID(ctx, productID)
-	if err != nil {
-		return nil, err
-	}
-	return toDomainList(rows), nil
-}
-
-func (r *SQLCRepository) ListByProductIDs(ctx context.Context, productIDs []string) ([]domainpricealert.PriceAlert, error) {
-	rows, err := r.queries.ListPriceAlertsByProductIDs(ctx, productIDs)
-	if err != nil {
-		return nil, err
-	}
-	return toDomainList(rows), nil
-}
-
 func (r *SQLCRepository) ListByUserID(ctx context.Context, userID string) ([]domainpricealert.PriceAlert, error) {
 	rows, err := r.queries.ListPriceAlertsByUserID(ctx, userID)
 	if err != nil {

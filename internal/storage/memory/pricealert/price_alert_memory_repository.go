@@ -44,15 +44,6 @@ func (r *MemoryRepository) ListBySKUID(_ context.Context, skuID string) ([]domai
 	return result, nil
 }
 
-func (r *MemoryRepository) ListByProductID(_ context.Context, _ string) ([]domainpricealert.PriceAlert, error) {
-	return nil, nil
-}
-
-func (r *MemoryRepository) ListByProductIDs(_ context.Context, productIDs []string) ([]domainpricealert.PriceAlert, error) {
-	_ = productIDs
-	return nil, nil
-}
-
 func (r *MemoryRepository) ListByUserID(_ context.Context, userID string) ([]domainpricealert.PriceAlert, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

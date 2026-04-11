@@ -99,11 +99,3 @@ func (s *Service) ListBySKUID(ctx context.Context, skuID string) ([]PriceAlert, 
 func (s *Service) ListByUserID(ctx context.Context, userID string) ([]PriceAlert, error) {
 	return s.finder.ListByUserID(ctx, strings.TrimSpace(userID))
 }
-
-func (s *Service) ListByProductID(ctx context.Context, productID string) ([]PriceAlert, error) {
-	return s.finder.ListByProductID(ctx, strings.TrimSpace(productID))
-}
-
-func (s *Service) ListByProductIDs(ctx context.Context, productIDs []string) ([]PriceAlert, error) {
-	return s.finder.ListByProductIDs(ctx, productIDs)
-}

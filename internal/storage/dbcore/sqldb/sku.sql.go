@@ -19,15 +19,12 @@ INSERT INTO gugu.sku (
     sku_name,
     color,
     size,
-    price,
-    original_price,
-    currency,
     image_url,
     sku_properties,
     created_at,
     updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
 )
 `
 
@@ -39,9 +36,6 @@ type CreateProductSKUParams struct {
 	SkuName       string    `json:"sku_name"`
 	Color         string    `json:"color"`
 	Size          string    `json:"size"`
-	Price         string    `json:"price"`
-	OriginalPrice string    `json:"original_price"`
-	Currency      string    `json:"currency"`
 	ImageUrl      string    `json:"image_url"`
 	SkuProperties string    `json:"sku_properties"`
 	CreatedAt     time.Time `json:"created_at"`
@@ -57,9 +51,6 @@ func (q *Queries) CreateProductSKU(ctx context.Context, arg CreateProductSKUPara
 		arg.SkuName,
 		arg.Color,
 		arg.Size,
-		arg.Price,
-		arg.OriginalPrice,
-		arg.Currency,
 		arg.ImageUrl,
 		arg.SkuProperties,
 		arg.CreatedAt,
@@ -77,9 +68,6 @@ SELECT
     sku_name,
     color,
     size,
-    price,
-    original_price,
-    currency,
     image_url,
     sku_properties,
     created_at,
@@ -99,9 +87,6 @@ func (q *Queries) FindProductSKUByID(ctx context.Context, id string) (GuguSku, e
 		&i.SkuName,
 		&i.Color,
 		&i.Size,
-		&i.Price,
-		&i.OriginalPrice,
-		&i.Currency,
 		&i.ImageUrl,
 		&i.SkuProperties,
 		&i.CreatedAt,
@@ -119,9 +104,6 @@ SELECT
     sku_name,
     color,
     size,
-    price,
-    original_price,
-    currency,
     image_url,
     sku_properties,
     created_at,
@@ -146,9 +128,6 @@ func (q *Queries) FindProductSKUByProductIDAndExternalSKUID(ctx context.Context,
 		&i.SkuName,
 		&i.Color,
 		&i.Size,
-		&i.Price,
-		&i.OriginalPrice,
-		&i.Currency,
 		&i.ImageUrl,
 		&i.SkuProperties,
 		&i.CreatedAt,
@@ -166,9 +145,6 @@ SELECT
     sku_name,
     color,
     size,
-    price,
-    original_price,
-    currency,
     image_url,
     sku_properties,
     created_at,
@@ -195,9 +171,6 @@ func (q *Queries) FindProductSKUsByProductID(ctx context.Context, productID stri
 			&i.SkuName,
 			&i.Color,
 			&i.Size,
-			&i.Price,
-			&i.OriginalPrice,
-			&i.Currency,
 			&i.ImageUrl,
 			&i.SkuProperties,
 			&i.CreatedAt,
@@ -225,24 +198,18 @@ INSERT INTO gugu.sku (
     sku_name,
     color,
     size,
-    price,
-    original_price,
-    currency,
     image_url,
     sku_properties,
     created_at,
     updated_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
 )
 ON CONFLICT (product_id, external_sku_id) DO UPDATE SET
     origin_sku_id = EXCLUDED.origin_sku_id,
     sku_name = EXCLUDED.sku_name,
     color = EXCLUDED.color,
     size = EXCLUDED.size,
-    price = EXCLUDED.price,
-    original_price = EXCLUDED.original_price,
-    currency = EXCLUDED.currency,
     image_url = EXCLUDED.image_url,
     sku_properties = EXCLUDED.sku_properties,
     updated_at = EXCLUDED.updated_at
@@ -256,9 +223,6 @@ type UpsertProductSKUParams struct {
 	SkuName       string    `json:"sku_name"`
 	Color         string    `json:"color"`
 	Size          string    `json:"size"`
-	Price         string    `json:"price"`
-	OriginalPrice string    `json:"original_price"`
-	Currency      string    `json:"currency"`
 	ImageUrl      string    `json:"image_url"`
 	SkuProperties string    `json:"sku_properties"`
 	CreatedAt     time.Time `json:"created_at"`
@@ -274,9 +238,6 @@ func (q *Queries) UpsertProductSKU(ctx context.Context, arg UpsertProductSKUPara
 		arg.SkuName,
 		arg.Color,
 		arg.Size,
-		arg.Price,
-		arg.OriginalPrice,
-		arg.Currency,
 		arg.ImageUrl,
 		arg.SkuProperties,
 		arg.CreatedAt,

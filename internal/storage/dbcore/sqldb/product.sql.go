@@ -82,9 +82,24 @@ FROM gugu.product
 WHERE id = $1
 `
 
-func (q *Queries) FindProductByID(ctx context.Context, id string) (GuguProduct, error) {
+type FindProductByIDRow struct {
+	ID                string    `json:"id"`
+	Market            string    `json:"market"`
+	ExternalProductID string    `json:"external_product_id"`
+	OriginalUrl       string    `json:"original_url"`
+	Title             string    `json:"title"`
+	MainImageUrl      string    `json:"main_image_url"`
+	ProductUrl        string    `json:"product_url"`
+	PromotionLink     string    `json:"promotion_link"`
+	CollectionSource  string    `json:"collection_source"`
+	LastCollectedAt   time.Time `json:"last_collected_at"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+func (q *Queries) FindProductByID(ctx context.Context, id string) (FindProductByIDRow, error) {
 	row := q.db.QueryRowContext(ctx, findProductByID, id)
-	var i GuguProduct
+	var i FindProductByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.Market,
@@ -125,9 +140,24 @@ type FindProductByMarketAndExternalProductIDParams struct {
 	ExternalProductID string `json:"external_product_id"`
 }
 
-func (q *Queries) FindProductByMarketAndExternalProductID(ctx context.Context, arg FindProductByMarketAndExternalProductIDParams) (GuguProduct, error) {
+type FindProductByMarketAndExternalProductIDRow struct {
+	ID                string    `json:"id"`
+	Market            string    `json:"market"`
+	ExternalProductID string    `json:"external_product_id"`
+	OriginalUrl       string    `json:"original_url"`
+	Title             string    `json:"title"`
+	MainImageUrl      string    `json:"main_image_url"`
+	ProductUrl        string    `json:"product_url"`
+	PromotionLink     string    `json:"promotion_link"`
+	CollectionSource  string    `json:"collection_source"`
+	LastCollectedAt   time.Time `json:"last_collected_at"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+func (q *Queries) FindProductByMarketAndExternalProductID(ctx context.Context, arg FindProductByMarketAndExternalProductIDParams) (FindProductByMarketAndExternalProductIDRow, error) {
 	row := q.db.QueryRowContext(ctx, findProductByMarketAndExternalProductID, arg.Market, arg.ExternalProductID)
-	var i GuguProduct
+	var i FindProductByMarketAndExternalProductIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.Market,
@@ -163,15 +193,30 @@ FROM gugu.product
 WHERE id = ANY($1::text[])
 `
 
-func (q *Queries) FindProductsByIDs(ctx context.Context, dollar_1 []string) ([]GuguProduct, error) {
+type FindProductsByIDsRow struct {
+	ID                string    `json:"id"`
+	Market            string    `json:"market"`
+	ExternalProductID string    `json:"external_product_id"`
+	OriginalUrl       string    `json:"original_url"`
+	Title             string    `json:"title"`
+	MainImageUrl      string    `json:"main_image_url"`
+	ProductUrl        string    `json:"product_url"`
+	PromotionLink     string    `json:"promotion_link"`
+	CollectionSource  string    `json:"collection_source"`
+	LastCollectedAt   time.Time `json:"last_collected_at"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+func (q *Queries) FindProductsByIDs(ctx context.Context, dollar_1 []string) ([]FindProductsByIDsRow, error) {
 	rows, err := q.db.QueryContext(ctx, findProductsByIDs, pq.Array(dollar_1))
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GuguProduct
+	var items []FindProductsByIDsRow
 	for rows.Next() {
-		var i GuguProduct
+		var i FindProductsByIDsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Market,
@@ -225,15 +270,30 @@ type ListProductsByCollectionSourceParams struct {
 	Offset           int32  `json:"offset"`
 }
 
-func (q *Queries) ListProductsByCollectionSource(ctx context.Context, arg ListProductsByCollectionSourceParams) ([]GuguProduct, error) {
+type ListProductsByCollectionSourceRow struct {
+	ID                string    `json:"id"`
+	Market            string    `json:"market"`
+	ExternalProductID string    `json:"external_product_id"`
+	OriginalUrl       string    `json:"original_url"`
+	Title             string    `json:"title"`
+	MainImageUrl      string    `json:"main_image_url"`
+	ProductUrl        string    `json:"product_url"`
+	PromotionLink     string    `json:"promotion_link"`
+	CollectionSource  string    `json:"collection_source"`
+	LastCollectedAt   time.Time `json:"last_collected_at"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+func (q *Queries) ListProductsByCollectionSource(ctx context.Context, arg ListProductsByCollectionSourceParams) ([]ListProductsByCollectionSourceRow, error) {
 	rows, err := q.db.QueryContext(ctx, listProductsByCollectionSource, arg.CollectionSource, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GuguProduct
+	var items []ListProductsByCollectionSourceRow
 	for rows.Next() {
-		var i GuguProduct
+		var i ListProductsByCollectionSourceRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Market,
@@ -280,15 +340,30 @@ WHERE market = $1
 ORDER BY created_at
 `
 
-func (q *Queries) ListProductsByMarket(ctx context.Context, market string) ([]GuguProduct, error) {
+type ListProductsByMarketRow struct {
+	ID                string    `json:"id"`
+	Market            string    `json:"market"`
+	ExternalProductID string    `json:"external_product_id"`
+	OriginalUrl       string    `json:"original_url"`
+	Title             string    `json:"title"`
+	MainImageUrl      string    `json:"main_image_url"`
+	ProductUrl        string    `json:"product_url"`
+	PromotionLink     string    `json:"promotion_link"`
+	CollectionSource  string    `json:"collection_source"`
+	LastCollectedAt   time.Time `json:"last_collected_at"`
+	CreatedAt         time.Time `json:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at"`
+}
+
+func (q *Queries) ListProductsByMarket(ctx context.Context, market string) ([]ListProductsByMarketRow, error) {
 	rows, err := q.db.QueryContext(ctx, listProductsByMarket, market)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []GuguProduct
+	var items []ListProductsByMarketRow
 	for rows.Next() {
-		var i GuguProduct
+		var i ListProductsByMarketRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.Market,

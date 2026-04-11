@@ -8,8 +8,6 @@ package sqldb
 import (
 	"context"
 	"time"
-
-	"github.com/lib/pq"
 )
 
 const createPriceAlert = `-- name: CreatePriceAlert :exec
@@ -66,80 +64,6 @@ func (q *Queries) FindPriceAlertByUserIDAndSKUID(ctx context.Context, arg FindPr
 		&i.CreatedAt,
 	)
 	return i, err
-}
-
-const listPriceAlertsByProductID = `-- name: ListPriceAlertsByProductID :many
-SELECT pa.id, pa.user_id, pa.sku_id, pa.channel, pa.enabled, pa.created_at
-FROM gugu.price_alert pa
-JOIN gugu.sku s ON s.id = pa.sku_id
-WHERE s.product_id = $1 AND pa.enabled = TRUE
-`
-
-func (q *Queries) ListPriceAlertsByProductID(ctx context.Context, productID string) ([]GuguPriceAlert, error) {
-	rows, err := q.db.QueryContext(ctx, listPriceAlertsByProductID, productID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GuguPriceAlert
-	for rows.Next() {
-		var i GuguPriceAlert
-		if err := rows.Scan(
-			&i.ID,
-			&i.UserID,
-			&i.SkuID,
-			&i.Channel,
-			&i.Enabled,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const listPriceAlertsByProductIDs = `-- name: ListPriceAlertsByProductIDs :many
-SELECT pa.id, pa.user_id, pa.sku_id, pa.channel, pa.enabled, pa.created_at
-FROM gugu.price_alert pa
-JOIN gugu.sku s ON s.id = pa.sku_id
-WHERE s.product_id = ANY($1::text[]) AND pa.enabled = TRUE
-`
-
-func (q *Queries) ListPriceAlertsByProductIDs(ctx context.Context, dollar_1 []string) ([]GuguPriceAlert, error) {
-	rows, err := q.db.QueryContext(ctx, listPriceAlertsByProductIDs, pq.Array(dollar_1))
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []GuguPriceAlert
-	for rows.Next() {
-		var i GuguPriceAlert
-		if err := rows.Scan(
-			&i.ID,
-			&i.UserID,
-			&i.SkuID,
-			&i.Channel,
-			&i.Enabled,
-			&i.CreatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const listPriceAlertsBySKUID = `-- name: ListPriceAlertsBySKUID :many
