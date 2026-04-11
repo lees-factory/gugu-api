@@ -21,21 +21,21 @@ type ProductSKU struct {
 	SKUProperties string `json:"sku_properties,omitempty"`
 }
 
-func NewProductSKUs(skus []domainproduct.SKU) []ProductSKU {
-	result := make([]ProductSKU, len(skus))
-	for i, sku := range skus {
-		item := newProductSKU(sku)
-		item.CurrentPrice = sku.Price
-		result[i] = item
-	}
-	return result
+type SKUCurrentSnapshot struct {
+	Price         string
+	OriginalPrice string
+	Currency      string
 }
 
-func NewProductSKUsWithCurrentPrice(skus []domainproduct.SKU, currentPriceBySKUID map[string]string) []ProductSKU {
+func NewProductSKUsWithCurrentPrice(skus []domainproduct.SKU, currentBySKUID map[string]SKUCurrentSnapshot) []ProductSKU {
 	result := make([]ProductSKU, len(skus))
 	for i, sku := range skus {
 		item := newProductSKU(sku)
-		item.CurrentPrice = strings.TrimSpace(currentPriceBySKUID[strings.TrimSpace(sku.ID)])
+		current := currentBySKUID[strings.TrimSpace(sku.ID)]
+		item.CurrentPrice = strings.TrimSpace(current.Price)
+		item.Price = strings.TrimSpace(current.Price)
+		item.OriginalPrice = strings.TrimSpace(current.OriginalPrice)
+		item.Currency = strings.TrimSpace(current.Currency)
 		result[i] = item
 	}
 	return result
@@ -49,9 +49,9 @@ func newProductSKU(sku domainproduct.SKU) ProductSKU {
 		SKUName:       sku.SKUName,
 		Color:         sku.Color,
 		Size:          sku.Size,
-		Price:         sku.Price,
-		OriginalPrice: sku.OriginalPrice,
-		Currency:      sku.Currency,
+		Price:         "",
+		OriginalPrice: "",
+		Currency:      "",
 		ImageURL:      sku.ImageURL,
 		SKUProperties: sku.SKUProperties,
 	}

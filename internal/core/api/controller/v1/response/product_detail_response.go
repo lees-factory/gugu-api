@@ -31,7 +31,7 @@ type PriceHistoryItem struct {
 	ChangeValue string    `json:"change_value"`
 }
 
-func NewProductDetail(product domainproduct.Product, histories []domainpricehistory.PriceHistory, skus []domainproduct.SKU, isTrackedByUser bool, trackedItemID string, currency string) ProductDetail {
+func NewProductDetail(product domainproduct.Product, histories []domainpricehistory.PriceHistory, skus []domainproduct.SKU, currentBySKUID map[string]SKUCurrentSnapshot, isTrackedByUser bool, trackedItemID string, currency string) ProductDetail {
 	items := make([]PriceHistoryItem, 0, len(histories))
 	for _, h := range histories {
 		items = append(items, PriceHistoryItem{
@@ -55,7 +55,7 @@ func NewProductDetail(product domainproduct.Product, histories []domainpricehist
 		IsTrackedByUser:   isTrackedByUser,
 		TrackedItemID:     trackedItemID,
 		PriceHistories:    items,
-		SKUs:              NewProductSKUs(skus),
-		SKUHierarchy:      BuildSKUHierarchy(skus),
+		SKUs:              NewProductSKUsWithCurrentPrice(skus, currentBySKUID),
+		SKUHierarchy:      BuildSKUHierarchy(skus, currentBySKUID),
 	}
 }

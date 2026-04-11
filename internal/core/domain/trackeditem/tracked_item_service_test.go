@@ -31,6 +31,30 @@ func TestNormalizeLanguage_FallsBackFromCurrency(t *testing.T) {
 	}
 }
 
+func TestResolveOriginProductID_PrioritizesOriginField(t *testing.T) {
+	got := resolveOriginProductID("100500111", "legacy-1", "https://www.aliexpress.com/item/9999.html")
+	if got != "100500111" {
+		t.Fatalf("resolveOriginProductID() = %q, want 100500111", got)
+	}
+}
+
+func TestResolveOriginProductID_FallsBackToURL(t *testing.T) {
+	got := resolveOriginProductID("", "", "https://www.aliexpress.us/item/3256809920794713")
+	if got != "3256809920794713" {
+		t.Fatalf("resolveOriginProductID() = %q, want 3256809920794713", got)
+	}
+}
+
+func TestPreferredLanguages_DeduplicatesAndOrders(t *testing.T) {
+	got := preferredLanguages("EN", "USD")
+	if len(got) != 2 {
+		t.Fatalf("preferredLanguages() len = %d, want 2", len(got))
+	}
+	if got[0] != "EN" || got[1] != "KO" {
+		t.Fatalf("preferredLanguages() = %v, want [EN KO]", got)
+	}
+}
+
 func TestResolveProduct_CreatesMissingVariantForExistingProduct(t *testing.T) {
 	productRepo := memoryproduct.NewRepository()
 	variantRepo := memoryproduct.NewVariantRepository()

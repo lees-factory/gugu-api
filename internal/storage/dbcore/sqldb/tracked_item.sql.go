@@ -18,21 +18,27 @@ INSERT INTO gugu.user_tracked_item (
     product_id,
     sku_id,
     original_url,
+    view_external_product_id,
+    preferred_language,
+    tracking_scope,
     currency,
     created_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 )
 `
 
 type CreateTrackedItemParams struct {
-	ID          string         `json:"id"`
-	UserID      string         `json:"user_id"`
-	ProductID   string         `json:"product_id"`
-	SkuID       sql.NullString `json:"sku_id"`
-	OriginalUrl string         `json:"original_url"`
-	Currency    string         `json:"currency"`
-	CreatedAt   time.Time      `json:"created_at"`
+	ID                    string         `json:"id"`
+	UserID                string         `json:"user_id"`
+	ProductID             string         `json:"product_id"`
+	SkuID                 sql.NullString `json:"sku_id"`
+	OriginalUrl           string         `json:"original_url"`
+	ViewExternalProductID string         `json:"view_external_product_id"`
+	PreferredLanguage     string         `json:"preferred_language"`
+	TrackingScope         string         `json:"tracking_scope"`
+	Currency              string         `json:"currency"`
+	CreatedAt             time.Time      `json:"created_at"`
 }
 
 func (q *Queries) CreateTrackedItem(ctx context.Context, arg CreateTrackedItemParams) error {
@@ -42,9 +48,32 @@ func (q *Queries) CreateTrackedItem(ctx context.Context, arg CreateTrackedItemPa
 		arg.ProductID,
 		arg.SkuID,
 		arg.OriginalUrl,
+		arg.ViewExternalProductID,
+		arg.PreferredLanguage,
+		arg.TrackingScope,
 		arg.Currency,
 		arg.CreatedAt,
 	)
+	return err
+}
+
+const createTrackedItemWatchSKU = `-- name: CreateTrackedItemWatchSKU :exec
+INSERT INTO gugu.user_tracked_item_watch_sku (
+    tracked_item_id,
+    sku_id
+) VALUES (
+    $1, $2
+)
+ON CONFLICT (tracked_item_id, sku_id) DO NOTHING
+`
+
+type CreateTrackedItemWatchSKUParams struct {
+	TrackedItemID string `json:"tracked_item_id"`
+	SkuID         string `json:"sku_id"`
+}
+
+func (q *Queries) CreateTrackedItemWatchSKU(ctx context.Context, arg CreateTrackedItemWatchSKUParams) error {
+	_, err := q.db.ExecContext(ctx, createTrackedItemWatchSKU, arg.TrackedItemID, arg.SkuID)
 	return err
 }
 
@@ -67,6 +96,16 @@ func (q *Queries) DeleteTrackedItemByIDAndUserID(ctx context.Context, arg Delete
 	return result.RowsAffected()
 }
 
+const deleteTrackedItemWatchSKUs = `-- name: DeleteTrackedItemWatchSKUs :exec
+DELETE FROM gugu.user_tracked_item_watch_sku
+WHERE tracked_item_id = $1
+`
+
+func (q *Queries) DeleteTrackedItemWatchSKUs(ctx context.Context, trackedItemID string) error {
+	_, err := q.db.ExecContext(ctx, deleteTrackedItemWatchSKUs, trackedItemID)
+	return err
+}
+
 const findTrackedItemByIDAndUserID = `-- name: FindTrackedItemByIDAndUserID :one
 SELECT
     id,
@@ -74,6 +113,9 @@ SELECT
     product_id,
     sku_id,
     original_url,
+    view_external_product_id,
+    preferred_language,
+    tracking_scope,
     currency,
     deleted_at,
     created_at
@@ -95,6 +137,9 @@ func (q *Queries) FindTrackedItemByIDAndUserID(ctx context.Context, arg FindTrac
 		&i.ProductID,
 		&i.SkuID,
 		&i.OriginalUrl,
+		&i.ViewExternalProductID,
+		&i.PreferredLanguage,
+		&i.TrackingScope,
 		&i.Currency,
 		&i.DeletedAt,
 		&i.CreatedAt,
@@ -109,6 +154,9 @@ SELECT
     product_id,
     sku_id,
     original_url,
+    view_external_product_id,
+    preferred_language,
+    tracking_scope,
     currency,
     deleted_at,
     created_at
@@ -130,6 +178,9 @@ func (q *Queries) FindTrackedItemByUserIDAndProductID(ctx context.Context, arg F
 		&i.ProductID,
 		&i.SkuID,
 		&i.OriginalUrl,
+		&i.ViewExternalProductID,
+		&i.PreferredLanguage,
+		&i.TrackingScope,
 		&i.Currency,
 		&i.DeletedAt,
 		&i.CreatedAt,
@@ -144,6 +195,9 @@ SELECT
     product_id,
     sku_id,
     original_url,
+    view_external_product_id,
+    preferred_language,
+    tracking_scope,
     currency,
     deleted_at,
     created_at
@@ -167,6 +221,9 @@ func (q *Queries) ListTrackedItemsByUserID(ctx context.Context, userID string) (
 			&i.ProductID,
 			&i.SkuID,
 			&i.OriginalUrl,
+			&i.ViewExternalProductID,
+			&i.PreferredLanguage,
+			&i.TrackingScope,
 			&i.Currency,
 			&i.DeletedAt,
 			&i.CreatedAt,
@@ -191,6 +248,9 @@ SELECT
     product_id,
     sku_id,
     original_url,
+    view_external_product_id,
+    preferred_language,
+    tracking_scope,
     currency,
     deleted_at,
     created_at
@@ -220,6 +280,9 @@ func (q *Queries) ListTrackedItemsByUserIDFirstPage(ctx context.Context, arg Lis
 			&i.ProductID,
 			&i.SkuID,
 			&i.OriginalUrl,
+			&i.ViewExternalProductID,
+			&i.PreferredLanguage,
+			&i.TrackingScope,
 			&i.Currency,
 			&i.DeletedAt,
 			&i.CreatedAt,
@@ -244,6 +307,9 @@ SELECT
     product_id,
     sku_id,
     original_url,
+    view_external_product_id,
+    preferred_language,
+    tracking_scope,
     currency,
     deleted_at,
     created_at
@@ -282,6 +348,9 @@ func (q *Queries) ListTrackedItemsByUserIDWithCursor(ctx context.Context, arg Li
 			&i.ProductID,
 			&i.SkuID,
 			&i.OriginalUrl,
+			&i.ViewExternalProductID,
+			&i.PreferredLanguage,
+			&i.TrackingScope,
 			&i.Currency,
 			&i.DeletedAt,
 			&i.CreatedAt,
@@ -299,6 +368,26 @@ func (q *Queries) ListTrackedItemsByUserIDWithCursor(ctx context.Context, arg Li
 	return items, nil
 }
 
+const updateTrackedItemPreferredLanguage = `-- name: UpdateTrackedItemPreferredLanguage :execrows
+UPDATE gugu.user_tracked_item
+SET preferred_language = $3
+WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+`
+
+type UpdateTrackedItemPreferredLanguageParams struct {
+	ID                string `json:"id"`
+	UserID            string `json:"user_id"`
+	PreferredLanguage string `json:"preferred_language"`
+}
+
+func (q *Queries) UpdateTrackedItemPreferredLanguage(ctx context.Context, arg UpdateTrackedItemPreferredLanguageParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateTrackedItemPreferredLanguage, arg.ID, arg.UserID, arg.PreferredLanguage)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const updateTrackedItemSKU = `-- name: UpdateTrackedItemSKU :execrows
 UPDATE gugu.user_tracked_item
 SET sku_id = $3
@@ -313,6 +402,26 @@ type UpdateTrackedItemSKUParams struct {
 
 func (q *Queries) UpdateTrackedItemSKU(ctx context.Context, arg UpdateTrackedItemSKUParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, updateTrackedItemSKU, arg.ID, arg.UserID, arg.SkuID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const updateTrackedItemTrackingScope = `-- name: UpdateTrackedItemTrackingScope :execrows
+UPDATE gugu.user_tracked_item
+SET tracking_scope = $3
+WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+`
+
+type UpdateTrackedItemTrackingScopeParams struct {
+	ID            string `json:"id"`
+	UserID        string `json:"user_id"`
+	TrackingScope string `json:"tracking_scope"`
+}
+
+func (q *Queries) UpdateTrackedItemTrackingScope(ctx context.Context, arg UpdateTrackedItemTrackingScopeParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateTrackedItemTrackingScope, arg.ID, arg.UserID, arg.TrackingScope)
 	if err != nil {
 		return 0, err
 	}

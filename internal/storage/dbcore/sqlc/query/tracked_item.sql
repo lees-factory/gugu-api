@@ -5,10 +5,13 @@ INSERT INTO gugu.user_tracked_item (
     product_id,
     sku_id,
     original_url,
+    view_external_product_id,
+    preferred_language,
+    tracking_scope,
     currency,
     created_at
 ) VALUES (
-    $1, $2, $3, $4, $5, $6, $7
+    $1, $2, $3, $4, $5, $6, $7, $8, $9, $10
 );
 
 -- name: FindTrackedItemByUserIDAndProductID :one
@@ -18,6 +21,9 @@ SELECT
     product_id,
     sku_id,
     original_url,
+    view_external_product_id,
+    preferred_language,
+    tracking_scope,
     currency,
     deleted_at,
     created_at
@@ -31,6 +37,9 @@ SELECT
     product_id,
     sku_id,
     original_url,
+    view_external_product_id,
+    preferred_language,
+    tracking_scope,
     currency,
     deleted_at,
     created_at
@@ -44,6 +53,9 @@ SELECT
     product_id,
     sku_id,
     original_url,
+    view_external_product_id,
+    preferred_language,
+    tracking_scope,
     currency,
     deleted_at,
     created_at
@@ -58,6 +70,9 @@ SELECT
     product_id,
     sku_id,
     original_url,
+    view_external_product_id,
+    preferred_language,
+    tracking_scope,
     currency,
     deleted_at,
     created_at
@@ -75,6 +90,9 @@ SELECT
     product_id,
     sku_id,
     original_url,
+    view_external_product_id,
+    preferred_language,
+    tracking_scope,
     currency,
     deleted_at,
     created_at
@@ -92,3 +110,26 @@ WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL;
 UPDATE gugu.user_tracked_item
 SET sku_id = $3
 WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL;
+
+-- name: UpdateTrackedItemPreferredLanguage :execrows
+UPDATE gugu.user_tracked_item
+SET preferred_language = $3
+WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL;
+
+-- name: UpdateTrackedItemTrackingScope :execrows
+UPDATE gugu.user_tracked_item
+SET tracking_scope = $3
+WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL;
+
+-- name: DeleteTrackedItemWatchSKUs :exec
+DELETE FROM gugu.user_tracked_item_watch_sku
+WHERE tracked_item_id = $1;
+
+-- name: CreateTrackedItemWatchSKU :exec
+INSERT INTO gugu.user_tracked_item_watch_sku (
+    tracked_item_id,
+    sku_id
+) VALUES (
+    $1, $2
+)
+ON CONFLICT (tracked_item_id, sku_id) DO NOTHING;

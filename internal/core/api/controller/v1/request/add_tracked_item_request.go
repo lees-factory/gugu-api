@@ -12,6 +12,7 @@ const maxAddTrackedItems = 5
 
 type AddTrackedItemEntry struct {
 	ProviderCommerce  string `json:"provider_commerce"`
+	OriginProductID   string `json:"origin_product_id"`
 	ExternalProductID string `json:"external_product_id"`
 	OriginalURL       string `json:"original_url"`
 	Currency          string `json:"currency"`

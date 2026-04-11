@@ -33,6 +33,8 @@ func TestNewListTrackedItem_UsesVariantWhenPresent(t *testing.T) {
 			ProductURL:   "https://example.com/variant",
 			CurrentPrice: "15.99",
 		},
+	}, map[string]string{
+		"tracked-1": "15.98",
 	})
 
 	if item.Title != "Variant Title" {
@@ -44,12 +46,12 @@ func TestNewListTrackedItem_UsesVariantWhenPresent(t *testing.T) {
 	if item.ProductURL != "https://example.com/variant" {
 		t.Fatalf("ProductURL = %q", item.ProductURL)
 	}
-	if item.CurrentPrice != "15.99" {
-		t.Fatalf("CurrentPrice = %q, want 15.99", item.CurrentPrice)
+	if item.CurrentPrice != "15.98" {
+		t.Fatalf("CurrentPrice = %q, want 15.98", item.CurrentPrice)
 	}
 }
 
-func TestNewTrackedItemDetail_FallsBackToProductWhenVariantMissing(t *testing.T) {
+func TestNewTrackedItemDetail_UsesVariantOnlyWhenPresent(t *testing.T) {
 	item := NewTrackedItemDetail(&domaintrackeditem.TrackedItemDetail{
 		TrackedItem: domaintrackeditem.TrackedItem{
 			ID:          "tracked-1",
@@ -72,14 +74,14 @@ func TestNewTrackedItemDetail_FallsBackToProductWhenVariantMissing(t *testing.T)
 		},
 	})
 
-	if item.Title != "Base Title" {
-		t.Fatalf("Title = %q, want Base Title", item.Title)
+	if item.Title != "" {
+		t.Fatalf("Title = %q, want empty", item.Title)
 	}
-	if item.MainImageURL != "https://img.example.com/base.jpg" {
-		t.Fatalf("MainImageURL = %q", item.MainImageURL)
+	if item.MainImageURL != "" {
+		t.Fatalf("MainImageURL = %q, want empty", item.MainImageURL)
 	}
-	if item.ProductURL != "https://example.com/base" {
-		t.Fatalf("ProductURL = %q", item.ProductURL)
+	if item.ProductURL != "" {
+		t.Fatalf("ProductURL = %q, want empty", item.ProductURL)
 	}
 	if item.CurrentPrice != "1000" {
 		t.Fatalf("CurrentPrice = %q, want 1000", item.CurrentPrice)

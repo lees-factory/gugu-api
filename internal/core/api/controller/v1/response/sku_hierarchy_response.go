@@ -1,6 +1,10 @@
 package response
 
-import domainproduct "github.com/ljj/gugu-api/internal/core/domain/product"
+import (
+	"strings"
+
+	domainproduct "github.com/ljj/gugu-api/internal/core/domain/product"
+)
 
 type SKUHierarchy struct {
 	ColorGroups []SKUColorGroup `json:"color_groups"`
@@ -20,7 +24,7 @@ type SKUSizeEntry struct {
 	Currency      string `json:"currency"`
 }
 
-func BuildSKUHierarchy(skus []domainproduct.SKU) *SKUHierarchy {
+func BuildSKUHierarchy(skus []domainproduct.SKU, currentBySKUID map[string]SKUCurrentSnapshot) *SKUHierarchy {
 	if len(skus) == 0 {
 		return nil
 	}
@@ -52,9 +56,9 @@ func BuildSKUHierarchy(skus []domainproduct.SKU) *SKUHierarchy {
 		group.Sizes = append(group.Sizes, SKUSizeEntry{
 			Size:          size,
 			SKUID:         sku.ID,
-			Price:         sku.Price,
-			OriginalPrice: sku.OriginalPrice,
-			Currency:      sku.Currency,
+			Price:         strings.TrimSpace(currentBySKUID[strings.TrimSpace(sku.ID)].Price),
+			OriginalPrice: strings.TrimSpace(currentBySKUID[strings.TrimSpace(sku.ID)].OriginalPrice),
+			Currency:      strings.TrimSpace(currentBySKUID[strings.TrimSpace(sku.ID)].Currency),
 		})
 	}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"time"
 
 	domaintrackeditem "github.com/ljj/gugu-api/internal/core/domain/trackeditem"
@@ -111,13 +112,16 @@ func (r *TrackedItemSQLCRepository) ListByUserIDFirstPage(ctx context.Context, u
 
 func (r *TrackedItemSQLCRepository) Create(ctx context.Context, trackedItem domaintrackeditem.TrackedItem) error {
 	return r.queries.CreateTrackedItem(ctx, sqldb.CreateTrackedItemParams{
-		ID:          trackedItem.ID,
-		UserID:      trackedItem.UserID,
-		ProductID:   trackedItem.ProductID,
-		SkuID:       toNullString(trackedItem.SKUID),
-		OriginalUrl: trackedItem.OriginalURL,
-		Currency:    trackedItem.Currency,
-		CreatedAt:   trackedItem.CreatedAt,
+		ID:                    trackedItem.ID,
+		UserID:                trackedItem.UserID,
+		ProductID:             trackedItem.ProductID,
+		SkuID:                 toNullString(trackedItem.SKUID),
+		OriginalUrl:           trackedItem.OriginalURL,
+		ViewExternalProductID: trackedItem.ViewExternalProductID,
+		PreferredLanguage:     trackedItem.PreferredLanguage,
+		TrackingScope:         trackedItem.TrackingScope,
+		Currency:              trackedItem.Currency,
+		CreatedAt:             trackedItem.CreatedAt,
 	})
 }
 
@@ -132,6 +136,54 @@ func (r *TrackedItemSQLCRepository) UpdateSKU(ctx context.Context, trackedItemID
 	}
 	if affected == 0 {
 		return sql.ErrNoRows
+	}
+	return nil
+}
+
+func (r *TrackedItemSQLCRepository) UpdatePreferredLanguage(ctx context.Context, trackedItemID string, userID string, preferredLanguage string) error {
+	affected, err := r.queries.UpdateTrackedItemPreferredLanguage(ctx, sqldb.UpdateTrackedItemPreferredLanguageParams{
+		ID:                trackedItemID,
+		UserID:            userID,
+		PreferredLanguage: preferredLanguage,
+	})
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+func (r *TrackedItemSQLCRepository) UpdateTrackingScope(ctx context.Context, trackedItemID string, userID string, trackingScope string) error {
+	affected, err := r.queries.UpdateTrackedItemTrackingScope(ctx, sqldb.UpdateTrackedItemTrackingScopeParams{
+		ID:            trackedItemID,
+		UserID:        userID,
+		TrackingScope: trackingScope,
+	})
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
+}
+
+func (r *TrackedItemSQLCRepository) ReplaceWatchSKUs(ctx context.Context, trackedItemID string, skuIDs []string) error {
+	if err := r.queries.DeleteTrackedItemWatchSKUs(ctx, trackedItemID); err != nil {
+		return fmt.Errorf("delete tracked item watch skus: %w", err)
+	}
+	for _, skuID := range skuIDs {
+		if skuID == "" {
+			continue
+		}
+		if err := r.queries.CreateTrackedItemWatchSKU(ctx, sqldb.CreateTrackedItemWatchSKUParams{
+			TrackedItemID: trackedItemID,
+			SkuID:         skuID,
+		}); err != nil {
+			return fmt.Errorf("create tracked item watch sku: %w", err)
+		}
 	}
 	return nil
 }
@@ -152,12 +204,15 @@ func (r *TrackedItemSQLCRepository) DeleteByIDAndUserID(ctx context.Context, tra
 
 func toDomainTrackedItem(row sqldb.GuguUserTrackedItem) domaintrackeditem.TrackedItem {
 	return domaintrackeditem.TrackedItem{
-		ID:          row.ID,
-		UserID:      row.UserID,
-		ProductID:   row.ProductID,
-		SKUID:       fromNullString(row.SkuID),
-		OriginalURL: row.OriginalUrl,
-		Currency:    row.Currency,
-		CreatedAt:   row.CreatedAt,
+		ID:                    row.ID,
+		UserID:                row.UserID,
+		ProductID:             row.ProductID,
+		SKUID:                 fromNullString(row.SkuID),
+		OriginalURL:           row.OriginalUrl,
+		ViewExternalProductID: row.ViewExternalProductID,
+		PreferredLanguage:     row.PreferredLanguage,
+		TrackingScope:         row.TrackingScope,
+		Currency:              row.Currency,
+		CreatedAt:             row.CreatedAt,
 	}
 }

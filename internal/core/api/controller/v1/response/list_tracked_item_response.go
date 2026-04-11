@@ -1,6 +1,8 @@
 package response
 
 import (
+	"strings"
+
 	domaintrackeditem "github.com/ljj/gugu-api/internal/core/domain/trackeditem"
 	"github.com/ljj/gugu-api/internal/core/support/page"
 )
@@ -19,12 +21,9 @@ type ListTrackedItem struct {
 	ProductURL        string `json:"product_url"`
 }
 
-func NewListTrackedItem(item domaintrackeditem.TrackedItemWithProduct) ListTrackedItem {
-	display := resolveTrackedItemDisplay(item.Product, item.Variant)
-	currentPrice := ""
-	if item.Variant != nil {
-		currentPrice = item.Variant.CurrentPrice
-	}
+func NewListTrackedItem(item domaintrackeditem.TrackedItemWithProduct, currentPriceByTrackedItemID map[string]string) ListTrackedItem {
+	display := resolveTrackedItemDisplay(item.Variant)
+	currentPrice := strings.TrimSpace(currentPriceByTrackedItemID[strings.TrimSpace(item.TrackedItem.ID)])
 
 	return ListTrackedItem{
 		TrackedItemID:     item.TrackedItem.ID,
@@ -41,10 +40,10 @@ func NewListTrackedItem(item domaintrackeditem.TrackedItemWithProduct) ListTrack
 	}
 }
 
-func NewListTrackedItems(items []domaintrackeditem.TrackedItemWithProduct) []ListTrackedItem {
+func NewListTrackedItems(items []domaintrackeditem.TrackedItemWithProduct, currentPriceByTrackedItemID map[string]string) []ListTrackedItem {
 	result := make([]ListTrackedItem, 0, len(items))
 	for _, item := range items {
-		result = append(result, NewListTrackedItem(item))
+		result = append(result, NewListTrackedItem(item, currentPriceByTrackedItemID))
 	}
 	return result
 }
@@ -55,10 +54,10 @@ type ListTrackedItemsPage struct {
 	HasMore    bool              `json:"has_more"`
 }
 
-func NewListTrackedItemsPage(p *page.CursorPage[domaintrackeditem.TrackedItemWithProduct]) ListTrackedItemsPage {
+func NewListTrackedItemsPage(p *page.CursorPage[domaintrackeditem.TrackedItemWithProduct], currentPriceByTrackedItemID map[string]string) ListTrackedItemsPage {
 	items := make([]ListTrackedItem, 0, len(p.Items))
 	for _, item := range p.Items {
-		items = append(items, NewListTrackedItem(item))
+		items = append(items, NewListTrackedItem(item, currentPriceByTrackedItemID))
 	}
 	return ListTrackedItemsPage{
 		Items:      items,

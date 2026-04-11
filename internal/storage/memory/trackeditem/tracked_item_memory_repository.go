@@ -130,3 +130,33 @@ func (r *TrackedItemMemoryRepository) UpdateSKU(_ context.Context, trackedItemID
 	r.byID[trackedItemID] = item
 	return nil
 }
+
+func (r *TrackedItemMemoryRepository) UpdatePreferredLanguage(_ context.Context, trackedItemID string, userID string, preferredLanguage string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	item, ok := r.byID[trackedItemID]
+	if !ok || item.UserID != userID {
+		return nil
+	}
+	item.PreferredLanguage = preferredLanguage
+	r.byID[trackedItemID] = item
+	return nil
+}
+
+func (r *TrackedItemMemoryRepository) UpdateTrackingScope(_ context.Context, trackedItemID string, userID string, trackingScope string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	item, ok := r.byID[trackedItemID]
+	if !ok || item.UserID != userID {
+		return nil
+	}
+	item.TrackingScope = trackingScope
+	r.byID[trackedItemID] = item
+	return nil
+}
+
+func (r *TrackedItemMemoryRepository) ReplaceWatchSKUs(_ context.Context, _ string, _ []string) error {
+	return nil
+}

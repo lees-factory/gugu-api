@@ -3,7 +3,9 @@ package trackeditem
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
+	"time"
 
 	domainproduct "github.com/ljj/gugu-api/internal/core/domain/product"
 	"github.com/ljj/gugu-api/internal/core/enum"
@@ -12,10 +14,13 @@ import (
 )
 
 type AddInput struct {
-	UserID      string
-	ProductID   string
-	OriginalURL string
-	Currency    string
+	UserID                string
+	ProductID             string
+	OriginalURL           string
+	ViewExternalProductID string
+	PreferredLanguage     string
+	TrackingScope         string
+	Currency              string
 }
 
 type AddResult struct {
@@ -26,6 +31,7 @@ type AddResult struct {
 type AddTrackedItemInput struct {
 	UserID            string
 	ProviderCommerce  string
+	OriginProductID   string
 	ExternalProductID string
 	OriginalURL       string
 	Currency          string
@@ -72,17 +78,24 @@ func (s *Service) AddTrackedItem(ctx context.Context, input AddTrackedItemInput)
 
 	currency := normalizeCurrency(input.Currency)
 	language := normalizeLanguage(input.Language, currency)
+	originProductID := resolveOriginProductID(input.OriginProductID, input.ExternalProductID, input.OriginalURL)
+	if originProductID == "" {
+		return nil, coreerror.New(coreerror.ProductNotFound)
+	}
 
-	product, err := s.resolveProduct(ctx, market, input.ExternalProductID, input.OriginalURL, currency, language)
+	product, err := s.resolveProduct(ctx, market, originProductID, input.OriginalURL, currency, language)
 	if err != nil {
 		return nil, err
 	}
 
 	addResult, err := s.Add(ctx, AddInput{
-		UserID:      input.UserID,
-		ProductID:   product.ID,
-		OriginalURL: input.OriginalURL,
-		Currency:    currency,
+		UserID:                input.UserID,
+		ProductID:             product.ID,
+		OriginalURL:           input.OriginalURL,
+		ViewExternalProductID: resolveViewExternalProductID(input.OriginalURL, originProductID),
+		PreferredLanguage:     language,
+		TrackingScope:         "PRODUCT_ALL_SKU",
+		Currency:              currency,
 	})
 	if err != nil {
 		return nil, err
@@ -163,12 +176,15 @@ func (s *Service) Add(ctx context.Context, input AddInput) (*AddResult, error) {
 	}
 
 	tracked := TrackedItem{
-		ID:          trackedItemID,
-		UserID:      strings.TrimSpace(input.UserID),
-		ProductID:   input.ProductID,
-		OriginalURL: strings.TrimSpace(input.OriginalURL),
-		Currency:    currency,
-		CreatedAt:   s.clock.Now(),
+		ID:                    trackedItemID,
+		UserID:                strings.TrimSpace(input.UserID),
+		ProductID:             input.ProductID,
+		OriginalURL:           strings.TrimSpace(input.OriginalURL),
+		ViewExternalProductID: strings.TrimSpace(input.ViewExternalProductID),
+		PreferredLanguage:     normalizeLanguage(input.PreferredLanguage, input.Currency),
+		TrackingScope:         normalizeTrackingScope(input.TrackingScope),
+		Currency:              currency,
+		CreatedAt:             s.clock.Now(),
 	}
 	if err := s.writer.Create(ctx, tracked); err != nil {
 		return nil, fmt.Errorf("create tracked item: %w", err)
@@ -224,7 +240,7 @@ func (s *Service) ListWithProducts(ctx context.Context, userID string) ([]Tracke
 		result = append(result, TrackedItemWithProduct{
 			TrackedItem: tracked,
 			Product:     product,
-			Variant:     variantMap[variantMapKey(product.ID, tracked.Currency)],
+			Variant:     resolveVariantForTrackedItem(variantMap, product.ID, tracked.PreferredLanguage, tracked.Currency),
 		})
 	}
 
@@ -291,7 +307,7 @@ func (s *Service) ListWithProductsCursor(ctx context.Context, userID string, cur
 		items = append(items, TrackedItemWithProduct{
 			TrackedItem: tracked,
 			Product:     product,
-			Variant:     variantMap[variantMapKey(product.ID, tracked.Currency)],
+			Variant:     resolveVariantForTrackedItem(variantMap, product.ID, tracked.PreferredLanguage, tracked.Currency),
 		})
 	}
 
@@ -340,7 +356,7 @@ func (s *Service) GetDetail(ctx context.Context, trackedItemID string, userID st
 	return &TrackedItemDetail{
 		TrackedItem: *found,
 		Product:     *product,
-		Variant:     s.findVariantForTrackedItem(ctx, product.ID, found.Currency),
+		Variant:     s.findVariantForTrackedItem(ctx, product.ID, found.PreferredLanguage, found.Currency),
 		SKUs:        skus,
 	}, nil
 }
@@ -370,6 +386,42 @@ func (s *Service) SelectSKU(ctx context.Context, trackedItemID string, userID st
 		return fmt.Errorf("update tracked item sku: %w", err)
 	}
 
+	scope := "PRODUCT_ALL_SKU"
+	watchSKUs := []string{}
+	if skuID != "" {
+		scope = "SELECTED_SKU_ONLY"
+		watchSKUs = []string{skuID}
+	}
+
+	if err := s.writer.UpdateTrackingScope(ctx, found.ID, found.UserID, scope); err != nil {
+		return fmt.Errorf("update tracked item tracking scope: %w", err)
+	}
+	if err := s.writer.ReplaceWatchSKUs(ctx, found.ID, watchSKUs); err != nil {
+		return fmt.Errorf("replace tracked item watch skus: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Service) UpdatePreferredLanguage(ctx context.Context, trackedItemID string, userID string, language string) error {
+	trackedItemID = strings.TrimSpace(trackedItemID)
+	userID = strings.TrimSpace(userID)
+	language = normalizeLanguage(language, "")
+
+	found, err := s.finder.FindByIDAndUserID(ctx, trackedItemID, userID)
+	if err != nil {
+		return fmt.Errorf("find tracked item by id and user id: %w", err)
+	}
+	if found == nil {
+		return coreerror.New(coreerror.TrackedItemNotFound)
+	}
+
+	if err := s.writer.UpdatePreferredLanguage(ctx, found.ID, found.UserID, language); err != nil {
+		return fmt.Errorf("update tracked item preferred language: %w", err)
+	}
+
+	// Request latency를 늘리지 않기 위해 variant refresh는 비동기로 수행한다.
+	go s.refreshVariantAsync(found.ProductID, found.OriginalURL, found.Currency, language)
 	return nil
 }
 
@@ -411,23 +463,45 @@ func normalizeLanguage(language string, currency string) string {
 	}
 }
 
-func (s *Service) findVariantForTrackedItem(ctx context.Context, productID string, currency string) *domainproduct.Variant {
-	language := normalizeLanguage("", currency)
-	variant, err := s.productService.FindVariant(ctx, productID, language, currency)
-	if err != nil {
-		return nil
+func (s *Service) refreshVariantAsync(productID string, originalURL string, currency string, language string) {
+	if s.productService == nil || s.productProvider == nil {
+		return
 	}
-	return variant
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	product, err := s.productService.FindByID(ctx, productID)
+	if err != nil || product == nil {
+		return
+	}
+
+	_ = s.ensureVariant(ctx, *product, product.Market, product.ExternalProductID, originalURL, normalizeCurrency(currency), normalizeLanguage(language, currency))
+}
+
+func (s *Service) findVariantForTrackedItem(ctx context.Context, productID string, language string, currency string) *domainproduct.Variant {
+	for _, candidateLanguage := range preferredLanguages(language, currency) {
+		variant, err := s.productService.FindVariant(ctx, productID, candidateLanguage, currency)
+		if err != nil {
+			return nil
+		}
+		if variant != nil {
+			return variant
+		}
+	}
+	return nil
 }
 
 func (s *Service) findVariantsForTrackedItems(ctx context.Context, trackedItems []TrackedItem) (map[string]*domainproduct.Variant, error) {
-	keys := make([]domainproduct.VariantLookupKey, 0, len(trackedItems))
+	keys := make([]domainproduct.VariantLookupKey, 0, len(trackedItems)*3)
 	for _, trackedItem := range trackedItems {
-		keys = append(keys, domainproduct.VariantLookupKey{
-			ProductID: trackedItem.ProductID,
-			Language:  normalizeLanguage("", trackedItem.Currency),
-			Currency:  normalizeCurrency(trackedItem.Currency),
-		})
+		for _, language := range preferredLanguages(trackedItem.PreferredLanguage, trackedItem.Currency) {
+			keys = append(keys, domainproduct.VariantLookupKey{
+				ProductID: trackedItem.ProductID,
+				Language:  language,
+				Currency:  normalizeCurrency(trackedItem.Currency),
+			})
+		}
 	}
 
 	variants, err := s.productService.FindVariants(ctx, keys)
@@ -438,11 +512,74 @@ func (s *Service) findVariantsForTrackedItems(ctx context.Context, trackedItems 
 	variantMap := make(map[string]*domainproduct.Variant, len(variants))
 	for i := range variants {
 		variant := variants[i]
-		variantMap[variantMapKey(variant.ProductID, variant.Currency)] = &variant
+		variantMap[variantMapKey(variant.ProductID, variant.Language, variant.Currency)] = &variant
 	}
 	return variantMap, nil
 }
 
-func variantMapKey(productID string, currency string) string {
-	return strings.TrimSpace(productID) + ":" + normalizeCurrency(currency)
+func variantMapKey(productID string, language string, currency string) string {
+	return strings.TrimSpace(productID) + ":" + normalizeLanguage(language, currency) + ":" + normalizeCurrency(currency)
+}
+
+func resolveVariantForTrackedItem(variantMap map[string]*domainproduct.Variant, productID string, preferredLanguage string, currency string) *domainproduct.Variant {
+	for _, language := range preferredLanguages(preferredLanguage, currency) {
+		variant := variantMap[variantMapKey(productID, language, currency)]
+		if variant != nil {
+			return variant
+		}
+	}
+	return nil
+}
+
+func preferredLanguages(preferredLanguage string, currency string) []string {
+	ordered := []string{
+		normalizeLanguage(preferredLanguage, currency),
+		"EN",
+		"KO",
+	}
+	seen := make(map[string]struct{}, len(ordered))
+	result := make([]string, 0, len(ordered))
+	for _, language := range ordered {
+		if _, ok := seen[language]; ok {
+			continue
+		}
+		seen[language] = struct{}{}
+		result = append(result, language)
+	}
+	return result
+}
+
+func normalizeTrackingScope(scope string) string {
+	switch strings.ToUpper(strings.TrimSpace(scope)) {
+	case "SELECTED_SKU_ONLY":
+		return "SELECTED_SKU_ONLY"
+	default:
+		return "PRODUCT_ALL_SKU"
+	}
+}
+
+var viewExternalProductIDRegexps = []*regexp.Regexp{
+	regexp.MustCompile(`/item/([0-9]+)`),
+	regexp.MustCompile(`/i/([0-9]+)\.html`),
+}
+
+func resolveViewExternalProductID(originalURL string, fallback string) string {
+	url := strings.TrimSpace(originalURL)
+	for _, pattern := range viewExternalProductIDRegexps {
+		match := pattern.FindStringSubmatch(url)
+		if len(match) >= 2 && strings.TrimSpace(match[1]) != "" {
+			return strings.TrimSpace(match[1])
+		}
+	}
+	return strings.TrimSpace(fallback)
+}
+
+func resolveOriginProductID(originProductID string, externalProductID string, originalURL string) string {
+	if v := strings.TrimSpace(originProductID); v != "" {
+		return v
+	}
+	if v := strings.TrimSpace(externalProductID); v != "" {
+		return v
+	}
+	return resolveViewExternalProductID(originalURL, "")
 }

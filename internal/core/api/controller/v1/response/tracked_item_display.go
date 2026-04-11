@@ -10,12 +10,8 @@ type trackedItemDisplay struct {
 	productURL   string
 }
 
-func resolveTrackedItemDisplay(product domainproduct.Product, variant *domainproduct.Variant) trackedItemDisplay {
-	display := trackedItemDisplay{
-		title:        product.Title,
-		mainImageURL: product.MainImageURL,
-		productURL:   product.ProductURL,
-	}
+func resolveTrackedItemDisplay(variant *domainproduct.Variant) trackedItemDisplay {
+	display := trackedItemDisplay{}
 	if variant == nil {
 		return display
 	}
