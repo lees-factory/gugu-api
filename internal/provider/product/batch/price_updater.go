@@ -8,7 +8,6 @@ import (
 	"time"
 
 	domainpricehistory "github.com/ljj/gugu-api/internal/core/domain/pricehistory"
-	domainps "github.com/ljj/gugu-api/internal/core/domain/pricesnapshot"
 	domainproduct "github.com/ljj/gugu-api/internal/core/domain/product"
 	"github.com/ljj/gugu-api/internal/core/enum"
 	provideraliexpress "github.com/ljj/gugu-api/internal/provider/product/aliexpress"
@@ -25,28 +24,25 @@ type PriceFetcher interface {
 }
 
 type PriceUpdater struct {
-	productService        *domainproduct.Service
-	priceHistoryWriter    domainpricehistory.Writer
-	productSnapshotWriter domainps.ProductSnapshotWriter
-	fetcher               PriceFetcher
-	notifier              PriceChangeNotifier
-	clock                 func() time.Time
+	productService     *domainproduct.Service
+	priceHistoryWriter domainpricehistory.Writer
+	fetcher            PriceFetcher
+	notifier           PriceChangeNotifier
+	clock              func() time.Time
 }
 
 func NewPriceUpdater(
 	productService *domainproduct.Service,
 	priceHistoryWriter domainpricehistory.Writer,
-	productSnapshotWriter domainps.ProductSnapshotWriter,
 	fetcher PriceFetcher,
 	notifier PriceChangeNotifier,
 ) *PriceUpdater {
 	return &PriceUpdater{
-		productService:        productService,
-		priceHistoryWriter:    priceHistoryWriter,
-		productSnapshotWriter: productSnapshotWriter,
-		fetcher:               fetcher,
-		notifier:              notifier,
-		clock:                 func() time.Time { return time.Now() },
+		productService:     productService,
+		priceHistoryWriter: priceHistoryWriter,
+		fetcher:            fetcher,
+		notifier:           notifier,
+		clock:              func() time.Time { return time.Now() },
 	}
 }
 

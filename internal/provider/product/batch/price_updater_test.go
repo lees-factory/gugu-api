@@ -6,7 +6,6 @@ import (
 	"time"
 
 	domainpricehistory "github.com/ljj/gugu-api/internal/core/domain/pricehistory"
-	domainps "github.com/ljj/gugu-api/internal/core/domain/pricesnapshot"
 	domainproduct "github.com/ljj/gugu-api/internal/core/domain/product"
 	"github.com/ljj/gugu-api/internal/core/enum"
 	provideraliexpress "github.com/ljj/gugu-api/internal/provider/product/aliexpress"
@@ -69,9 +68,8 @@ func TestUpdateProducts_NotifiesSingleSKUOnly(t *testing.T) {
 
 	notifier := &stubNotifier{}
 	updater := &PriceUpdater{
-		productService:        productService,
-		priceHistoryWriter:    &stubPriceHistoryWriter{},
-		productSnapshotWriter: &stubProductSnapshotWriter{},
+		productService:     productService,
+		priceHistoryWriter: &stubPriceHistoryWriter{},
 		fetcher: &stubFetcher{
 			resultsByCurrency: map[string][]provideraliexpress.PriceResult{
 				"KRW": {{ExternalProductID: "100", Price: "7800", Currency: "KRW"}},
@@ -106,9 +104,8 @@ func TestUpdateProducts_SkipsNotificationForMultiSKUProduct(t *testing.T) {
 
 	notifier := &stubNotifier{}
 	updater := &PriceUpdater{
-		productService:        productService,
-		priceHistoryWriter:    &stubPriceHistoryWriter{},
-		productSnapshotWriter: &stubProductSnapshotWriter{},
+		productService:     productService,
+		priceHistoryWriter: &stubPriceHistoryWriter{},
 		fetcher: &stubFetcher{
 			resultsByCurrency: map[string][]provideraliexpress.PriceResult{
 				"KRW": {{ExternalProductID: "100", Price: "7800", Currency: "KRW"}},
@@ -145,15 +142,6 @@ type stubPriceHistoryWriter struct {
 
 func (w *stubPriceHistoryWriter) Create(_ context.Context, h domainpricehistory.PriceHistory) error {
 	w.histories = append(w.histories, h)
-	return nil
-}
-
-type stubProductSnapshotWriter struct {
-	snapshots []domainps.ProductPriceSnapshot
-}
-
-func (w *stubProductSnapshotWriter) Upsert(_ context.Context, s domainps.ProductPriceSnapshot) error {
-	w.snapshots = append(w.snapshots, s)
 	return nil
 }
 

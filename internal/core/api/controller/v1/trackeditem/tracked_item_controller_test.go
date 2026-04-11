@@ -91,6 +91,48 @@ func TestResolvePriceAlertStateBySKUID_ReturnsStoredAlert(t *testing.T) {
 	}
 }
 
+func TestResolvePriceAlertStateByTrackedItem_FindsAlertWithoutSelectedSKUID(t *testing.T) {
+	repo := memorypricealert.NewRepository()
+	service := domainpricealert.NewService(
+		domainpricealert.NewFinder(repo),
+		repo,
+		testAlertIDGenerator{},
+		testAlertClock{},
+	)
+	if _, err := service.Register(context.Background(), "user-1", "sku-2", "EMAIL"); err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+
+	controller := &Controller{priceAlertService: service}
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "/v1/tracked-items/tracked-1/price-alert", nil)
+	if err != nil {
+		t.Fatalf("http.NewRequestWithContext() error = %v", err)
+	}
+
+	detail := &domaintrackeditem.TrackedItemDetail{
+		TrackedItem: domaintrackeditem.TrackedItem{
+			ID:     "tracked-1",
+			UserID: "user-1",
+			SKUID:  "",
+		},
+		SKUs: []domainproduct.SKU{
+			{ID: "sku-1"},
+			{ID: "sku-2"},
+		},
+	}
+
+	got := controller.resolvePriceAlertStateByTrackedItem(req, detail)
+	if got == nil {
+		t.Fatal("resolvePriceAlertStateByTrackedItem() returned nil")
+	}
+	if !got.Enabled {
+		t.Fatalf("resolvePriceAlertStateByTrackedItem().Enabled = false, want true")
+	}
+	if got.Channel != "EMAIL" {
+		t.Fatalf("resolvePriceAlertStateByTrackedItem().Channel = %q, want EMAIL", got.Channel)
+	}
+}
+
 func TestResolveTrackedItemPriceAlertSKUID_UsesRequestedSKU(t *testing.T) {
 	detail := &domaintrackeditem.TrackedItemDetail{
 		TrackedItem: domaintrackeditem.TrackedItem{SKUID: "sku-selected"},
@@ -154,7 +196,7 @@ func TestController_RegisterRoutes_IncludesSKUPriceTrend(t *testing.T) {
 }
 
 func TestNewController_AssignsSnapshotService(t *testing.T) {
-	snapshotService := domainps.NewService(nil, nil)
+	snapshotService := domainps.NewService(nil)
 
 	controller := NewController(nil, nil, snapshotService, nil)
 
@@ -419,7 +461,7 @@ func newTestTrackedItemController(t *testing.T, trackedItemCurrency string) (*Co
 	controller := NewController(
 		trackedService,
 		domainsph.NewService(domainsph.NewFinder(historyRepo)),
-		domainps.NewService(nil, domainps.NewSKUSnapshotFinder(snapshotRepo)),
+		domainps.NewService(domainps.NewSKUSnapshotFinder(snapshotRepo)),
 		nil,
 	)
 	return controller, historyRepo, snapshotRepo

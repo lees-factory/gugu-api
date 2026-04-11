@@ -17,18 +17,6 @@ type PriceTrendResponse struct {
 	Points []PriceTrendPoint `json:"points"`
 }
 
-func NewProductPriceTrend(snapshots []domainps.ProductPriceSnapshot) PriceTrendResponse {
-	points := make([]PriceTrendPoint, 0, len(snapshots))
-	for _, s := range snapshots {
-		points = append(points, PriceTrendPoint{
-			Date:     s.SnapshotDate.Format(time.DateOnly),
-			Price:    s.Price,
-			Currency: s.Currency,
-		})
-	}
-	return PriceTrendResponse{Points: points}
-}
-
 func NewSKUPriceTrend(snapshots []domainps.SKUPriceSnapshot) PriceTrendResponse {
 	points := make([]PriceTrendPoint, 0, len(snapshots))
 	for _, s := range snapshots {
