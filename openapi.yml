@@ -964,20 +964,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-  /v1/tracked-items/{trackedItemID}/skus/{skuID}/price-alert:
+  /v1/skus/{skuID}/price-alert:
     get:
       tags:
-        - 유저 저장 상품
-      summary: Tracked Item SKU 가격 알림 상태 조회
-      description: 유저 저장 상품 문맥에서 경로의 SKU에 대한 가격 알림 상태를 조회한다.
-      operationId: getTrackedItemSKUPriceAlert
+        - 가격 알림
+      summary: SKU 가격 알림 상태 조회
+      description: 경로의 SKU에 대한 가격 알림 상태를 조회한다.
+      operationId: getSKUPriceAlert
       parameters:
-        - in: path
-          name: trackedItemID
-          required: true
-          schema:
-            type: string
-          description: 유저 저장 상품 ID
         - in: path
           name: skuID
           required: true
@@ -998,7 +992,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/TrackedItemPriceAlertResponse'
         '400':
-          description: sku_id가 현재 tracked item 상품에 속하지 않거나 요청이 잘못되었다.
+          description: sku_id가 누락되었거나 요청이 잘못되었다.
           content:
             application/json:
               schema:
@@ -1011,17 +1005,11 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
     post:
       tags:
-        - 유저 저장 상품
-      summary: Tracked Item SKU 가격 알림 등록
-      description: 유저 저장 상품 문맥에서 경로의 SKU 가격 알림을 등록한다. 이미 등록된 알림이 있으면 재활성화한다.
-      operationId: registerTrackedItemSKUPriceAlert
+        - 가격 알림
+      summary: SKU 가격 알림 등록
+      description: 경로의 SKU 가격 알림을 등록한다. 이미 등록된 알림이 있으면 재활성화한다.
+      operationId: registerSKUPriceAlert
       parameters:
-        - in: path
-          name: trackedItemID
-          required: true
-          schema:
-            type: string
-          description: 유저 저장 상품 ID
         - in: path
           name: skuID
           required: true
@@ -1052,7 +1040,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/TrackedItemPriceAlertResponse'
         '400':
-          description: sku_id가 현재 tracked item 상품에 속하지 않거나 요청이 잘못되었다.
+          description: sku_id가 누락되었거나 요청이 잘못되었다.
           content:
             application/json:
               schema:
@@ -1065,17 +1053,11 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
     delete:
       tags:
-        - 유저 저장 상품
-      summary: Tracked Item SKU 가격 알림 해제
-      description: 유저 저장 상품 문맥에서 경로의 SKU 가격 알림을 비활성화한다.
-      operationId: unregisterTrackedItemSKUPriceAlert
+        - 가격 알림
+      summary: SKU 가격 알림 해제
+      description: 경로의 SKU 가격 알림을 비활성화한다.
+      operationId: unregisterSKUPriceAlert
       parameters:
-        - in: path
-          name: trackedItemID
-          required: true
-          schema:
-            type: string
-          description: 유저 저장 상품 ID
         - in: path
           name: skuID
           required: true
@@ -1096,7 +1078,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
         '400':
-          description: sku_id가 현재 tracked item 상품에 속하지 않거나 요청이 잘못되었다.
+          description: sku_id가 누락되었거나 요청이 잘못되었다.
           content:
             application/json:
               schema:
