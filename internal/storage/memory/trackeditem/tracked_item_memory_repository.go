@@ -156,7 +156,3 @@ func (r *TrackedItemMemoryRepository) UpdateTrackingScope(_ context.Context, tra
 	r.byID[trackedItemID] = item
 	return nil
 }
-
-func (r *TrackedItemMemoryRepository) ReplaceWatchSKUs(_ context.Context, _ string, _ []string) error {
-	return nil
-}

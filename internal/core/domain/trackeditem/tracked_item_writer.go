@@ -8,7 +8,6 @@ type Writer interface {
 	UpdateSKU(ctx context.Context, trackedItemID string, userID string, skuID string) error
 	UpdatePreferredLanguage(ctx context.Context, trackedItemID string, userID string, preferredLanguage string) error
 	UpdateTrackingScope(ctx context.Context, trackedItemID string, userID string, trackingScope string) error
-	ReplaceWatchSKUs(ctx context.Context, trackedItemID string, skuIDs []string) error
 }
 
 type writer struct {
@@ -37,8 +36,4 @@ func (w *writer) UpdatePreferredLanguage(ctx context.Context, trackedItemID stri
 
 func (w *writer) UpdateTrackingScope(ctx context.Context, trackedItemID string, userID string, trackingScope string) error {
 	return w.repository.UpdateTrackingScope(ctx, trackedItemID, userID, trackingScope)
-}
-
-func (w *writer) ReplaceWatchSKUs(ctx context.Context, trackedItemID string, skuIDs []string) error {
-	return w.repository.ReplaceWatchSKUs(ctx, trackedItemID, skuIDs)
 }

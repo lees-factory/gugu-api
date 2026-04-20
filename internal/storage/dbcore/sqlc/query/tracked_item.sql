@@ -120,16 +120,3 @@ WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL;
 UPDATE gugu.user_tracked_item
 SET tracking_scope = $3
 WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL;
-
--- name: DeleteTrackedItemWatchSKUs :exec
-DELETE FROM gugu.user_tracked_item_watch_sku
-WHERE tracked_item_id = $1;
-
--- name: CreateTrackedItemWatchSKU :exec
-INSERT INTO gugu.user_tracked_item_watch_sku (
-    tracked_item_id,
-    sku_id
-) VALUES (
-    $1, $2
-)
-ON CONFLICT (tracked_item_id, sku_id) DO NOTHING;

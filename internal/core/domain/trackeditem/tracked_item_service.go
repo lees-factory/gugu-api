@@ -387,17 +387,12 @@ func (s *Service) SelectSKU(ctx context.Context, trackedItemID string, userID st
 	}
 
 	scope := "PRODUCT_ALL_SKU"
-	watchSKUs := []string{}
 	if skuID != "" {
 		scope = "SELECTED_SKU_ONLY"
-		watchSKUs = []string{skuID}
 	}
 
 	if err := s.writer.UpdateTrackingScope(ctx, found.ID, found.UserID, scope); err != nil {
 		return fmt.Errorf("update tracked item tracking scope: %w", err)
-	}
-	if err := s.writer.ReplaceWatchSKUs(ctx, found.ID, watchSKUs); err != nil {
-		return fmt.Errorf("replace tracked item watch skus: %w", err)
 	}
 
 	return nil

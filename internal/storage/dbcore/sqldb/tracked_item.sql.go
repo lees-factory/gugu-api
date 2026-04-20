@@ -57,26 +57,6 @@ func (q *Queries) CreateTrackedItem(ctx context.Context, arg CreateTrackedItemPa
 	return err
 }
 
-const createTrackedItemWatchSKU = `-- name: CreateTrackedItemWatchSKU :exec
-INSERT INTO gugu.user_tracked_item_watch_sku (
-    tracked_item_id,
-    sku_id
-) VALUES (
-    $1, $2
-)
-ON CONFLICT (tracked_item_id, sku_id) DO NOTHING
-`
-
-type CreateTrackedItemWatchSKUParams struct {
-	TrackedItemID string `json:"tracked_item_id"`
-	SkuID         string `json:"sku_id"`
-}
-
-func (q *Queries) CreateTrackedItemWatchSKU(ctx context.Context, arg CreateTrackedItemWatchSKUParams) error {
-	_, err := q.db.ExecContext(ctx, createTrackedItemWatchSKU, arg.TrackedItemID, arg.SkuID)
-	return err
-}
-
 const deleteTrackedItemByIDAndUserID = `-- name: DeleteTrackedItemByIDAndUserID :execrows
 UPDATE gugu.user_tracked_item
 SET deleted_at = NOW()
@@ -94,16 +74,6 @@ func (q *Queries) DeleteTrackedItemByIDAndUserID(ctx context.Context, arg Delete
 		return 0, err
 	}
 	return result.RowsAffected()
-}
-
-const deleteTrackedItemWatchSKUs = `-- name: DeleteTrackedItemWatchSKUs :exec
-DELETE FROM gugu.user_tracked_item_watch_sku
-WHERE tracked_item_id = $1
-`
-
-func (q *Queries) DeleteTrackedItemWatchSKUs(ctx context.Context, trackedItemID string) error {
-	_, err := q.db.ExecContext(ctx, deleteTrackedItemWatchSKUs, trackedItemID)
-	return err
 }
 
 const findTrackedItemByIDAndUserID = `-- name: FindTrackedItemByIDAndUserID :one

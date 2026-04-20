@@ -46,14 +46,16 @@ func (c *Controller) RegisterRoutes(r chi.Router) {
 		r.Get("/", apiadvice.Wrap(c.List))
 		r.Post("/", apiadvice.Wrap(c.Add))
 		r.Get("/{trackedItemID}", apiadvice.Wrap(c.GetDetail))
-		r.Get("/{trackedItemID}/skus/{skuID}/price-alert", apiadvice.Wrap(c.GetPriceAlert))
-		r.Post("/{trackedItemID}/skus/{skuID}/price-alert", apiadvice.Wrap(c.RegisterPriceAlert))
-		r.Delete("/{trackedItemID}/skus/{skuID}/price-alert", apiadvice.Wrap(c.UnregisterPriceAlert))
 		r.Delete("/{trackedItemID}", apiadvice.Wrap(c.Delete))
 		r.Patch("/{trackedItemID}/sku", apiadvice.Wrap(c.SelectSKU))
 		r.Patch("/{trackedItemID}/language", apiadvice.Wrap(c.UpdateLanguage))
 		r.Get("/{trackedItemID}/sku-price-histories", apiadvice.Wrap(c.GetSKUPriceHistories))
 		r.Get("/{trackedItemID}/sku-price-trend", apiadvice.Wrap(c.GetSKUPriceTrend))
+	})
+	r.Route("/v1/skus", func(r chi.Router) {
+		r.Get("/{skuID}/price-alert", apiadvice.Wrap(c.GetPriceAlert))
+		r.Post("/{skuID}/price-alert", apiadvice.Wrap(c.RegisterPriceAlert))
+		r.Delete("/{skuID}/price-alert", apiadvice.Wrap(c.UnregisterPriceAlert))
 	})
 }
 
@@ -199,17 +201,12 @@ func (c *Controller) GetSKUPriceTrend(r *stdhttp.Request) (int, any, error) {
 func (c *Controller) GetPriceAlert(r *stdhttp.Request) (int, any, error) {
 	req := request.ParseGetTrackedItemPriceAlert(r)
 
-	detail, err := c.trackedItemService.GetDetail(r.Context(), req.TrackedItemID, req.User.ID)
-	if err != nil {
-		return 0, nil, err
+	skuID := strings.TrimSpace(req.SKUID)
+	if skuID == "" {
+		return stdhttp.StatusBadRequest, nil, coreerror.New(coreerror.SKUIDRequired)
 	}
 
-	skuID, err := resolveTrackedItemPriceAlertSKUID(detail, req.SKUID, true)
-	if err != nil {
-		return 0, nil, err
-	}
-
-	alertState := c.resolvePriceAlertStateBySKUID(r, detail.TrackedItem.UserID, skuID)
+	alertState := c.resolvePriceAlertStateBySKUID(r, req.User.ID, skuID)
 	return stdhttp.StatusOK, apiresponse.SuccessWithData(*alertState), nil
 }
 
@@ -219,22 +216,18 @@ func (c *Controller) RegisterPriceAlert(r *stdhttp.Request) (int, any, error) {
 		return stdhttp.StatusBadRequest, nil, err
 	}
 
-	detail, err := c.trackedItemService.GetDetail(r.Context(), req.TrackedItemID, req.User.ID)
-	if err != nil {
-		return 0, nil, err
+	skuID := strings.TrimSpace(req.SKUID)
+	if skuID == "" {
+		return stdhttp.StatusBadRequest, nil, coreerror.New(coreerror.SKUIDRequired)
 	}
-
-	skuID, err := resolveTrackedItemPriceAlertSKUID(detail, req.SKUID, true)
-	if err != nil {
-		return 0, nil, err
+	if c.priceAlertService == nil {
+		return 0, nil, fmt.Errorf("price alert service is not configured")
 	}
 
 	alert, err := c.priceAlertService.Register(r.Context(), req.User.ID, skuID, req.Channel)
 	if err != nil {
 		return 0, nil, err
 	}
-	// 등록된 SKU를 tracked item 기본 선택값으로 동기화해 조회 일관성을 맞춘다.
-	_ = c.trackedItemService.SelectSKU(r.Context(), req.TrackedItemID, req.User.ID, skuID)
 
 	return stdhttp.StatusCreated, apiresponse.SuccessWithData(response.NewPriceAlertState(alert)), nil
 }
@@ -242,14 +235,12 @@ func (c *Controller) RegisterPriceAlert(r *stdhttp.Request) (int, any, error) {
 func (c *Controller) UnregisterPriceAlert(r *stdhttp.Request) (int, any, error) {
 	req := request.ParseUnregisterTrackedItemPriceAlert(r)
 
-	detail, err := c.trackedItemService.GetDetail(r.Context(), req.TrackedItemID, req.User.ID)
-	if err != nil {
-		return 0, nil, err
+	skuID := strings.TrimSpace(req.SKUID)
+	if skuID == "" {
+		return stdhttp.StatusBadRequest, nil, coreerror.New(coreerror.SKUIDRequired)
 	}
-
-	skuID, err := resolveTrackedItemPriceAlertSKUID(detail, req.SKUID, true)
-	if err != nil {
-		return 0, nil, err
+	if c.priceAlertService == nil {
+		return 0, nil, fmt.Errorf("price alert service is not configured")
 	}
 
 	if err := c.priceAlertService.Unregister(r.Context(), req.User.ID, skuID); err != nil {

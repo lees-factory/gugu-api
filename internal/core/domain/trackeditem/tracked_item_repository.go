@@ -16,5 +16,4 @@ type Repository interface {
 	UpdateSKU(ctx context.Context, trackedItemID string, userID string, skuID string) error
 	UpdatePreferredLanguage(ctx context.Context, trackedItemID string, userID string, preferredLanguage string) error
 	UpdateTrackingScope(ctx context.Context, trackedItemID string, userID string, trackingScope string) error
-	ReplaceWatchSKUs(ctx context.Context, trackedItemID string, skuIDs []string) error
 }

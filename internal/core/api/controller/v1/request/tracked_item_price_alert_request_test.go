@@ -11,10 +11,9 @@ import (
 )
 
 func TestParseGetTrackedItemPriceAlert_PrefersPathSKUID(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/v1/tracked-items/tracked-1/skus/sku-path/price-alert?sku_id=sku-query", nil)
+	req := httptest.NewRequest(http.MethodGet, "/v1/skus/sku-path/price-alert?sku_id=sku-query", nil)
 	req = withRouteParams(req, map[string]string{
-		"trackedItemID": "tracked-1",
-		"skuID":         "sku-path",
+		"skuID": "sku-path",
 	})
 
 	parsed := ParseGetTrackedItemPriceAlert(req)
@@ -24,10 +23,9 @@ func TestParseGetTrackedItemPriceAlert_PrefersPathSKUID(t *testing.T) {
 }
 
 func TestParseRegisterTrackedItemPriceAlert_AllowsEmptyBodyWithPathSKUID(t *testing.T) {
-	req := httptest.NewRequest(http.MethodPost, "/v1/tracked-items/tracked-1/skus/sku-path/price-alert", strings.NewReader(""))
+	req := httptest.NewRequest(http.MethodPost, "/v1/skus/sku-path/price-alert", strings.NewReader(""))
 	req = withRouteParams(req, map[string]string{
-		"trackedItemID": "tracked-1",
-		"skuID":         "sku-path",
+		"skuID": "sku-path",
 	})
 
 	parsed, err := ParseRegisterTrackedItemPriceAlert(req)
@@ -43,10 +41,7 @@ func TestParseRegisterTrackedItemPriceAlert_AllowsEmptyBodyWithPathSKUID(t *test
 }
 
 func TestParseUnregisterTrackedItemPriceAlert_UsesQueryFallback(t *testing.T) {
-	req := httptest.NewRequest(http.MethodDelete, "/v1/tracked-items/tracked-1/price-alert?sku_id=sku-query", nil)
-	req = withRouteParams(req, map[string]string{
-		"trackedItemID": "tracked-1",
-	})
+	req := httptest.NewRequest(http.MethodDelete, "/v1/skus/price-alert?sku_id=sku-query", nil)
 
 	parsed := ParseUnregisterTrackedItemPriceAlert(req)
 	if parsed.SKUID != "sku-query" {
@@ -62,4 +57,3 @@ func withRouteParams(req *http.Request, params map[string]string) *http.Request 
 	ctx := context.WithValue(req.Context(), chi.RouteCtxKey, routeCtx)
 	return req.WithContext(ctx)
 }
-

@@ -144,9 +144,3 @@ type GuguUserTrackedItem struct {
 	DeletedAt             sql.NullTime   `json:"deleted_at"`
 	CreatedAt             time.Time      `json:"created_at"`
 }
-
-type GuguUserTrackedItemWatchSku struct {
-	TrackedItemID string    `json:"tracked_item_id"`
-	SkuID         string    `json:"sku_id"`
-	CreatedAt     time.Time `json:"created_at"`
-}

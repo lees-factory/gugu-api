@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"time"
 
 	domaintrackeditem "github.com/ljj/gugu-api/internal/core/domain/trackeditem"
@@ -166,24 +165,6 @@ func (r *TrackedItemSQLCRepository) UpdateTrackingScope(ctx context.Context, tra
 	}
 	if affected == 0 {
 		return sql.ErrNoRows
-	}
-	return nil
-}
-
-func (r *TrackedItemSQLCRepository) ReplaceWatchSKUs(ctx context.Context, trackedItemID string, skuIDs []string) error {
-	if err := r.queries.DeleteTrackedItemWatchSKUs(ctx, trackedItemID); err != nil {
-		return fmt.Errorf("delete tracked item watch skus: %w", err)
-	}
-	for _, skuID := range skuIDs {
-		if skuID == "" {
-			continue
-		}
-		if err := r.queries.CreateTrackedItemWatchSKU(ctx, sqldb.CreateTrackedItemWatchSKUParams{
-			TrackedItemID: trackedItemID,
-			SkuID:         skuID,
-		}); err != nil {
-			return fmt.Errorf("create tracked item watch sku: %w", err)
-		}
 	}
 	return nil
 }

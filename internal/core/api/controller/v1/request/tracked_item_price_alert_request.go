@@ -12,24 +12,21 @@ import (
 )
 
 type GetTrackedItemPriceAlert struct {
-	User          auth.RequestUser
-	TrackedItemID string
-	SKUID         string
+	User  auth.RequestUser
+	SKUID string
 }
 
 func ParseGetTrackedItemPriceAlert(r *http.Request) GetTrackedItemPriceAlert {
 	return GetTrackedItemPriceAlert{
-		User:          auth.RequestUserFrom(r.Context()),
-		TrackedItemID: strings.TrimSpace(chi.URLParam(r, "trackedItemID")),
-		SKUID:         resolveSKUID(chi.URLParam(r, "skuID"), r.URL.Query().Get("sku_id")),
+		User:  auth.RequestUserFrom(r.Context()),
+		SKUID: resolveSKUID(chi.URLParam(r, "skuID"), r.URL.Query().Get("sku_id")),
 	}
 }
 
 type RegisterTrackedItemPriceAlert struct {
-	User          auth.RequestUser
-	TrackedItemID string
-	SKUID         string
-	Channel       string
+	User    auth.RequestUser
+	SKUID   string
+	Channel string
 }
 
 func ParseRegisterTrackedItemPriceAlert(r *http.Request) (RegisterTrackedItemPriceAlert, error) {
@@ -43,24 +40,21 @@ func ParseRegisterTrackedItemPriceAlert(r *http.Request) (RegisterTrackedItemPri
 
 	pathSKUID := strings.TrimSpace(chi.URLParam(r, "skuID"))
 	return RegisterTrackedItemPriceAlert{
-		User:          auth.RequestUserFrom(r.Context()),
-		TrackedItemID: strings.TrimSpace(chi.URLParam(r, "trackedItemID")),
-		SKUID:         resolveSKUID(pathSKUID, body.SKUID),
-		Channel:       strings.TrimSpace(body.Channel),
+		User:    auth.RequestUserFrom(r.Context()),
+		SKUID:   resolveSKUID(pathSKUID, body.SKUID),
+		Channel: strings.TrimSpace(body.Channel),
 	}, nil
 }
 
 type UnregisterTrackedItemPriceAlert struct {
-	User          auth.RequestUser
-	TrackedItemID string
-	SKUID         string
+	User  auth.RequestUser
+	SKUID string
 }
 
 func ParseUnregisterTrackedItemPriceAlert(r *http.Request) UnregisterTrackedItemPriceAlert {
 	return UnregisterTrackedItemPriceAlert{
-		User:          auth.RequestUserFrom(r.Context()),
-		TrackedItemID: strings.TrimSpace(chi.URLParam(r, "trackedItemID")),
-		SKUID:         resolveSKUID(chi.URLParam(r, "skuID"), r.URL.Query().Get("sku_id")),
+		User:  auth.RequestUserFrom(r.Context()),
+		SKUID: resolveSKUID(chi.URLParam(r, "skuID"), r.URL.Query().Get("sku_id")),
 	}
 }
 

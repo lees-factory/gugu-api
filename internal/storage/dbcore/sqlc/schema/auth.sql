@@ -130,13 +130,6 @@ CREATE TABLE IF NOT EXISTS gugu.sku (
 
 CREATE INDEX IF NOT EXISTS idx_product_sku_product_id ON gugu.sku(product_id);
 
-CREATE TABLE IF NOT EXISTS gugu.user_tracked_item_watch_sku (
-    tracked_item_id TEXT NOT NULL REFERENCES gugu.user_tracked_item(id),
-    sku_id TEXT NOT NULL REFERENCES gugu.sku(id),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    PRIMARY KEY (tracked_item_id, sku_id)
-);
-
 CREATE TABLE IF NOT EXISTS gugu.sku_price_history (
     sku_id TEXT NOT NULL REFERENCES gugu.sku(id),
     recorded_at TIMESTAMPTZ NOT NULL,
