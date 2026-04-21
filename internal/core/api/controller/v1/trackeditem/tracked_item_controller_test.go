@@ -91,6 +91,37 @@ func TestResolvePriceAlertStateBySKUID_ReturnsStoredAlert(t *testing.T) {
 	}
 }
 
+func TestResolvePriceAlertStateBySKUID_ReturnsDisabledForDifferentSKU(t *testing.T) {
+	repo := memorypricealert.NewRepository()
+	service := domainpricealert.NewService(
+		domainpricealert.NewFinder(repo),
+		repo,
+		testAlertIDGenerator{},
+		testAlertClock{},
+	)
+	if _, err := service.Register(context.Background(), "user-1", "sku-1", "EMAIL"); err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+
+	controller := &Controller{priceAlertService: service}
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "/v1/skus/sku-2/price-alert", nil)
+	if err != nil {
+		t.Fatalf("http.NewRequestWithContext() error = %v", err)
+	}
+
+	got := controller.resolvePriceAlertStateBySKUID(req, "user-1", "sku-2")
+
+	if got == nil {
+		t.Fatal("resolvePriceAlertStateBySKUID() returned nil")
+	}
+	if got.Enabled {
+		t.Fatalf("resolvePriceAlertStateBySKUID().Enabled = true, want false for different sku")
+	}
+	if got.Channel != "" {
+		t.Fatalf("resolvePriceAlertStateBySKUID().Channel = %q, want empty for different sku", got.Channel)
+	}
+}
+
 func TestResolveTrackedItemPriceAlertSKUID_UsesRequestedSKU(t *testing.T) {
 	detail := &domaintrackeditem.TrackedItemDetail{
 		TrackedItem: domaintrackeditem.TrackedItem{SKUID: "sku-selected"},
@@ -347,6 +378,52 @@ func TestGetDetail_FallsBackToLatestSKUSnapshotPrice(t *testing.T) {
 	if len(resp.Data.SKUs) == 0 || resp.Data.SKUs[0].CurrentPrice != "15650" {
 		t.Fatalf("GetDetail() skus[0].current_price = %q, want 15650", firstSKUCurrentPrice(resp.Data.SKUs))
 	}
+	if len(resp.Data.SKUs) == 0 || resp.Data.SKUs[0].PriceAlert == nil || resp.Data.SKUs[0].PriceAlert.Enabled {
+		t.Fatalf("GetDetail() skus[0].price_alert.enabled = %v, want false", firstSKUPriceAlertEnabled(resp.Data.SKUs))
+	}
+}
+
+func TestGetDetail_IncludesSKUPriceAlertState(t *testing.T) {
+	controller, _, _ := newTestTrackedItemController(t, "KRW")
+
+	alertRepo := memorypricealert.NewRepository()
+	alertService := domainpricealert.NewService(
+		domainpricealert.NewFinder(alertRepo),
+		alertRepo,
+		testAlertIDGenerator{},
+		testAlertClock{},
+	)
+	if _, err := alertService.Register(context.Background(), "", "sku-1", "EMAIL"); err != nil {
+		t.Fatalf("Register() error = %v", err)
+	}
+	controller.priceAlertService = alertService
+
+	req := newTrackedItemRequest(t, http.MethodGet, "/v1/tracked-items/tracked-1", "tracked-1")
+
+	status, body, err := controller.GetDetail(req)
+	if err != nil {
+		t.Fatalf("GetDetail() error = %v", err)
+	}
+	if status != http.StatusOK {
+		t.Fatalf("GetDetail() status = %d, want 200", status)
+	}
+
+	resp, ok := body.(apiresponse.APIResponse[response.TrackedItemDetail])
+	if !ok {
+		t.Fatalf("GetDetail() body type = %T", body)
+	}
+	if resp.Data == nil {
+		t.Fatal("GetDetail() returned nil data")
+	}
+	if len(resp.Data.SKUs) == 0 || resp.Data.SKUs[0].PriceAlert == nil {
+		t.Fatal("GetDetail() skus[0].price_alert is nil")
+	}
+	if !resp.Data.SKUs[0].PriceAlert.Enabled {
+		t.Fatalf("GetDetail() skus[0].price_alert.enabled = false, want true")
+	}
+	if resp.Data.SKUs[0].PriceAlert.Channel != "EMAIL" {
+		t.Fatalf("GetDetail() skus[0].price_alert.channel = %q, want EMAIL", resp.Data.SKUs[0].PriceAlert.Channel)
+	}
 }
 
 func firstSKUCurrentPrice(skus []response.ProductSKU) string {
@@ -354,6 +431,13 @@ func firstSKUCurrentPrice(skus []response.ProductSKU) string {
 		return ""
 	}
 	return skus[0].CurrentPrice
+}
+
+func firstSKUPriceAlertEnabled(skus []response.ProductSKU) bool {
+	if len(skus) == 0 || skus[0].PriceAlert == nil {
+		return false
+	}
+	return skus[0].PriceAlert.Enabled
 }
 
 func newTestTrackedItemController(t *testing.T, trackedItemCurrency string) (*Controller, *memoryskupricehistory.MemoryRepository, *memorypricesnapshot.SKUSnapshotMemoryRepository) {

@@ -97,6 +97,8 @@ func (c *Controller) GetDetail(r *stdhttp.Request) (int, any, error) {
 	skuCurrentSnapshots := c.resolveTrackedItemSKUCurrentSnapshots(r.Context(), detail)
 	currentPrice := resolveTrackedItemCurrentPrice(detail, skuCurrentSnapshots)
 	skus := response.NewProductSKUsWithCurrentPrice(detail.SKUs, skuCurrentSnapshots)
+	alertBySKUID := c.resolvePriceAlertStatesBySKUID(r.Context(), req.User.ID, detail.SKUs)
+	skus = response.AttachPriceAlertsToProductSKUs(skus, alertBySKUID)
 
 	return stdhttp.StatusOK, apiresponse.SuccessWithData(
 		response.NewTrackedItemDetail(detail, currentPrice, skus),
@@ -294,6 +296,44 @@ func (c *Controller) resolvePriceAlertStateBySKUID(r *stdhttp.Request, userID st
 	}
 	state := response.NewPriceAlertState(alert)
 	return &state
+}
+
+func (c *Controller) resolvePriceAlertStatesBySKUID(ctx context.Context, userID string, skus []domainproduct.SKU) map[string]response.PriceAlertState {
+	states := make(map[string]response.PriceAlertState, len(skus))
+	if c.priceAlertService == nil || len(skus) == 0 {
+		return states
+	}
+
+	requestedSKUIDs := make(map[string]struct{}, len(skus))
+	for _, sku := range skus {
+		skuID := strings.TrimSpace(sku.ID)
+		if skuID == "" {
+			continue
+		}
+		requestedSKUIDs[skuID] = struct{}{}
+	}
+	if len(requestedSKUIDs) == 0 {
+		return states
+	}
+
+	alerts, err := c.priceAlertService.ListByUserID(ctx, strings.TrimSpace(userID))
+	if err != nil {
+		return states
+	}
+
+	for _, alert := range alerts {
+		skuID := strings.TrimSpace(alert.SKUID)
+		if _, ok := requestedSKUIDs[skuID]; !ok {
+			continue
+		}
+		if _, exists := states[skuID]; exists {
+			continue
+		}
+		alertCopy := alert
+		states[skuID] = response.NewPriceAlertState(&alertCopy)
+	}
+
+	return states
 }
 
 func containsSKUID(skus []domainproduct.SKU, skuID string) bool {

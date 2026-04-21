@@ -2188,7 +2188,7 @@ components:
           description: Affiliate 프로모션 링크. 빈 값이면 product_url 사용.
     TrackedItemDetailData:
       type: object
-      description: 유저 저장 상품 상세 데이터. `title`, `main_image_url`, `product_url`는 tracked item currency 기준 variant 우선, 없으면 product fallback 이다. `current_price`와 `skus[].current_price`는 선택 통화 기준 SKU snapshot 기반 현재 표시 가격이다.
+      description: 유저 저장 상품 상세 데이터. `title`, `main_image_url`, `product_url`는 tracked item currency 기준 variant 우선, 없으면 product fallback 이다. `current_price`와 `skus[].current_price`는 선택 통화 기준 SKU snapshot 기반 현재 표시 가격이다. `skus[].price_alert`는 해당 SKU의 알림 상태다.
       required:
         - tracked_item_id
         - product_id
@@ -2591,6 +2591,8 @@ components:
         sku_properties:
           type: string
           description: 'SKU 속성 JSON 문자열 예: [{"색상":"000000","크기":"XXXL"}]'
+        price_alert:
+          $ref: '#/components/schemas/PriceAlertStateData'
     HotProductItem:
       type: object
       description: 인기 상품 항목. `title`, `main_image_url`, `currency`, `product_url`는 요청 language의 variant 우선, 없으면 product fallback 이다.

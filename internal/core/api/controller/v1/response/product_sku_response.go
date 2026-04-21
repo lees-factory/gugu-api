@@ -19,6 +19,7 @@ type ProductSKU struct {
 	Currency      string `json:"currency"`
 	ImageURL      string `json:"image_url"`
 	SKUProperties string `json:"sku_properties,omitempty"`
+	PriceAlert    *PriceAlertState `json:"price_alert,omitempty"`
 }
 
 type SKUCurrentSnapshot struct {
@@ -55,4 +56,21 @@ func newProductSKU(sku domainproduct.SKU) ProductSKU {
 		ImageURL:      sku.ImageURL,
 		SKUProperties: sku.SKUProperties,
 	}
+}
+
+func AttachPriceAlertsToProductSKUs(skus []ProductSKU, alertBySKUID map[string]PriceAlertState) []ProductSKU {
+	result := make([]ProductSKU, len(skus))
+	copy(result, skus)
+
+	for i := range result {
+		skuID := strings.TrimSpace(result[i].ID)
+		state, ok := alertBySKUID[skuID]
+		if !ok {
+			state = PriceAlertState{Enabled: false}
+		}
+		stateCopy := state
+		result[i].PriceAlert = &stateCopy
+	}
+
+	return result
 }
